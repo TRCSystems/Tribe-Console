@@ -35,7 +35,7 @@ export default defineConfig(({ mode }) => {
 			port: 8085,
 			proxy: {
 				"/api": {
-					target: "http://38.242.155.236:8080", // Updated backend URL
+					target: "http://38.242.155.236:8080",
 					changeOrigin: true,
 					rewrite: (path) => path.replace(/^\/api/, ""),
 					secure: false,
