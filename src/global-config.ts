@@ -1,4 +1,4 @@
-// src/global-config.ts - UPDATED VERSION
+// src/global-config.ts - FIXED VERSION
 import packageJson from "../package.json";
 
 /**
@@ -35,8 +35,8 @@ export const GLOBAL_CONFIG: GlobalConfig = {
 	appVersion: packageJson.version,
 	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench",
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",
-	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || "/api",
+	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || "/api", // Use proxy in development
 	routerMode: import.meta.env.VITE_APP_ROUTER_MODE || "frontend",
 	loyaltyEngineUrl: import.meta.env.VITE_APP_LOYALTY_ENGINE_URL || "http://38.242.155.236:8085",
-	loyaltyApiBaseUrl: import.meta.env.VITE_APP_LOYALTY_API_BASE_URL || "http://38.242.155.236:8085",
+	loyaltyApiBaseUrl: import.meta.env.VITE_APP_LOYALTY_API_BASE_URL || "/api", // FIXED: Use proxy in development
 };

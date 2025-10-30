@@ -1,4 +1,4 @@
-// src/pages/dashboard/workbench/index.tsx - UPDATED (KEEPS ALL UI)
+// src/pages/dashboard/workbench/index.tsx - FIXED VERSION
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -165,9 +165,9 @@ export default function Workbench() {
 	// Campaign team members
 	const campaignTeam = [
 		{ avatar: avatar3, name: "Ronald Musula", role: "Campaign Manager" },
-		{ avatar: avatar2, name: "_________", role: "Content Creator" },
+		{ avatar: avatar2, name: "Macharia Dan", role: "Backend Dev" },
 		{ avatar: avatar3, name: "_________", role: "Analytics" },
-		{ avatar: avatar4, name: "Marcellas Dan", role: "Designer" },
+		{ avatar: avatar4, name: "Marcellas Dan", role: "Frontend Dev" },
 		{ avatar: avatar5, name: "_________", role: "Developer" },
 	];
 
@@ -268,7 +268,7 @@ export default function Workbench() {
 			<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
 				{quickStats.map((stat, index) => (
 					<Card
-						key={stat.label}
+						key={`quickstat-${stat.label}-${index}`}
 						className="flex flex-col justify-between h-full relative overflow-hidden group hover:shadow-lg transition-all duration-300 cursor-pointer border-0 bg-gradient-to-br from-slate-50 to-white dark:from-slate-800 dark:to-slate-900"
 					>
 						{/* Animated background effect */}
@@ -381,8 +381,8 @@ export default function Workbench() {
 					</div>
 
 					<div className="space-y-4">
-						{activeCampaigns.map((campaign) => (
-							<div key={campaign.label} className="space-y-3">
+						{activeCampaigns.map((campaign, index) => (
+							<div key={`active-${campaign.label}-${index}`} className="space-y-3">
 								<div className="flex items-center justify-between">
 									<Text variant="body2" className="font-medium">
 										{campaign.label}
@@ -501,9 +501,9 @@ export default function Workbench() {
 					</div>
 
 					<div className="flex flex-col gap-3 w-full">
-						{campaignTeam.map((member) => (
+						{campaignTeam.map((member, index) => (
 							<div
-								key={member.name}
+								key={`team-${member.name}-${index}`}
 								className="flex items-center gap-3 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors duration-200"
 							>
 								<Avatar className="w-10 h-10 rounded-lg">
@@ -549,7 +549,7 @@ export default function Workbench() {
 						<div className="flex gap-2 ml-auto">
 							{["All Campaigns", "Alerts", "Success"].map((tab) => (
 								<Button
-									key={tab}
+									key={`tab-${tab}`}
 									size="sm"
 									variant={activeTab === tab ? "default" : "ghost"}
 									onClick={() => setActiveTab(tab)}
@@ -564,7 +564,7 @@ export default function Workbench() {
 					<div className="flex-1 space-y-4">
 						{recentActivities.map((activity) => (
 							<div
-								key={activity.id}
+								key={`activity-${activity.id}`}
 								className="flex items-center gap-4 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 transition-all duration-200 group/item"
 							>
 								<div
@@ -627,7 +627,7 @@ export default function Workbench() {
 						<div className="w-full mt-6 space-y-3">
 							{channelPerformance.details.map((item, i) => (
 								<div
-									key={item.label}
+									key={`channel-${item.label}-${i}`}
 									className="flex items-center justify-between group/item hover:bg-slate-50 dark:hover:bg-slate-800 p-2 rounded-lg transition-colors duration-200"
 								>
 									<div className="flex items-center gap-3">

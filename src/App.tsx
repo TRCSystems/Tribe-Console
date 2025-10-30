@@ -1,8 +1,11 @@
+//[file name]: App.tsx
+//[file content begin]
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { Helmet, HelmetProvider } from "react-helmet-async";
 import Logo from "@/assets/icons/ic-logo-badge.svg";
 import { MotionLazy } from "./components/animate/motion-lazy";
+import { DebugAuth } from "./components/debug/debug-auth";
 import { RouteLoadingProgress } from "./components/loading";
 import Toast from "./components/toast";
 import { GLOBAL_CONFIG } from "./global-config";
@@ -21,6 +24,8 @@ function App({ children }: { children: React.ReactNode }) {
 					</Helmet>
 					<Toast />
 					<RouteLoadingProgress />
+					{/* Debug component - remove after fixing auth issues */}
+					{import.meta.env.DEV && <DebugAuth />}
 					<MotionLazy>{children}</MotionLazy>
 				</ThemeProvider>
 			</QueryClientProvider>
@@ -29,3 +34,4 @@ function App({ children }: { children: React.ReactNode }) {
 }
 
 export default App;
+//[file content end]

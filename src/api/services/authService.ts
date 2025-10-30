@@ -1,23 +1,11 @@
-// src/api/services/authService.ts
+// src/api/services/authService.ts - UPDATED TO AVOID DUPLICATION
 import { loyaltyApiClient } from "../apiClient";
 
-export interface LoyaltyLoginRequest {
-	username: string;
-	password: string;
-}
+// Re-export types from userService for consistency
+export type { SignInReq as LoyaltyLoginRequest, SignInRes as LoyaltyLoginResponse } from "./userService";
 
-export interface LoyaltyLoginResponse {
-	accessToken: string;
-	refreshToken?: string;
-	user: {
-		id: string;
-		username: string;
-		role: string;
-	};
-}
-
-const loyaltyLogin = (data: LoyaltyLoginRequest) =>
-	loyaltyApiClient.post<LoyaltyLoginResponse>({ url: "/login", data });
+// Use the same endpoints as userService
+const loyaltyLogin = (data: any) => loyaltyApiClient.post({ url: "/login", data });
 
 export default {
 	loyaltyLogin,

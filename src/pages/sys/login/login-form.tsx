@@ -1,14 +1,15 @@
+//[file name]: login-form.tsx
+//[file content begin]
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
-import { DB_USER } from "@/_mock/assets_backup";
 import type { SignInReq } from "@/api/services/userService";
 import { Icon } from "@/components/icon";
 import { GLOBAL_CONFIG } from "@/global-config";
-import { useSignIn } from "@/store/userStore";
+import { useSignIn, useUserActions } from "@/store/userStore";
 import { Button } from "@/ui/button";
 import { Checkbox } from "@/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/ui/form";
@@ -20,16 +21,16 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 	const { t } = useTranslation();
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState(true);
-	const navigatge = useNavigate();
+	const navigate = useNavigate();
 
 	const { loginState, setLoginState } = useLoginStateContext();
 	const signIn = useSignIn();
+	const { setUserToken, setUserInfo } = useUserActions();
 
-	// FIXED: Remove pre-filled credentials for security
 	const form = useForm<SignInReq>({
 		defaultValues: {
-			username: "", // Empty for security
-			password: "", // Empty for security
+			username: "",
+			password: "",
 		},
 	});
 
@@ -37,12 +38,67 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 	const handleFinish = async (values: SignInReq) => {
 		setLoading(true);
+
 		try {
-			await signIn(values);
-			navigatge(GLOBAL_CONFIG.defaultRoute, { replace: true });
-			toast.success(t("sys.login.loginSuccessTitle"), {
-				closeButton: true,
+			console.log("🔐 Starting login process...");
+
+			// Call the signIn function - should now get the full response
+			const response = await signIn(values);
+			console.log("📦 Full Login API response:", response);
+
+			// The response should now be: {status: '200', message: 'success', respObject: {key: 'jwt', value: 'token'}}
+			const accessToken = response.respObject?.value;
+
+			console.log("🔑 Extracted JWT token:", accessToken ? "***" + accessToken.slice(-8) : "none");
+			console.log("📋 Response structure:", {
+				status: response.status,
+				message: response.message,
+				hasRespObject: !!response.respObject,
+				respObjectKeys: response.respObject ? Object.keys(response.respObject) : "none",
 			});
+
+			if (!accessToken) {
+				console.error("❌ No JWT token found in response. Full response:", response);
+				toast.error("Login failed: No authentication token received");
+				return;
+			}
+
+			// Set token in store
+			setUserToken({
+				accessToken: accessToken,
+				refreshToken: "", // Your API doesn't provide refresh token
+			});
+
+			// Set basic user info
+			setUserInfo({
+				username: values.username,
+			});
+
+			// Wait for state persistence
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Verify storage
+			const storedData = localStorage.getItem("userStore");
+			console.log("💾 Stored data in localStorage:", storedData);
+
+			if (storedData) {
+				const parsed = JSON.parse(storedData);
+				const storedToken = parsed.state?.userToken?.accessToken;
+
+				if (storedToken) {
+					console.log("✅ Login successful! Token stored. Redirecting to:", GLOBAL_CONFIG.defaultRoute);
+					navigate(GLOBAL_CONFIG.defaultRoute, { replace: true });
+					toast.success(t("sys.login.loginSuccessTitle"));
+				} else {
+					console.error("❌ Token not found in stored state. Parsed state:", parsed);
+					toast.error("Login failed: Token not saved to storage");
+				}
+			} else {
+				console.error("❌ userStore not found in localStorage");
+				toast.error("Login failed: Authentication data not saved");
+			}
+		} catch (error) {
+			console.error("💥 Login error:", error);
 		} finally {
 			setLoading(false);
 		}
@@ -65,7 +121,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 							<FormItem>
 								<FormLabel>{t("sys.login.userName")}</FormLabel>
 								<FormControl>
-									{/* FIXED: Use generic placeholder instead of showing actual usernames */}
 									<Input placeholder={t("sys.login.accountPlaceholder")} {...field} />
 								</FormControl>
 								<FormMessage />
@@ -81,7 +136,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 							<FormItem>
 								<FormLabel>{t("sys.login.password")}</FormLabel>
 								<FormControl>
-									{/* FIXED: Use generic password placeholder */}
 									<Input
 										type="password"
 										placeholder={t("sys.login.passwordPlaceholder")}
@@ -94,7 +148,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						)}
 					/>
 
-					{/* Remember me / Forgot password */}
 					<div className="flex flex-row justify-between">
 						<div className="flex items-center space-x-2">
 							<Checkbox
@@ -109,47 +162,16 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 								{t("sys.login.rememberMe")}
 							</label>
 						</div>
-						{/* FIXED: Changed to "Forgot Password" - you may need to update your translation key */}
 						<Button variant="link" onClick={() => setLoginState(LoginStateEnum.RESET_PASSWORD)} size="sm">
-							{t("sys.login.forgotPassword") || "Forgot Password?"} {/* Fallback if translation key doesn't exist */}
+							{t("sys.login.forgotPassword") || "Forgot Password?"}
 						</Button>
 					</div>
 
-					{/* Sign in button */}
-					<Button type="submit" className="w-full">
+					<Button type="submit" className="w-full" disabled={loading}>
 						{loading && <Loader2 className="animate-spin mr-2" />}
 						{t("sys.login.loginButton")}
 					</Button>
 
-					{/* Mobile sign in / QR code sign in */}
-					<div className="grid gap-4 sm:grid-cols-2">
-						<Button variant="outline" className="w-full" onClick={() => setLoginState(LoginStateEnum.MOBILE)}>
-							<Icon icon="uil:mobile-android" size={20} />
-							{t("sys.login.mobileSignInFormTitle")}
-						</Button>
-						<Button variant="outline" className="w-full" onClick={() => setLoginState(LoginStateEnum.QR_CODE)}>
-							<Icon icon="uil:qrcode-scan" size={20} />
-							{t("sys.login.qrSignInFormTitle")}
-						</Button>
-					</div>
-
-					{/* Other sign in methods */}
-					<div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
-						<span className="relative z-10 bg-background px-2 text-muted-foreground">{t("sys.login.otherSignIn")}</span>
-					</div>
-					<div className="flex cursor-pointer justify-around text-2xl">
-						<Button variant="ghost" size="icon">
-							<Icon icon="mdi:github" size={24} />
-						</Button>
-						<Button variant="ghost" size="icon">
-							<Icon icon="mdi:wechat" size={24} />
-						</Button>
-						<Button variant="ghost" size="icon">
-							<Icon icon="ant-design:google-circle-filled" size={24} />
-						</Button>
-					</div>
-
-					{/* Register */}
 					<div className="text-center text-sm">
 						{t("sys.login.noAccount")}
 						<Button variant="link" className="px-1" onClick={() => setLoginState(LoginStateEnum.REGISTER)}>
@@ -163,3 +185,4 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 }
 
 export default LoginForm;
+//[file content end]

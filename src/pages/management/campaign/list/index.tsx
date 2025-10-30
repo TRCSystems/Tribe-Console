@@ -1,6 +1,7 @@
-// src/pages/management/campaign/list/index.tsx - UPDATED VERSION
+// src/pages/management/campaign/list/index.tsx - CORRECTED VERSION
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { message } from "antd";
 import { useState } from "react";
 import { Link } from "react-router";
 import {
@@ -112,9 +113,11 @@ const generateCampaignImpactData = (campaigns: Campaign[]) => {
 };
 
 export default function CampaignListPage() {
+	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [statusFilter, setStatusFilter] = useState("all");
 	const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
+	const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
 
 	const {
 		data: campaigns = [],
@@ -123,6 +126,20 @@ export default function CampaignListPage() {
 	} = useQuery({
 		queryKey: ["campaigns"],
 		queryFn: campaignService.getCampaigns,
+	});
+
+	// Delete campaign mutation
+	const deleteMutation = useMutation({
+		mutationFn: campaignService.deleteCampaign,
+		onSuccess: () => {
+			message.success("Campaign deleted successfully!");
+			queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			setCampaignToDelete(null);
+		},
+		onError: (error: Error) => {
+			message.error(`Failed to delete campaign: ${error.message}`);
+			setCampaignToDelete(null);
+		},
 	});
 
 	// Calculate campaign status based on dates
@@ -165,6 +182,21 @@ export default function CampaignListPage() {
 		setExpandedCampaign(expandedCampaign === campaignId ? null : campaignId);
 	};
 
+	const handleDeleteClick = (campaignId: string, e: React.MouseEvent) => {
+		e.stopPropagation();
+		setCampaignToDelete(campaignId);
+	};
+
+	const confirmDelete = () => {
+		if (campaignToDelete) {
+			deleteMutation.mutate(campaignToDelete);
+		}
+	};
+
+	const cancelDelete = () => {
+		setCampaignToDelete(null);
+	};
+
 	const overallStats = calculateOverallStats(campaigns);
 	const campaignImpactData = generateCampaignImpactData(campaigns);
 
@@ -197,6 +229,35 @@ export default function CampaignListPage() {
 
 	return (
 		<div className="space-y-6">
+			{/* Delete Confirmation Modal */}
+			{campaignToDelete && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+					<Card className="w-full max-w-md">
+						<CardHeader>
+							<CardTitle className="text-destructive">Delete Campaign</CardTitle>
+							<CardDescription>
+								Are you sure you want to delete this campaign? This action cannot be undone.
+							</CardDescription>
+						</CardHeader>
+						<CardContent className="flex gap-4 justify-end">
+							<Button variant="outline" onClick={cancelDelete} disabled={deleteMutation.isPending}>
+								Cancel
+							</Button>
+							<Button variant="destructive" onClick={confirmDelete} disabled={deleteMutation.isPending}>
+								{deleteMutation.isPending ? (
+									<>
+										<Icon icon="eos-icons:loading" className="mr-2" />
+										Deleting...
+									</>
+								) : (
+									"Delete Campaign"
+								)}
+							</Button>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="text-2xl font-bold">My Campaigns</h1>
@@ -420,7 +481,7 @@ export default function CampaignListPage() {
 														<p className="text-muted-foreground">Messages</p>
 														<div className="mt-1 space-y-1">
 															{campaign.messages.map((msg, index) => (
-																<p key={index} className="font-medium text-sm">
+																<p key={`${campaign.id}-message-${index}`} className="font-medium text-sm">
 																	{msg.message}
 																</p>
 															))}
@@ -458,7 +519,8 @@ export default function CampaignListPage() {
 														variant="outline"
 														size="sm"
 														className="text-destructive hover:text-destructive"
-														onClick={(e) => e.stopPropagation()}
+														onClick={(e) => handleDeleteClick(campaign.id, e)}
+														disabled={deleteMutation.isPending}
 													>
 														<Icon icon="lucide:trash" className="h-4 w-4" />
 														Delete

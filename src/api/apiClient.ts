@@ -1,4 +1,6 @@
-// src/api/apiClient.ts - UPDATED VERSION
+//[file name]: apiClient.ts
+//[file content begin]
+// src/api/apiClient.ts - TEMPORARY FIX: RETURN RAW RESPONSE
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from "axios";
 import { toast } from "sonner";
 import type { Result } from "#/api";
@@ -27,24 +29,25 @@ const requestInterceptor = (config: AxiosRequestConfig) => {
 		config.headers = config.headers || {};
 		config.headers.Authorization = `Bearer ${token}`;
 	}
+
+	console.log("API Request:", config.method?.toUpperCase(), config.url);
 	return config;
 };
 
-// Common response interceptor for both instances
+// TEMPORARY FIX: Return raw response data without processing
 const responseInterceptor = {
 	success: (res: AxiosResponse) => {
-		// Handle different response formats
-		if (res.data?.status === ResultStatus.SUCCESS) {
-			return res.data.data;
-		}
-		// If no specific format, return the data directly
+		console.log("API Response:", res.status, res.config.url, res.data);
+
+		// TEMPORARY: Return the complete response data without processing
 		return res.data;
 	},
 	error: (error: AxiosError) => {
 		const { response, message } = error || {};
 		let errMsg = message || t("sys.api.errorMessage");
 
-		// Handle different error formats
+		console.log("API Error:", response?.status, response?.config.url, error.message);
+
 		if (response?.data) {
 			if (typeof response.data === "string") {
 				errMsg = response.data;
@@ -55,9 +58,12 @@ const responseInterceptor = {
 			}
 		}
 
-		toast.error(errMsg, { position: "top-center" });
+		if (response?.status !== 401) {
+			toast.error(errMsg, { position: "top-center" });
+		}
 
 		if (response?.status === 401) {
+			console.log("Authentication failed, clearing user data");
 			userStore.getState().actions.clearUserInfoAndToken();
 		}
 
@@ -106,3 +112,4 @@ export const loyaltyApiClient = new APIClient(loyaltyApiInstance);
 
 // Default export for backward compatibility (uses main API)
 export default mainApiClient;
+//[file content end]

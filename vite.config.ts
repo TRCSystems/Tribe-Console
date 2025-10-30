@@ -32,13 +32,24 @@ export default defineConfig(({ mode }) => {
 		server: {
 			open: true,
 			host: true,
-			port: 8085,
+			port: 3000,
 			proxy: {
 				"/api": {
-					target: "http://38.242.155.236:8080", // Updated backend URL
+					target: "http://38.242.155.236:8085", // FIXED: Changed from 8080 to 8085
 					changeOrigin: true,
-					rewrite: (path) => path.replace(/^\/api/, ""),
+					rewrite: (path) => path.replace(/^\/api/, "/api/v1"), // FIXED: Added /api/v1
 					secure: false,
+					configure: (proxy, _options) => {
+						proxy.on("error", (err, _req, _res) => {
+							console.log("proxy error", err);
+						});
+						proxy.on("proxyReq", (proxyReq, req, _res) => {
+							console.log("Sending Request to the Target:", req.method, req.url);
+						});
+						proxy.on("proxyRes", (proxyRes, req, _res) => {
+							console.log("Received Response from Target:", proxyRes.statusCode, req.url);
+						});
+					},
 				},
 			},
 		},
