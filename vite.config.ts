@@ -35,11 +35,7 @@ export default defineConfig(({ mode }) => {
 			port: 3000,
 			proxy: {
 				"/api": {
-<<<<<<< HEAD
 					target: "http://38.242.155.236:8085", // FIXED: Changed from 8080 to 8085
-=======
-					target: "http://38.242.155.236:8085",
->>>>>>> 8a0969a7ef5aed570b44e829d8561229b08684a5
 					changeOrigin: true,
 					rewrite: (path) => path.replace(/^\/api/, "/api/v1"), // FIXED: Added /api/v1
 					secure: false,
