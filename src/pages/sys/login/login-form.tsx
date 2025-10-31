@@ -1,5 +1,4 @@
 //[file name]: login-form.tsx
-//[file content begin]
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -46,7 +45,13 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 			const response = await signIn(values);
 			console.log("📦 Full Login API response:", response);
 
-			// The response should now be: {status: '200', message: 'success', respObject: {key: 'jwt', value: 'token'}}
+			// Check if the response indicates failure
+			if (response.status !== "200" || response.message !== "success") {
+				console.error("❌ Login failed with response:", response);
+				toast.error("The User does not exist, Please check your login details.");
+				return;
+			}
+
 			const accessToken = response.respObject?.value;
 
 			console.log("🔑 Extracted JWT token:", accessToken ? "***" + accessToken.slice(-8) : "none");
@@ -59,7 +64,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 			if (!accessToken) {
 				console.error("❌ No JWT token found in response. Full response:", response);
-				toast.error("Login failed: No authentication token received");
+				toast.error("The User does not exist, Please check your login details.");
 				return;
 			}
 
@@ -99,6 +104,8 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 			}
 		} catch (error) {
 			console.error("💥 Login error:", error);
+			// Show the specific error message for wrong credentials
+			toast.error("The User does not exist, Please check your login details.");
 		} finally {
 			setLoading(false);
 		}
@@ -185,4 +192,3 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 }
 
 export default LoginForm;
-//[file content end]
