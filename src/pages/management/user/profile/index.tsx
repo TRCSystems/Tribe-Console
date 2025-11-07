@@ -6,11 +6,7 @@ import { Avatar, AvatarImage } from "@/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Text, Title } from "@/ui/typography";
 import type { CSSProperties } from "react";
-import ConnectionsTab from "./connections-tab";
 import ProfileTab from "./profile-tab";
-import ProjectsTab from "./projects-tab";
-import TeamsTab from "./teams-tab";
-
 function UserProfile() {
 	const { avatar, username } = useUserInfo();
 
@@ -29,21 +25,8 @@ function UserProfile() {
 			title: "Profile",
 			content: <ProfileTab />,
 		},
-		{
-			icon: <Icon icon="mingcute:profile-fill" size={24} className="mr-2" />,
-			title: "Teams",
-			content: <TeamsTab />,
-		},
-		{
-			icon: <Icon icon="mingcute:profile-fill" size={24} className="mr-2" />,
-			title: "Projects",
-			content: <ProjectsTab />,
-		},
-		{
-			icon: <Icon icon="mingcute:profile-fill" size={24} className="mr-2" />,
-			title: "Connections",
-			content: <ConnectionsTab />,
-		},
+		
+		
 	];
 
 	return (

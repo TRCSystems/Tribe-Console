@@ -21,6 +21,11 @@ import { Text, Title } from "@/ui/typography";
 import { rgbAlpha } from "@/utils/theme";
 import BannerCard from "./banner-card";
 
+// Format currency to KShs
+const formatCurrency = (amount: number) => {
+	return `KShs ${amount.toFixed(2)}`;
+};
+
 // Generate analytics from real data
 const generateAnalyticsData = (campaigns: any[], merchants: any[]) => {
 	const activeCampaigns = campaigns.filter((c) => new Date(c.endDate) > new Date()).length;
@@ -80,10 +85,10 @@ const getQuickStats = (campaigns: any[], merchants: any[], isLoading: boolean) =
 const getActiveCampaigns = (campaigns: any[], isLoading: boolean) => {
 	if (isLoading || campaigns.length === 0) {
 		return [
-			{ label: "Summer Sale 2024", progress: 85, color: "#3b82f6", budget: "$12,500", spent: "$8,750" },
-			{ label: "New User Onboarding", progress: 60, color: "#f59e42", budget: "$8,000", spent: "$4,800" },
-			{ label: "Product Launch", progress: 45, color: "#10b981", budget: "$15,000", spent: "$6,750" },
-			{ label: "Email Newsletter", progress: 92, color: "#8b5cf6", budget: "$5,000", spent: "$4,600" },
+			{ label: "Summer Sale 2024", progress: 85, color: "#3b82f6", budget: "KShs 12,500", spent: "KShs 8,750" },
+			{ label: "New User Onboarding", progress: 60, color: "#f59e42", budget: "KShs 8,000", spent: "KShs 4,800" },
+			{ label: "Product Launch", progress: 45, color: "#10b981", budget: "KShs 15,000", spent: "KShs 6,750" },
+			{ label: "Email Newsletter", progress: 92, color: "#8b5cf6", budget: "KShs 5,000", spent: "KShs 4,600" },
 		];
 	}
 
@@ -91,8 +96,8 @@ const getActiveCampaigns = (campaigns: any[], isLoading: boolean) => {
 		label: campaign.campaignName,
 		progress: Math.floor(Math.random() * 50) + 50, // Simulated progress
 		color: ["#3b82f6", "#f59e42", "#10b981", "#8b5cf6"][index % 4],
-		budget: `$${Math.floor(Math.random() * 10000) + 5000}`,
-		spent: `$${Math.floor(Math.random() * 8000) + 3000}`,
+		budget: formatCurrency(Math.floor(Math.random() * 10000) + 5000),
+		spent: formatCurrency(Math.floor(Math.random() * 8000) + 3000),
 	}));
 };
 
@@ -447,7 +452,7 @@ export default function Workbench() {
 								Cost/Conversion
 							</Text>
 							<Title as="h3" className="text-2xl font-bold text-slate-900 dark:text-white">
-								$24.50
+								KShs 2,450
 							</Title>
 						</div>
 						<div className="text-center p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-100 dark:border-purple-800">

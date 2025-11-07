@@ -1,4 +1,4 @@
-// src/routes/sections/dashboard/frontend.tsx - UPDATED
+// src/routes/sections/dashboard/frontend.tsx - FINAL UPDATED
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
 import { Component } from "./utils";
@@ -7,6 +7,7 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 	const frontendDashboardRoutes: RouteObject[] = [
 		{ path: "workbench", element: Component("/pages/dashboard/workbench") },
 		{ path: "analysis", element: Component("/pages/dashboard/analysis") },
+		{ path: "pos", element: Component("/pages/inventory/pos") },
 		{
 			path: "management",
 			children: [
@@ -39,13 +40,33 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 					],
 				},
 				{
-					path: "system-users", // ADDED: System Users routes
+					path: "system-users",
 					children: [
 						{ index: true, element: <Navigate to="list" replace /> },
 						{ path: "list", element: Component("/pages/management/system-users/list") },
 						{ path: "create", element: Component("/pages/management/system-users/create") },
 					],
 				},
+
+				{
+					path: "inventory",
+					children: [
+						{ index: true, element: <Navigate to="stock" replace /> },
+						{ path: "stock", element: Component("/pages/inventory/stock") },
+						{ path: "expenses", element: Component("/pages/inventory/expenses") },
+						{ path: "import", element: Component("/pages/inventory/import") },
+						{ path: "close-day", element: Component("/pages/inventory/close-day") },
+					],
+				},
+			],
+		},
+
+		{
+			path: "analytics",
+			children: [
+				{ index: true, element: <Navigate to="daily-sales" replace /> },
+				{ path: "daily-sales", element: Component("/pages/analytics/daily-sales") },
+				{ path: "weekly", element: Component("/pages/analytics/weekly") },
 			],
 		},
 	];

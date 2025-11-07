@@ -143,6 +143,19 @@
 				"index": "Merchant",
 				"list": "Merchant List",
 				"create": "Create Merchant"
+			},
+			"pos": "POS",
+			"inventory": {
+				"index": "Inventory Management",
+				"stock": "Stock Management",
+				"expenses": "Expense Tracking",
+				"import": "Import Inventory",
+				"closeDay": "Close Business Day"
+			},
+			"analytics": {
+				"index": "Analytics",
+				"dailySales": "Daily Sales",
+				"weekly": "Weekly Analytics"
 			}
 		},
 		"settings": {
