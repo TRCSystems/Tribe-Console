@@ -1,4 +1,3 @@
-// src/pages/analytics/weekly/index.tsx
 import { useQuery } from "@tanstack/react-query";
 import {
 	Bar,
@@ -13,7 +12,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
-import inventoryService, { type WeeklyAnalytics } from "@/api/services/inventoryService";
+import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -21,19 +20,63 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
+interface WeeklyAnalyticsResponse {
+  statusCode: number;
+  status: string;
+  data: {
+    grossSales: number;
+    dailyTrend: Array<{
+      id: number;
+      merchantId: string;
+      recordDate: string;
+      grossSales: number;
+      deductions: number;
+      netSales: number;
+      createdAt: string;
+      updatedAt: string | null;
+    }>;
+    deductions: number;
+    netSales: number;
+  };
+  message: string;
+  range: {
+    start: string;
+    end: string;
+  };
+}
+
 export default function WeeklyAnalyticsPage() {
 	const {
 		data: weeklyAnalytics,
 		isLoading,
 		error,
+		refetch,
 	} = useQuery({
 		queryKey: ["weekly-analytics"],
 		queryFn: () => inventoryService.getWeeklyAnalytics("HTL001"),
 	});
 
-	const analyticsData = weeklyAnalytics as WeeklyAnalytics;
+	const analyticsData = weeklyAnalytics as WeeklyAnalyticsResponse;
 
-	// Format currency to KShs
+	const getTransformedData = () => {
+		if (!analyticsData?.data) return null;
+		
+		const { data, range } = analyticsData;
+		
+		return {
+			totalRevenue: data.grossSales || 0,
+			totalExpenses: data.deductions || 0,
+			profit: data.netSales || 0,
+			week: `${range?.start} to ${range?.end}` || 'Current Week',
+			dailyTrend: data.dailyTrend || [],
+			grossSales: data.grossSales || 0,
+			deductions: data.deductions || 0,
+			netSales: data.netSales || 0,
+		};
+	};
+
+	const transformedData = getTransformedData();
+
 	const formatCurrency = (amount: number) => {
 		return `KShs ${amount.toFixed(2)}`;
 	};
@@ -52,7 +95,7 @@ export default function WeeklyAnalyticsPage() {
 						<Icon icon="lucide:alert-circle" className="h-12 w-12 text-destructive mx-auto mb-4" />
 						<h3 className="text-lg font-semibold mb-2">Failed to load weekly analytics</h3>
 						<p className="text-muted-foreground mb-4">{(error as Error).message}</p>
-						<Button onClick={() => window.location.reload()}>Retry</Button>
+						<Button onClick={() => refetch()}>Retry</Button>
 					</CardContent>
 				</Card>
 			</div>
@@ -77,15 +120,14 @@ export default function WeeklyAnalyticsPage() {
 				</Select>
 			</div>
 
-			{/* Overview Cards */}
-			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 				<Card>
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
+								<p className="text-sm font-medium text-muted-foreground">Gross Sales</p>
 								<p className="text-2xl font-bold text-green-600">
-									{isLoading ? "..." : formatCurrency(analyticsData?.totalRevenue || 0)}
+									{isLoading ? "..." : formatCurrency(transformedData?.grossSales || 0)}
 								</p>
 							</div>
 							<Icon icon="lucide:banknote" className="h-8 w-8 text-green-500 opacity-60" />
@@ -97,9 +139,9 @@ export default function WeeklyAnalyticsPage() {
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
+								<p className="text-sm font-medium text-muted-foreground">Deductions</p>
 								<p className="text-2xl font-bold text-red-600">
-									{isLoading ? "..." : formatCurrency(analyticsData?.totalExpenses || 0)}
+									{isLoading ? "..." : formatCurrency(transformedData?.deductions || 0)}
 								</p>
 							</div>
 							<Icon icon="lucide:trending-down" className="h-8 w-8 text-red-500 opacity-60" />
@@ -111,61 +153,46 @@ export default function WeeklyAnalyticsPage() {
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Net Profit</p>
+								<p className="text-sm font-medium text-muted-foreground">Net Sales</p>
 								<p className="text-2xl font-bold text-blue-600">
-									{isLoading ? "..." : formatCurrency(analyticsData?.profit || 0)}
+									{isLoading ? "..." : formatCurrency(transformedData?.netSales || 0)}
 								</p>
 							</div>
 							<Icon icon="lucide:trending-up" className="h-8 w-8 text-blue-500 opacity-60" />
 						</div>
 					</CardContent>
 				</Card>
-
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">Profit Margin</p>
-								<p className="text-2xl font-bold text-purple-600">
-									{isLoading
-										? "..."
-										: `${(((analyticsData?.profit || 0) / (analyticsData?.totalRevenue || 1)) * 100).toFixed(1)}%`}
-								</p>
-							</div>
-							<Icon icon="lucide:percent" className="h-8 w-8 text-purple-500 opacity-60" />
-						</div>
-					</CardContent>
-				</Card>
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Top Selling Items */}
+				
 				<Card>
 					<CardHeader>
-						<CardTitle>Top Selling Items</CardTitle>
-						<CardDescription>Best performing products this week</CardDescription>
+						<CardTitle>Daily Sales Trend</CardTitle>
+						<CardDescription>Daily performance throughout the week</CardDescription>
 					</CardHeader>
 					<CardContent>
 						{isLoading ? (
 							<div className="text-center py-12">
 								<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
-								<p className="text-muted-foreground">Loading top items...</p>
+								<p className="text-muted-foreground">Loading daily trend...</p>
 							</div>
-						) : analyticsData?.topSellingItems && analyticsData.topSellingItems.length > 0 ? (
+						) : transformedData?.dailyTrend && transformedData.dailyTrend.length > 0 ? (
 							<div className="space-y-4">
-								{analyticsData.topSellingItems.map((item, index) => (
-									<div key={item.name} className="flex items-center justify-between p-3 border rounded-lg">
+								{transformedData.dailyTrend.map((day) => (
+									<div key={day.id} className="flex items-center justify-between p-3 border rounded-lg">
 										<div className="flex items-center gap-3">
 											<div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-												<span className="text-sm font-bold text-blue-600">{index + 1}</span>
+												<Icon icon="lucide:calendar" className="h-4 w-4 text-blue-600" />
 											</div>
 											<div>
-												<p className="font-medium">{item.name}</p>
-												<p className="text-sm text-muted-foreground">{item.quantity} sold</p>
+												<p className="font-medium">{new Date(day.recordDate).toLocaleDateString()}</p>
+												<p className="text-sm text-muted-foreground">{day.merchantId}</p>
 											</div>
 										</div>
 										<div className="text-right">
-											<p className="font-bold text-green-600">{formatCurrency(item.revenue)}</p>
+											<p className="font-bold text-green-600">{formatCurrency(day.grossSales)}</p>
+											<p className="text-sm text-red-600">-{formatCurrency(day.deductions)}</p>
 										</div>
 									</div>
 								))}
@@ -173,18 +200,17 @@ export default function WeeklyAnalyticsPage() {
 						) : (
 							<div className="text-center py-12 text-muted-foreground">
 								<Icon icon="lucide:bar-chart" className="h-16 w-16 mx-auto mb-4 opacity-50" />
-								<p className="text-lg font-medium">No sales data available</p>
-								<p className="text-sm">Sales data will appear here once available</p>
+								<p className="text-lg font-medium">No daily trend data available</p>
+								<p className="text-sm">Daily trend data will appear here once available</p>
 							</div>
 						)}
 					</CardContent>
 				</Card>
 
-				{/* Revenue Distribution */}
 				<Card>
 					<CardHeader>
 						<CardTitle>Revenue Distribution</CardTitle>
-						<CardDescription>Breakdown of revenue and expenses</CardDescription>
+						<CardDescription>Breakdown of sales and deductions</CardDescription>
 					</CardHeader>
 					<CardContent>
 						{isLoading ? (
@@ -192,14 +218,14 @@ export default function WeeklyAnalyticsPage() {
 								<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
 								<p className="text-muted-foreground">Loading revenue data...</p>
 							</div>
-						) : analyticsData ? (
+						) : transformedData ? (
 							<ResponsiveContainer width="100%" height={300}>
 								<PieChart>
 									<Pie
 										data={[
-											{ name: "Revenue", value: analyticsData.totalRevenue },
-											{ name: "Expenses", value: analyticsData.totalExpenses },
-											{ name: "Profit", value: analyticsData.profit },
+											{ name: "Gross Sales", value: transformedData.grossSales || 0 },
+											{ name: "Deductions", value: transformedData.deductions || 0 },
+											{ name: "Net Sales", value: transformedData.netSales || 0 },
 										]}
 										cx="50%"
 										cy="50%"
@@ -228,11 +254,11 @@ export default function WeeklyAnalyticsPage() {
 				</Card>
 			</div>
 
-			{/* Performance Trends */}
+		
 			<Card>
 				<CardHeader>
-					<CardTitle>Weekly Performance Trends</CardTitle>
-					<CardDescription>Revenue and profit trends over time</CardDescription>
+					<CardTitle>Weekly Performance</CardTitle>
+					<CardDescription>Sales and deductions overview</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
@@ -240,14 +266,14 @@ export default function WeeklyAnalyticsPage() {
 							<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
 							<p className="text-muted-foreground">Loading performance data...</p>
 						</div>
-					) : analyticsData ? (
+					) : transformedData ? (
 						<div className="text-center py-12">
 							<ResponsiveContainer width="100%" height={300}>
 								<BarChart
 									data={[
-										{ name: "Revenue", value: analyticsData.totalRevenue },
-										{ name: "Expenses", value: analyticsData.totalExpenses },
-										{ name: "Profit", value: analyticsData.profit },
+										{ name: "Gross Sales", value: transformedData.grossSales || 0 },
+										{ name: "Deductions", value: transformedData.deductions || 0 },
+										{ name: "Net Sales", value: transformedData.netSales || 0 },
 									]}
 								>
 									<CartesianGrid strokeDasharray="3 3" className="opacity-30" />

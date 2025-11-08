@@ -1,4 +1,4 @@
-// src/routes/sections/dashboard/frontend.tsx - FINAL UPDATED
+// src/routes/sections/dashboard/frontend.tsx - FINAL CORRECTED
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
 import { Component } from "./utils";
@@ -8,6 +8,8 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 		{ path: "workbench", element: Component("/pages/dashboard/workbench") },
 		{ path: "analysis", element: Component("/pages/dashboard/analysis") },
 		{ path: "pos", element: Component("/pages/inventory/pos") },
+		// R.O.I Route
+		{ path: "roi", element: Component("/pages/dashboard/roi") },
 		{
 			path: "management",
 			children: [
@@ -47,20 +49,20 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 						{ path: "create", element: Component("/pages/management/system-users/create") },
 					],
 				},
-
-				{
-					path: "inventory",
-					children: [
-						{ index: true, element: <Navigate to="stock" replace /> },
-						{ path: "stock", element: Component("/pages/inventory/stock") },
-						{ path: "expenses", element: Component("/pages/inventory/expenses") },
-						{ path: "import", element: Component("/pages/inventory/import") },
-						{ path: "close-day", element: Component("/pages/inventory/close-day") },
-					],
-				},
 			],
 		},
-
+		// Standalone Inventory Routes
+		{
+			path: "inventory",
+			children: [
+				{ index: true, element: <Navigate to="stock" replace /> },
+				{ path: "stock", element: Component("/pages/inventory/stock") },
+				{ path: "expenses", element: Component("/pages/inventory/expenses") },
+				{ path: "import", element: Component("/pages/inventory/import") },
+				{ path: "close-day", element: Component("/pages/inventory/close-day") },
+			],
+		},
+		// Analytics Routes (Added back for POS buttons)
 		{
 			path: "analytics",
 			children: [

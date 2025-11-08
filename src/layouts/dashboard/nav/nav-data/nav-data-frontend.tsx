@@ -21,13 +21,12 @@ export const frontendNavData: NavProps["data"] = [
 	{
 		name: "sys.nav.pages",
 		items: [
-			// POS - Standalone
 			{
 				title: "sys.nav.pos",
 				path: "/pos",
 				icon: <Icon icon="lucide:shopping-cart" size="24" />,
 			},
-			// Management Section
+			
 			{
 				title: "sys.nav.management",
 				path: "/management",
@@ -67,45 +66,23 @@ export const frontendNavData: NavProps["data"] = [
 							},
 						],
 					},
-					// NEW: Inventory Management
-					{
-						title: "sys.nav.inventory.index",
-						path: "/management/inventory",
-						children: [
-							{
-								title: "sys.nav.inventory.stock",
-								path: "/management/inventory/stock",
-							},
-							{
-								title: "sys.nav.inventory.expenses",
-								path: "/management/inventory/expenses",
-							},
-							{
-								title: "sys.nav.inventory.import",
-								path: "/management/inventory/import",
-							},
-							{
-								title: "sys.nav.inventory.closeDay",
-								path: "/management/inventory/close-day",
-							},
-						],
-					},
 				],
 			},
-			// NEW: Analytics Section
+			
 			{
-				title: "sys.nav.analytics.index",
-				path: "/analytics",
-				icon: <Icon icon="lucide:bar-chart" size="24" />,
+				title: "sys.nav.inventory.index",
+				path: "/inventory",
+				icon: <Icon icon="lucide:package" size="24" />,
 				children: [
 					{
-						title: "sys.nav.analytics.dailySales",
-						path: "/analytics/daily-sales",
+						title: "sys.nav.inventory.stock",
+						path: "/inventory/stock",
 					},
 					{
-						title: "sys.nav.analytics.weekly",
-						path: "/analytics/weekly",
+						title: "sys.nav.inventory.expenses",
+						path: "/inventory/expenses",
 					},
+					
 				],
 			},
 		],
