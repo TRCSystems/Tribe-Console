@@ -1,14 +1,30 @@
-// src/pages/management/system-users/create/index.tsx - WITH MESSAGE POPUPS
-
 import { useMutation } from "@tanstack/react-query";
 import { Form, message } from "antd";
 import { useNavigate } from "react-router";
-import userService from "@/api/services/userService";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
+import { Label } from "@/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
+
+const userService = {
+	createUser: async (userData: { username: string; password: string; role: string; status: string }) => {
+		const response = await fetch(`${import.meta.env.VITE_APP_LOYALTY_ENGINE_URL}/api/v1/user/add`, {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify(userData),
+		});
+
+		if (!response.ok) {
+			throw new Error(`Failed to create user: ${response.statusText}`);
+		}
+
+		return response.json();
+	},
+};
 
 export default function CreateUserPage() {
 	const navigate = useNavigate();
@@ -16,38 +32,17 @@ export default function CreateUserPage() {
 
 	const createUserMutation = useMutation({
 		mutationFn: userService.createUser,
-		onSuccess: (data) => {
-			// Handle different response statuses with popup messages
-			if (data.status === "200" || data.status === "201") {
-				message.success("✅ User created successfully!");
-				form.resetFields();
-				setTimeout(() => {
-					navigate("/management/merchant/list");
-				}, 1500); // Navigate after success message is shown
-			} else if (data.status === "500") {
-				// Backend returned 500 but the request technically "succeeded"
-				if (data.message?.includes("rowsAffected: 0")) {
-					message.error("❌ User creation failed: Database error - no user was created. Please check backend logs.");
-				} else {
-					message.error(`❌ Backend error: ${data.message || "User creation failed"}`);
-				}
-			} else {
-				// Other error statuses
-				message.error(`❌ User creation failed: ${data.message || "Unknown error"}`);
-			}
+		onSuccess: () => {
+			message.success("User created successfully!");
+			form.resetFields();
+			navigate("/management/merchant/list");
 		},
 		onError: (error: Error) => {
-			// Network errors or request failures
-			if (error.message.includes("Failed to fetch")) {
-				message.error("🌐 Network error: Cannot connect to server. Please check your connection.");
-			} else {
-				message.error(`❌ Request failed: ${error.message}`);
-			}
+			message.error(`Failed to create user: ${error.message}`);
 		},
 	});
 
 	const handleSubmit = (values: { username: string; password: string; role: string; status: string }) => {
-		console.log("Creating user with data:", values);
 		createUserMutation.mutate(values);
 	};
 
@@ -58,7 +53,7 @@ export default function CreateUserPage() {
 					<Icon icon="lucide:arrow-left" className="h-4 w-4" />
 				</Button>
 				<div>
-					<h1 className="text-2xl font-bold">Create System User</h1>
+					<h1 className="text-2xl font-bold">Create User</h1>
 					<p className="text-muted-foreground">Add a new user to the system</p>
 				</div>
 			</div>

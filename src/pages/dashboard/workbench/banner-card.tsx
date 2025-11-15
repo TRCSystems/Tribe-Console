@@ -13,8 +13,6 @@ export default function BannerCard() {
 		left: 0,
 		right: 0,
 		bottom: 0,
-		// !  When passing a URL of SVG to a manually constructed url() by JS, the variable should be wrapped within double quotes.
-		// ! https://vite.dev/guide/assets.html
 		backgroundImage: `url("${bgImg}")`,
 		backgroundSize: "100%",
 		backgroundPosition: "50%",

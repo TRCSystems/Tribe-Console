@@ -34,22 +34,7 @@ export default function Header({ leftSlot }: HeaderProps) {
 
 			<div className="flex items-center gap-1">
 				<SearchBar />
-				<Button
-					variant="ghost"
-					size="icon"
-					className="rounded-full"
-					onClick={() => window.open("https://github.com/Marcellas28")}
-				>
-					<Icon icon="mdi:github" size={24} />
-				</Button>
-				<Button
-					variant="ghost"
-					size="icon"
-					className="rounded-full"
-					onClick={() => window.open("https://discord.gg/UfN76fgD")}
-				>
-					<Icon icon="carbon:logo-discord" size={24} />
-				</Button>
+
 				<NoticeButton />
 				<SettingButton />
 				<AccountDropdown />

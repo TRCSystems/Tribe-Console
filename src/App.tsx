@@ -1,5 +1,3 @@
-//[file name]: App.tsx
-//[file content begin]
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { Helmet, HelmetProvider } from "react-helmet-async";
@@ -24,7 +22,7 @@ function App({ children }: { children: React.ReactNode }) {
 					</Helmet>
 					<Toast />
 					<RouteLoadingProgress />
-					{/* Debug component - remove after fixing auth issues */}
+					
 					{import.meta.env.DEV && <DebugAuth />}
 					<MotionLazy>{children}</MotionLazy>
 				</ThemeProvider>
@@ -34,4 +32,4 @@ function App({ children }: { children: React.ReactNode }) {
 }
 
 export default App;
-//[file content end]
+

@@ -1,4 +1,4 @@
-// src/pages/management/merchant/list/index.tsx - WITH DELETE FUNCTIONALITY
+// src/pages/management/merchant/list/index.tsx - WITH CREATE USER BUTTON
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
@@ -84,7 +84,13 @@ export default function MerchantListPage() {
 					<h1 className="text-2xl font-bold">Merchants</h1>
 					<p className="text-muted-foreground">Manage your onboarded merchants</p>
 				</div>
-				<Button onClick={() => navigate("/management/merchant/create")}>Onboard New Merchant</Button>
+				<div className="flex gap-2">
+					<Button variant="outline" onClick={() => navigate("/management/system-users/create")}>
+						<Icon icon="lucide:user-plus" className="mr-2" />
+						Create User
+					</Button>
+					<Button onClick={() => navigate("/management/merchant/create")}>Onboard New Merchant</Button>
+				</div>
 			</div>
 
 			<Card>

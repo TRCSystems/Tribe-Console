@@ -20,16 +20,13 @@ import merchantService from "@/api/services/merchantService";
 import { Icon } from "@/components/icon";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 
-// Helper function to generate real analytics data from actual API data
 const generateRealAnalyticsData = (campaigns: any[], merchants: any[]) => {
-	// Campaign Performance - using actual campaign data
 	const campaignPerformance = campaigns.map((campaign) => ({
 		name: campaign.campaignName || campaign.name || "Unnamed Campaign",
 		performance: campaign.performanceScore || campaign.budget || Math.floor(Math.random() * 100) + 50,
 		engagement: campaign.engagementRate || campaign.reach || Math.floor(Math.random() * 1000) + 200,
 	}));
 
-	// Merchant Distribution - categorize merchants by type if available
 	const merchantTypeCount: Record<string, number> = {};
 	merchants.forEach((merchant) => {
 		const type = merchant.businessType || merchant.category || "Other";
@@ -41,7 +38,6 @@ const generateRealAnalyticsData = (campaigns: any[], merchants: any[]) => {
 		value,
 	}));
 
-	// If no merchant types are available, use some default categories
 	if (merchantDistribution.length === 0) {
 		merchantDistribution.push(
 			{ name: "Retail", value: Math.floor(merchants.length * 0.4) },
@@ -51,19 +47,16 @@ const generateRealAnalyticsData = (campaigns: any[], merchants: any[]) => {
 		);
 	}
 
-	// Monthly Trends - based on campaign creation dates
 	const currentDate = new Date();
 	const monthlyTrends = Array.from({ length: 6 }, (_, i) => {
 		const date = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
 		const monthName = date.toLocaleString("default", { month: "short" });
 
-		// Count campaigns created in this month
 		const monthCampaigns = campaigns.filter((campaign) => {
 			const campaignDate = new Date(campaign.createdAt || campaign.startDate || campaign.createdDate);
 			return campaignDate.getMonth() === date.getMonth() && campaignDate.getFullYear() === date.getFullYear();
 		}).length;
 
-		// Count merchants created in this month (if createdAt is available)
 		const monthMerchants = merchants.filter((merchant) => {
 			if (!merchant.createdAt) return i === 0 ? merchants.length : Math.floor(merchants.length * (1 - i * 0.1));
 			const merchantDate = new Date(merchant.createdAt);
@@ -159,7 +152,6 @@ export default function AnalysisPage() {
 				</p>
 			</div>
 
-			{/* Overview Cards */}
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 				<Card>
 					<CardContent className="p-6">
@@ -211,7 +203,6 @@ export default function AnalysisPage() {
 			</div>
 
 			<div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-				{/* Campaign Performance */}
 				<Card>
 					<CardHeader>
 						<CardTitle>Campaign Performance</CardTitle>
@@ -230,7 +221,6 @@ export default function AnalysisPage() {
 					</CardContent>
 				</Card>
 
-				{/* Merchant Distribution */}
 				<Card>
 					<CardHeader>
 						<CardTitle>Merchant Distribution</CardTitle>
@@ -259,7 +249,6 @@ export default function AnalysisPage() {
 					</CardContent>
 				</Card>
 
-				{/* Monthly Trends */}
 				<Card className="lg:col-span-2">
 					<CardHeader>
 						<CardTitle>Monthly Trends</CardTitle>

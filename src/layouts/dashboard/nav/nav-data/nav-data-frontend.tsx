@@ -1,4 +1,5 @@
-// src/routes/sections/dashboard/nav-data-frontend.tsx - FINAL UPDATED
+// src/routes/sections/dashboard/nav-data-frontend.tsx - UPDATED WITH SYSTEM USERS
+
 import { Icon } from "@/components/icon";
 import type { NavProps } from "@/components/nav";
 
@@ -26,7 +27,6 @@ export const frontendNavData: NavProps["data"] = [
 				path: "/pos",
 				icon: <Icon icon="lucide:shopping-cart" size="24" />,
 			},
-			
 			{
 				title: "sys.nav.management",
 				path: "/management",
@@ -66,9 +66,19 @@ export const frontendNavData: NavProps["data"] = [
 							},
 						],
 					},
+					// NEW: System Users Section
+					{
+						title: "System Users",
+						path: "/management/system-users",
+						children: [
+							{
+								title: "Create User",
+								path: "/management/system-users/create",
+							},
+						],
+					},
 				],
 			},
-			
 			{
 				title: "sys.nav.inventory.index",
 				path: "/inventory",
@@ -82,7 +92,6 @@ export const frontendNavData: NavProps["data"] = [
 						title: "sys.nav.inventory.expenses",
 						path: "/inventory/expenses",
 					},
-					
 				],
 			},
 		],

@@ -21,12 +21,10 @@ import { Text, Title } from "@/ui/typography";
 import { rgbAlpha } from "@/utils/theme";
 import BannerCard from "./banner-card";
 
-// Format currency to KShs
 const formatCurrency = (amount: number) => {
 	return `KShs ${amount.toFixed(2)}`;
 };
 
-// Generate analytics from real data
 const generateAnalyticsData = (campaigns: any[], merchants: any[]) => {
 	const activeCampaigns = campaigns.filter((c) => new Date(c.endDate) > new Date()).length;
 	const totalViews = campaigns.length * 3760;
@@ -41,7 +39,6 @@ const generateAnalyticsData = (campaigns: any[], merchants: any[]) => {
 	};
 };
 
-// Campaign-focused quick stats - NOW USING REAL DATA
 const getQuickStats = (campaigns: any[], merchants: any[], isLoading: boolean) => {
 	const analytics = generateAnalyticsData(campaigns, merchants);
 
@@ -169,10 +166,10 @@ export default function Workbench() {
 
 	// Campaign team members
 	const campaignTeam = [
-		{ avatar: avatar3, name: "Ronald Musula", role: "Campaign Manager" },
-		{ avatar: avatar2, name: "Macharia Dan", role: "Backend Dev" },
+		{ avatar: avatar3, name: "Ronald Musula", role: "Dev" },
+		{ avatar: avatar2, name: "Macharia Dan", role: " Dev" },
 		{ avatar: avatar3, name: "_________", role: "Analytics" },
-		{ avatar: avatar4, name: "Marcellas Dan", role: "Frontend Dev" },
+		{ avatar: avatar4, name: "Marcellas Dan", role: " Dev" },
 		{ avatar: avatar5, name: "_________", role: "Developer" },
 	];
 
@@ -212,7 +209,6 @@ export default function Workbench() {
 		},
 	];
 
-	// Campaign performance by channel
 	const channelPerformance = {
 		series: [35, 25, 20, 12, 8],
 		labels: ["Social Media", "Email", "Search Ads", "Referral", "Direct"],
@@ -539,7 +535,6 @@ export default function Workbench() {
 				</Card>
 			</div>
 
-			{/* Recent Activities + Channel Performance */}
 			<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 				<Card className="lg:col-span-2 flex flex-col p-6 group hover:shadow-lg transition-all duration-300">
 					<div className="flex items-center gap-4 mb-6">

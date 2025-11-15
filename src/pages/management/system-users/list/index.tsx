@@ -1,155 +1,114 @@
 // src/pages/management/system-users/list/index.tsx
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { Link } from "react-router";
-import userManagementService from "@/api/services/userManagementService";
+import { useNavigate } from "react-router";
 import { Icon } from "@/components/icon";
-import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import { Input } from "@/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table";
 
+// Temporary mock data - you'll replace this with actual API call
+const mockUsers = [
+	{ id: "1", username: "admin", role: "ADMIN", status: "ACTIVE" },
+	{ id: "2", username: "manager1", role: "MANAGER", status: "ACTIVE" },
+	{ id: "3", username: "manager2", role: "MANAGER", status: "INACTIVE" },
+];
+
 export default function SystemUsersListPage() {
-	const [searchTerm, setSearchTerm] = useState("");
-	const [roleFilter, setRoleFilter] = useState("all");
+	const navigate = useNavigate();
 
-	const {
-		data: users = [],
-		isLoading,
-		error,
-	} = useQuery({
+	const { data: users = [], isLoading } = useQuery({
 		queryKey: ["system-users"],
-		queryFn: userManagementService.getUsers,
+		queryFn: async () => {
+			// TODO: Replace with actual API call
+			// return userService.getUsers();
+			return mockUsers;
+		},
 	});
-
-	const filteredUsers = users.filter((user) => {
-		const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase());
-		const matchesRole = roleFilter === "all" || user.role === roleFilter;
-		return matchesSearch && matchesRole;
-	});
-
-	const getStatusVariant = (status: string) => {
-		switch (status) {
-			case "ACTIVE":
-				return "success";
-			case "INACTIVE":
-				return "secondary";
-			default:
-				return "secondary";
-		}
-	};
-
-	if (error) {
-		return (
-			<div className="space-y-6">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-bold">System Users</h1>
-						<p className="text-muted-foreground">Manage system users and permissions</p>
-					</div>
-				</div>
-				<Card>
-					<CardContent className="p-6 text-center">
-						<Icon icon="lucide:alert-circle" className="h-12 w-12 text-destructive mx-auto mb-4" />
-						<h3 className="text-lg font-semibold mb-2">Failed to load users</h3>
-						<p className="text-muted-foreground mb-4">{(error as Error).message}</p>
-						<Button onClick={() => window.location.reload()}>Retry</Button>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
 
 	return (
 		<div className="space-y-6">
-			<div className="flex items-center justify-between">
+			<div className="flex justify-between items-center">
 				<div>
 					<h1 className="text-2xl font-bold">System Users</h1>
-					<p className="text-muted-foreground">Manage system users and permissions</p>
+					<p className="text-muted-foreground">Manage system users and their permissions</p>
 				</div>
-				<Button asChild>
-					<Link to="/management/system-users/create">
-						<Icon icon="lucide:plus" className="mr-2" />
-						Add User
-					</Link>
+				<Button onClick={() => navigate("/management/system-users/create")}>
+					<Icon icon="lucide:user-plus" className="mr-2" />
+					Create User
 				</Button>
 			</div>
 
 			<Card>
 				<CardHeader>
-					<CardTitle>User Management</CardTitle>
-					<CardDescription>Manage all system users and their roles</CardDescription>
+					<CardTitle>User List</CardTitle>
+					<CardDescription>All system users with their roles and status</CardDescription>
 				</CardHeader>
 				<CardContent>
-					<div className="flex gap-4 mb-6">
-						<div className="flex-1">
-							<Input
-								placeholder="Search users..."
-								value={searchTerm}
-								onChange={(e) => setSearchTerm(e.target.value)}
-								className="max-w-sm"
-							/>
-						</div>
-						<Select value={roleFilter} onValueChange={setRoleFilter}>
-							<SelectTrigger className="w-32">
-								<SelectValue placeholder="Role" />
-							</SelectTrigger>
-							<SelectContent>
-								<SelectItem value="all">All Roles</SelectItem>
-								<SelectItem value="ADMIN">Admin</SelectItem>
-								<SelectItem value="USER">User</SelectItem>
-								<SelectItem value="MANAGER">Manager</SelectItem>
-							</SelectContent>
-						</Select>
-					</div>
-
-					{isLoading ? (
-						<div className="text-center py-12">
-							<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
-							<p className="text-muted-foreground">Loading users...</p>
-						</div>
-					) : (
-						<Table>
-							<TableHeader>
+					<Table>
+						<TableHeader>
+							<TableRow>
+								<TableHead>Username</TableHead>
+								<TableHead>Role</TableHead>
+								<TableHead>Status</TableHead>
+								<TableHead>Actions</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{isLoading ? (
 								<TableRow>
-									<TableHead>Username</TableHead>
-									<TableHead>Role</TableHead>
-									<TableHead>Status</TableHead>
-									<TableHead>Created At</TableHead>
-									<TableHead>Actions</TableHead>
+									<TableCell colSpan={4} className="text-center">
+										<Icon icon="eos-icons:loading" className="h-6 w-6 mx-auto mb-2" />
+										Loading users...
+									</TableCell>
 								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{filteredUsers.map((user) => (
+							) : (
+								users?.map((user) => (
 									<TableRow key={user.id}>
 										<TableCell className="font-medium">{user.username}</TableCell>
 										<TableCell>
-											<Badge variant="outline">{user.role}</Badge>
+											<span
+												className={`px-2 py-1 rounded-full text-xs ${
+													user.role === "ADMIN" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+												}`}
+											>
+												{user.role}
+											</span>
 										</TableCell>
 										<TableCell>
-											<Badge variant={getStatusVariant(user.status)}>{user.status}</Badge>
+											<span
+												className={`px-2 py-1 rounded-full text-xs ${
+													user.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+												}`}
+											>
+												{user.status}
+											</span>
 										</TableCell>
-										<TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
 										<TableCell>
-											<Button variant="outline" size="sm">
-												<Icon icon="lucide:edit" className="h-4 w-4" />
-												Edit
-											</Button>
+											<div className="flex gap-2">
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => navigate(`/management/system-users/edit/${user.id}`)}
+												>
+													Edit
+												</Button>
+											</div>
 										</TableCell>
 									</TableRow>
-								))}
-							</TableBody>
-						</Table>
-					)}
+								))
+							)}
+						</TableBody>
+					</Table>
 
-					{!isLoading && filteredUsers.length === 0 && (
+					{!isLoading && users.length === 0 && (
 						<div className="text-center py-12 text-muted-foreground">
 							<Icon icon="lucide:users" className="h-16 w-16 mx-auto mb-4 opacity-50" />
 							<p className="text-lg font-medium">No users found</p>
-							<p className="text-sm">Try adjusting your search or filter criteria</p>
+							<p className="text-sm">Get started by creating your first system user</p>
+							<Button onClick={() => navigate("/management/system-users/create")} className="mt-4">
+								Create First User
+							</Button>
 						</div>
 					)}
 				</CardContent>
