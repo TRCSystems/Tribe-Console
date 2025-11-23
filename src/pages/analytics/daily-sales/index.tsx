@@ -1,24 +1,16 @@
+// src/pages/analytics/daily-sales/index.tsx - UPDATED
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
+import { useMerchantId } from "@/store/userStore"; // ADD THIS IMPORT
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
 
-interface DailySalesResponse {
-  status: string;
-  statusCode: number;
-  message: string;
-  data: {
-    netSales: number;
-    grossSales: number;
-    deductions: number;
-  };
-}
-
 export default function DailySalesPage() {
 	const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+	const merchantId = useMerchantId(); // GET MERCHANT ID FROM TOKEN
 
 	const {
 		data: dailySummary,
@@ -26,34 +18,48 @@ export default function DailySalesPage() {
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: ["daily-sales", selectedDate],
-		queryFn: () => inventoryService.getDailySalesSummary("HTL001", selectedDate),
-		enabled: !!selectedDate,
+		queryKey: ["daily-sales", merchantId, selectedDate],
+		queryFn: () => inventoryService.getDailySalesSummary(merchantId!, selectedDate),
+		enabled: !!merchantId, // ONLY FETCH WHEN MERCHANT ID IS AVAILABLE
 	});
 
-	const summaryData = dailySummary as DailySalesResponse;
-
+	// SIMPLIFIED: Directly use the API response
 	const getTransformedData = () => {
-		if (!summaryData?.data) return null;
-		
-		const { data } = summaryData;
-		
+		if (!dailySummary) return null;
+
+		// API returns object with additionalProperties, so we extract what we need
 		return {
-			totalSales: data.grossSales || 0,
-			totalExpenses: data.deductions || 0,
-			netProfit: data.netSales || 0,
-			grossSales: data.grossSales || 0,
-			deductions: data.deductions || 0,
-			netSales: data.netSales || 0,
+			grossSales: dailySummary.grossSales || dailySummary.totalSales || 0,
+			deductions: dailySummary.deductions || dailySummary.totalExpenses || 0,
+			netSales: dailySummary.netSales || dailySummary.netProfit || 0,
 		};
 	};
 
 	const transformedData = getTransformedData();
 
-
 	const formatCurrency = (amount: number) => {
-		return `KShs ${amount.toFixed(2)}`;
+		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
+
+	if (!merchantId) {
+		return (
+			<div className="space-y-6">
+				<div className="flex items-center justify-between">
+					<div>
+						<h1 className="text-2xl font-bold">Daily Sales Summary</h1>
+						<p className="text-muted-foreground">View daily sales performance and analytics</p>
+					</div>
+				</div>
+				<Card>
+					<CardContent className="p-6 text-center">
+						<Icon icon="lucide:alert-circle" className="h-12 w-12 text-destructive mx-auto mb-4" />
+						<h3 className="text-lg font-semibold mb-2">Authentication Required</h3>
+						<p className="text-muted-foreground mb-4">Please login to view daily sales data</p>
+					</CardContent>
+				</Card>
+			</div>
+		);
+	}
 
 	if (error) {
 		return (
@@ -81,15 +87,13 @@ export default function DailySalesPage() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="text-2xl font-bold">Daily Sales Summary</h1>
-					<p className="text-muted-foreground">View daily sales performance and analytics</p>
+					<p className="text-muted-foreground">View daily sales performance for your merchant account</p>
 				</div>
 				<div className="flex items-center gap-4">
-					<Input 
-						type="date" 
-						value={selectedDate} 
-						onChange={(e) => setSelectedDate(e.target.value)} 
-						className="w-40" 
-					/>
+					<div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+						Merchant: {merchantId}
+					</div>
+					<Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-40" />
 				</div>
 			</div>
 
@@ -138,11 +142,11 @@ export default function DailySalesPage() {
 				</Card>
 			</div>
 
-			{/* Detailed Summary - SIMPLIFIED AND PRACTICAL */}
+			{/* Detailed Summary */}
 			<Card>
 				<CardHeader>
 					<CardTitle>Daily Performance Details</CardTitle>
-					<CardDescription>Comprehensive breakdown of daily sales performance</CardDescription>
+					<CardDescription>Comprehensive breakdown of daily sales performance for {merchantId}</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
@@ -157,15 +161,15 @@ export default function DailySalesPage() {
 								<h3 className="font-semibold text-lg mb-4">Financial Summary</h3>
 								<div className="flex justify-between items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
 									<span className="font-medium">Gross Sales</span>
-									<span className="font-bold text-green-600">{formatCurrency(transformedData.grossSales || 0)}</span>
+									<span className="font-bold text-green-600">{formatCurrency(transformedData.grossSales)}</span>
 								</div>
 								<div className="flex justify-between items-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
 									<span className="font-medium">Deductions</span>
-									<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions || 0)}</span>
+									<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions)}</span>
 								</div>
 								<div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
 									<span className="font-medium">Net Sales</span>
-									<span className="font-bold text-blue-600">{formatCurrency(transformedData.netSales || 0)}</span>
+									<span className="font-bold text-blue-600">{formatCurrency(transformedData.netSales)}</span>
 								</div>
 							</div>
 
@@ -178,9 +182,8 @@ export default function DailySalesPage() {
 								</div>
 								<div className="text-center p-6 bg-slate-50 dark:bg-slate-800 rounded-lg">
 									<p className="text-sm text-muted-foreground">Merchant ID</p>
-									<p className="text-xl font-bold">HTL001</p>
+									<p className="text-xl font-bold">{merchantId}</p>
 								</div>
-								
 							</div>
 						</div>
 					) : (

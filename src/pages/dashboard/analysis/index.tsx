@@ -1,4 +1,4 @@
-// src/pages/dashboard/analysis/index.tsx - UPDATED WITH REAL DATA
+// src/pages/dashboard/analysis/index.tsx - FIXED VERSION
 import { useQuery } from "@tanstack/react-query";
 import {
 	Bar,
@@ -18,6 +18,7 @@ import {
 import campaignService from "@/api/services/campaignService";
 import merchantService from "@/api/services/merchantService";
 import { Icon } from "@/components/icon";
+import { useAuthCheck } from "@/store/userStore"; // ADDED: Import auth hook
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 
 const generateRealAnalyticsData = (campaigns: any[], merchants: any[]) => {
@@ -90,13 +91,29 @@ const generateRealAnalyticsData = (campaigns: any[], merchants: any[]) => {
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8", "#82CA9D"];
 
 export default function AnalysisPage() {
+	// FIXED: Use auth hook to get merchantId
+	const { isAuthenticated, merchantId } = useAuthCheck();
+
+	console.log("🛠️ Analytics Auth Status:", { isAuthenticated, merchantId });
+
+	// FIXED: Convert merchantId to number for API
+	const numericMerchantId = merchantId ? parseInt(merchantId) : null;
+
+	// FIXED: Use proper merchantId parameter
 	const {
 		data: campaigns = [],
 		isLoading: campaignsLoading,
 		error: campaignsError,
 	} = useQuery({
-		queryKey: ["campaigns-analysis"],
-		queryFn: campaignService.getCampaigns,
+		queryKey: ["campaigns-analysis", numericMerchantId],
+		queryFn: () => {
+			if (!numericMerchantId) {
+				console.warn("❌ No merchantId available, skipping campaigns fetch");
+				return Promise.resolve([]);
+			}
+			return campaignService.getCampaigns(numericMerchantId);
+		},
+		enabled: !!numericMerchantId && isAuthenticated,
 	});
 
 	const {
@@ -106,6 +123,7 @@ export default function AnalysisPage() {
 	} = useQuery({
 		queryKey: ["merchants-analysis"],
 		queryFn: merchantService.getMerchants,
+		enabled: isAuthenticated,
 	});
 
 	const isLoading = campaignsLoading || merchantsLoading;

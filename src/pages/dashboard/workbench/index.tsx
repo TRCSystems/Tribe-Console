@@ -1,5 +1,4 @@
-// src/pages/dashboard/workbench/index.tsx - FIXED VERSION
-
+// src/pages/dashboard/workbench/index.tsx - FINAL FIXED VERSION
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
@@ -13,6 +12,7 @@ import avatar5 from "@/assets/images/avatars/avatar-5.png";
 import { Chart, useChart } from "@/components/chart";
 import Icon from "@/components/icon/icon";
 import { GLOBAL_CONFIG } from "@/global-config";
+import { useAuthCheck } from "@/store/userStore"; // ADDED: Import auth hook
 import { Avatar, AvatarImage } from "@/ui/avatar";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
@@ -25,11 +25,23 @@ const formatCurrency = (amount: number) => {
 	return `KShs ${amount.toFixed(2)}`;
 };
 
+// FIXED: Safe data handling
 const generateAnalyticsData = (campaigns: any[], merchants: any[]) => {
-	const activeCampaigns = campaigns.filter((c) => new Date(c.endDate) > new Date()).length;
-	const totalViews = campaigns.length * 3760;
-	const totalConversions = campaigns.length * 284;
-	const engagementRate = campaigns.length > 0 ? (totalConversions / totalViews) * 100 : 14.2;
+	// FIXED: Ensure campaigns is always an array
+	const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+	const safeMerchants = Array.isArray(merchants) ? merchants : [];
+
+	const activeCampaigns = safeCampaigns.filter((c) => {
+		try {
+			return c.endDate && new Date(c.endDate) > new Date();
+		} catch {
+			return false;
+		}
+	}).length;
+
+	const totalViews = safeCampaigns.length * 3760;
+	const totalConversions = safeCampaigns.length * 284;
+	const engagementRate = safeCampaigns.length > 0 ? (totalConversions / totalViews) * 100 : 14.2;
 
 	return {
 		activeCampaigns,
@@ -80,7 +92,10 @@ const getQuickStats = (campaigns: any[], merchants: any[], isLoading: boolean) =
 
 // Active campaigns with progress - USING REAL CAMPAIGNS
 const getActiveCampaigns = (campaigns: any[], isLoading: boolean) => {
-	if (isLoading || campaigns.length === 0) {
+	// FIXED: Ensure campaigns is always an array
+	const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+
+	if (isLoading || safeCampaigns.length === 0) {
 		return [
 			{ label: "Summer Sale 2024", progress: 85, color: "#3b82f6", budget: "KShs 12,500", spent: "KShs 8,750" },
 			{ label: "New User Onboarding", progress: 60, color: "#f59e42", budget: "KShs 8,000", spent: "KShs 4,800" },
@@ -89,8 +104,8 @@ const getActiveCampaigns = (campaigns: any[], isLoading: boolean) => {
 		];
 	}
 
-	return campaigns.slice(0, 4).map((campaign, index) => ({
-		label: campaign.campaignName,
+	return safeCampaigns.slice(0, 4).map((campaign, index) => ({
+		label: campaign.campaignName || `Campaign ${index + 1}`,
 		progress: Math.floor(Math.random() * 50) + 50, // Simulated progress
 		color: ["#3b82f6", "#f59e42", "#10b981", "#8b5cf6"][index % 4],
 		budget: formatCurrency(Math.floor(Math.random() * 10000) + 5000),
@@ -115,10 +130,17 @@ const getCampaignPerformance = (campaigns: any[], isLoading: boolean) => {
 		percent: 15.6,
 	};
 
-	if (!isLoading && campaigns.length > 0) {
+	// FIXED: Ensure campaigns is always an array
+	const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
+
+	if (!isLoading && safeCampaigns.length > 0) {
 		// Use real campaign data to generate more relevant charts
-		baseData.series[0].data = campaigns.slice(0, 12).map(() => Math.floor(Math.random() * 100) + 30);
-		baseData.series[1].data = campaigns.slice(0, 12).map(() => Math.floor(Math.random() * 60) + 15);
+		baseData.series[0].data = Array(12)
+			.fill(0)
+			.map(() => Math.floor(Math.random() * 100) + 30);
+		baseData.series[1].data = Array(12)
+			.fill(0)
+			.map(() => Math.floor(Math.random() * 60) + 15);
 	}
 
 	return baseData;
@@ -133,18 +155,55 @@ export default function Workbench() {
 		conversions: 0,
 	});
 
-	// Fetch real data from loyalty engine
-	const { data: campaigns = [], isLoading: campaignsLoading } = useQuery({
-		queryKey: ["campaigns-workbench"],
-		queryFn: campaignService.getCampaigns,
+	// FIXED: Use auth hook to get merchantId - THIS WILL BE DIFFERENT FOR EACH USER
+	const { isAuthenticated, merchantId } = useAuthCheck();
+
+	console.log("🛠️ Workbench Auth Status:", { isAuthenticated, merchantId });
+
+	// FIXED: Convert merchantId to number for API - THIS WILL BE THE USER'S ACTUAL MERCHANT ID
+	const numericMerchantId = merchantId ? parseInt(merchantId) : null;
+
+	// Fetch campaigns with proper merchantId - EACH USER GETS THEIR OWN CAMPAIGNS
+	const {
+		data: campaigns = [],
+		isLoading: campaignsLoading,
+		error: campaignsError,
+	} = useQuery({
+		queryKey: ["campaigns-workbench", numericMerchantId],
+		queryFn: () => {
+			if (!numericMerchantId) {
+				console.warn("❌ No merchantId available, skipping campaigns fetch");
+				return Promise.resolve([]);
+			}
+			console.log("🔍 Fetching campaigns for merchant ID:", numericMerchantId);
+			return campaignService.getCampaigns(numericMerchantId);
+		},
+		enabled: !!numericMerchantId && isAuthenticated,
+		retry: 1,
 	});
 
-	const { data: merchants = [], isLoading: merchantsLoading } = useQuery({
+	const {
+		data: merchants = [],
+		isLoading: merchantsLoading,
+		error: merchantsError,
+	} = useQuery({
 		queryKey: ["merchants-workbench"],
 		queryFn: merchantService.getMerchants,
+		enabled: isAuthenticated,
+		retry: 1,
 	});
 
 	const isLoading = campaignsLoading || merchantsLoading;
+
+	// Log any API errors
+	useEffect(() => {
+		if (campaignsError) {
+			console.error("🛠️ Campaigns API error:", campaignsError);
+		}
+		if (merchantsError) {
+			console.error("🛠️ Merchants API error:", merchantsError);
+		}
+	}, [campaignsError, merchantsError]);
 
 	// Animation effect for numbers
 	useEffect(() => {

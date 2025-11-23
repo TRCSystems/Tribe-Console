@@ -1,4 +1,4 @@
-// src/api/services/userManagementService.ts - UPDATED WITH ROLES
+// src/api/services/userManagementService.ts - UPDATED WITH CORRECT ENDPOINTS
 import { loyaltyApiClient } from "../apiClient";
 
 export interface SystemUser {
@@ -15,7 +15,13 @@ export interface CreateUserRequest {
 	password: string;
 	role: string;
 	status: string;
-	permissions?: string[];
+	merchantId?: string;
+}
+
+export interface ApiResponse<T = any> {
+	status: string;
+	message: string;
+	respObject?: T;
 }
 
 // Define available roles and their permissions
@@ -25,41 +31,58 @@ export const USER_ROLES = {
 		label: "Administrator",
 		permissions: ["*"], // All permissions
 	},
-	MANAGER: {
-		value: "MANAGER",
-		label: "Manager",
-		permissions: ["campaigns:read", "campaigns:write", "merchants:read", "merchants:write", "analytics:read"],
+	LEAD_COLLECTOR: {
+		value: "LEAD_COLLECTOR",
+		label: "Lead Collector",
+		permissions: ["leads:read", "leads:write"],
 	},
-	USER: {
-		value: "USER",
-		label: "User",
-		permissions: ["campaigns:read", "analytics:read"],
+	MERCHANT: {
+		value: "MERCHANT",
+		label: "Merchant",
+		permissions: ["inventory:read", "inventory:write", "sales:read", "sales:write"],
 	},
-	VIEWER: {
-		value: "VIEWER",
-		label: "Viewer",
-		permissions: ["campaigns:read"],
+	SALES_PERSON: {
+		value: "SALES_PERSON",
+		label: "Sales Person",
+		permissions: ["sales:read", "sales:write"],
 	},
 } as const;
 
 export type UserRole = keyof typeof USER_ROLES;
 
-const createUser = (data: CreateUserRequest) => loyaltyApiClient.post<SystemUser>({ url: "/user/add", data });
+const createUser = (data: CreateUserRequest) =>
+	loyaltyApiClient.post<ApiResponse>({
+		url: "/user/add",
+		data,
+	});
 
-const getUsers = () => loyaltyApiClient.get<SystemUser[]>({ url: "/user" });
+const getUsersByRole = (role: string) =>
+	loyaltyApiClient.get<ApiResponse>({
+		url: "/user/get/by-role",
+		data: role,
+	});
 
-const getUserById = (id: string) => loyaltyApiClient.get<SystemUser>({ url: `/user/${id}` });
+const getUserById = (userId: number) =>
+	loyaltyApiClient.get<ApiResponse>({
+		url: `/user/get/by-id/${userId}`,
+	});
 
-const updateUserRole = (id: string, role: string, permissions?: string[]) =>
-	loyaltyApiClient.put<SystemUser>({
-		url: `/user/${id}/role`,
-		data: { role, permissions },
+const getAllUsers = () =>
+	loyaltyApiClient.get<ApiResponse>({
+		url: "/user/get/all",
+	});
+
+const updateUser = (data: { id: string; attributeName: string; attributeValue: string }) =>
+	loyaltyApiClient.put<ApiResponse>({
+		url: "/user/update",
+		data,
 	});
 
 export default {
 	createUser,
-	getUsers,
+	getUsersByRole,
 	getUserById,
-	updateUserRole,
+	getAllUsers,
+	updateUser,
 	USER_ROLES,
 };

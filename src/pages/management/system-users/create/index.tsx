@@ -1,5 +1,4 @@
-// src/pages/management/system-users/create/index.tsx - WITH MESSAGE POPUPS
-
+// src/pages/management/system-users/create/index.tsx - FIXED
 import { useMutation } from "@tanstack/react-query";
 import { Form, message } from "antd";
 import { useNavigate } from "react-router";
@@ -18,26 +17,23 @@ export default function CreateUserPage() {
 		mutationFn: userService.createUser,
 		onSuccess: (data) => {
 			// Handle different response statuses with popup messages
-			if (data.status === "200" || data.status === "201") {
+			if (data.status === "200" || data.status === "201" || data.status === "SUCCESS") {
 				message.success("✅ User created successfully!");
 				form.resetFields();
 				setTimeout(() => {
 					navigate("/management/merchant/list");
-				}, 1500); // Navigate after success message is shown
+				}, 1500);
 			} else if (data.status === "500") {
-				// Backend returned 500 but the request technically "succeeded"
 				if (data.message?.includes("rowsAffected: 0")) {
 					message.error("❌ User creation failed: Database error - no user was created. Please check backend logs.");
 				} else {
 					message.error(`❌ Backend error: ${data.message || "User creation failed"}`);
 				}
 			} else {
-				// Other error statuses
 				message.error(`❌ User creation failed: ${data.message || "Unknown error"}`);
 			}
 		},
 		onError: (error: Error) => {
-			// Network errors or request failures
 			if (error.message.includes("Failed to fetch")) {
 				message.error("🌐 Network error: Cannot connect to server. Please check your connection.");
 			} else {
@@ -46,9 +42,25 @@ export default function CreateUserPage() {
 		},
 	});
 
-	const handleSubmit = (values: { username: string; password: string; role: string; status: string }) => {
-		console.log("Creating user with data:", values);
-		createUserMutation.mutate(values);
+	const handleSubmit = (values: {
+		username: string;
+		password: string;
+		role: string;
+		status: string;
+		merchantId?: string;
+	}) => {
+		console.log("🛠️ Creating user with data:", values);
+
+		// Prepare data according to API schema
+		const userData = {
+			username: values.username,
+			password: values.password,
+			role: values.role,
+			status: values.status,
+			merchantId: values.merchantId || "", // Optional field
+		};
+
+		createUserMutation.mutate(userData);
 	};
 
 	return (
@@ -74,7 +86,7 @@ export default function CreateUserPage() {
 						layout="vertical"
 						onFinish={handleSubmit}
 						initialValues={{
-							role: "MANAGER",
+							role: "MERCHANT", // Default to MERCHANT as per API enum
 							status: "ACTIVE",
 						}}
 					>
@@ -103,7 +115,7 @@ export default function CreateUserPage() {
 								<Input type="password" placeholder="Enter password" />
 							</Form.Item>
 
-							{/* Role Field */}
+							{/* Role Field - CORRECTED TO MATCH API ENUM */}
 							<Form.Item name="role" label="Role" rules={[{ required: true, message: "Please select a role" }]}>
 								<Select>
 									<SelectTrigger>
@@ -111,7 +123,9 @@ export default function CreateUserPage() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="ADMIN">Admin</SelectItem>
-										<SelectItem value="MANAGER">Manager</SelectItem>
+										<SelectItem value="LEAD_COLLECTOR">Lead Collector</SelectItem>
+										<SelectItem value="MERCHANT">Merchant</SelectItem>
+										<SelectItem value="SALES_PERSON">Sales Person</SelectItem>
 									</SelectContent>
 								</Select>
 							</Form.Item>
@@ -127,6 +141,11 @@ export default function CreateUserPage() {
 										<SelectItem value="INACTIVE">Inactive</SelectItem>
 									</SelectContent>
 								</Select>
+							</Form.Item>
+
+							{/* Merchant ID Field (Optional) */}
+							<Form.Item name="merchantId" label="Merchant ID (Optional)">
+								<Input placeholder="Enter merchant ID if applicable" />
 							</Form.Item>
 
 							{/* Form Actions */}

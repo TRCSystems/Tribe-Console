@@ -50,7 +50,7 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 				},
 			],
 		},
-		// Standalone Inventory Routes
+
 		{
 			path: "inventory",
 			children: [
@@ -61,7 +61,6 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 				{ path: "close-day", element: Component("/pages/inventory/close-day") },
 			],
 		},
-		// Analytics Routes (Added back for POS buttons)
 		{
 			path: "analytics",
 			children: [

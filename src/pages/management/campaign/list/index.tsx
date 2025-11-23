@@ -1,4 +1,4 @@
-// src/pages/management/campaign/list/index.tsx - CORRECTED VERSION
+// src/pages/management/campaign/list/index.tsx - FINAL FIXED VERSION
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
@@ -18,6 +18,7 @@ import {
 } from "recharts";
 import campaignService from "@/api/services/campaignService";
 import { Icon } from "@/components/icon";
+import { useAuthCheck } from "@/store/userStore"; // ADDED: Import auth hook
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -119,21 +120,37 @@ export default function CampaignListPage() {
 	const [expandedCampaign, setExpandedCampaign] = useState<string | null>(null);
 	const [campaignToDelete, setCampaignToDelete] = useState<string | null>(null);
 
+	// FIXED: Use auth hook to get merchantId
+	const { isAuthenticated, merchantId } = useAuthCheck();
+
+	console.log("🛠️ Campaign List Auth Status:", { isAuthenticated, merchantId });
+
+	// FIXED: Convert merchantId to number for API
+	const numericMerchantId = merchantId ? parseInt(merchantId) : null;
+
+	// FIXED: Use proper merchantId parameter
 	const {
 		data: campaigns = [],
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["campaigns"],
-		queryFn: campaignService.getCampaigns,
+		queryKey: ["campaigns", numericMerchantId],
+		queryFn: () => {
+			if (!numericMerchantId) {
+				console.warn("❌ No merchantId available, skipping campaigns fetch");
+				return Promise.resolve([]);
+			}
+			return campaignService.getCampaigns(numericMerchantId);
+		},
+		enabled: !!numericMerchantId && isAuthenticated,
 	});
 
 	// Delete campaign mutation
 	const deleteMutation = useMutation({
-		mutationFn: campaignService.deleteCampaign,
+		mutationFn: (id: string) => campaignService.deleteCampaign(parseInt(id)),
 		onSuccess: () => {
 			message.success("Campaign deleted successfully!");
-			queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+			queryClient.invalidateQueries({ queryKey: ["campaigns", numericMerchantId] });
 			setCampaignToDelete(null);
 		},
 		onError: (error: Error) => {

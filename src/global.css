@@ -144,3 +144,30 @@
     --layout-header-height: 64px;
     --layout-multi-tabs-height: 48px;
 }
+
+
+/* Add this to your global.css file */
+
+
+/* Prevent browser authentication dialog */
+
+* {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+
+/* Hide any potential auth dialogs */
+
+input[type="password"]::-webkit-credentials-auto-fill-button,
+input[type="password"]::-webkit-credentials-auto-fill-button:hover {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+    position: absolute;
+    right: -10000px;
+}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useUserToken } from "@/store/userStore";
+import { RoleRouteGuard } from "./role-route-guard"; // ADD THIS IMPORT
 
 interface ProtectedRouteProps {
 	children: React.ReactNode;
@@ -17,17 +18,8 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 	useEffect(() => {
 		console.log("🔐 ProtectedRoute - Token check:", {
 			hasToken: !!accessToken,
-			token: accessToken ? "***" + accessToken.slice(-8) : "none",
 			currentPath: location.pathname,
 		});
-
-		// Check localStorage directly as fallback
-		const storedData = localStorage.getItem("userStore");
-		if (storedData) {
-			const parsed = JSON.parse(storedData);
-			const storedToken = parsed.state?.userToken?.accessToken;
-			console.log("📦 LocalStorage token:", storedToken ? "***" + storedToken.slice(-8) : "none");
-		}
 
 		if (!accessToken) {
 			console.log("🚫 No access token, redirecting to login...");
@@ -52,6 +44,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 		);
 	}
 
-	return <>{children}</>;
+	// ADD ROLE-BASED PROTECTION
+	return <RoleRouteGuard>{children}</RoleRouteGuard>;
 };
 //[file content end]

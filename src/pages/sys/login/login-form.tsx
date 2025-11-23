@@ -71,10 +71,9 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 			// Set token in store
 			setUserToken({
 				accessToken: accessToken,
-				refreshToken: "", // Your API doesn't provide refresh token
+				refreshToken: "",
 			});
 
-			// Set basic user info
 			setUserInfo({
 				username: values.username,
 			});
@@ -179,12 +178,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						{t("sys.login.loginButton")}
 					</Button>
 
-					<div className="text-center text-sm">
-						{t("sys.login.noAccount")}
-						<Button variant="link" className="px-1" onClick={() => setLoginState(LoginStateEnum.REGISTER)}>
-							{t("sys.login.signUpFormTitle")}
-						</Button>
-					</div>
+					<div className="text-center text-sm">TRIBE_Your Business Growth Partner.</div>
 				</form>
 			</Form>
 		</div>

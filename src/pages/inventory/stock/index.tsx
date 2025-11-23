@@ -1,15 +1,16 @@
+// src/pages/inventory/stock/index.tsx - FINAL FIXED VERSION
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
 import inventoryService, { type InventoryItem, type StockItem } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
-import userStore from "@/store/userStore";
+import { useAuthCheck, useMerchantId } from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
 
-// Edit Modal Component (from the other developer's files, adapted)
+// Edit Modal Component
 const EditInventoryModal = ({
 	open,
 	setOpen,
@@ -22,28 +23,28 @@ const EditInventoryModal = ({
 	onSave: (item: InventoryItem) => void;
 }) => {
 	const [formData, setFormData] = useState({
-		name: "",
-		quantity: 0,
-		price: 0,
+		itemName: "",
+		availableStock: 0,
+		unitPrice: 0,
 	});
 
 	useEffect(() => {
 		if (item) {
 			setFormData({
-				name: item.name,
-				quantity: item.quantity,
-				price: item.price,
+				itemName: item.itemName,
+				availableStock: item.availableStock,
+				unitPrice: item.unitPrice,
 			});
 		}
 	}, [item]);
 
 	const handleSave = () => {
-		if (item && formData.name && formData.quantity >= 0 && formData.price >= 0) {
+		if (item && formData.itemName && formData.availableStock >= 0 && formData.unitPrice >= 0) {
 			onSave({
 				...item,
-				name: formData.name,
-				quantity: formData.quantity,
-				price: formData.price,
+				itemName: formData.itemName,
+				availableStock: formData.availableStock,
+				unitPrice: formData.unitPrice,
 			});
 			setOpen(false);
 		}
@@ -56,14 +57,14 @@ const EditInventoryModal = ({
 			<Card className="w-full max-w-md">
 				<CardHeader>
 					<CardTitle>{item ? "Edit Item" : "Add Item"}</CardTitle>
-					<CardDescription>{item ? `Edit ${item.name}` : "Add new inventory item"}</CardDescription>
+					<CardDescription>{item ? `Edit ${item.itemName}` : "Add new inventory item"}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
 						<label className="text-sm font-medium">Item Name</label>
 						<Input
-							value={formData.name}
-							onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+							value={formData.itemName}
+							onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
 							placeholder="Enter item name"
 						/>
 					</div>
@@ -72,8 +73,8 @@ const EditInventoryModal = ({
 						<Input
 							type="number"
 							min="0"
-							value={formData.quantity}
-							onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
+							value={formData.availableStock}
+							onChange={(e) => setFormData({ ...formData, availableStock: parseInt(e.target.value) || 0 })}
 							placeholder="Enter quantity"
 						/>
 					</div>
@@ -83,8 +84,8 @@ const EditInventoryModal = ({
 							type="number"
 							min="0"
 							step="0.01"
-							value={formData.price}
-							onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+							value={formData.unitPrice}
+							onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
 							placeholder="Enter price"
 						/>
 					</div>
@@ -104,70 +105,95 @@ export default function StockManagementPage() {
 	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
 	const [stockToAdd, setStockToAdd] = useState<{ inventoryId: number; quantity: number } | null>(null);
-	const [isImporting, setIsImporting] = useState(false);
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
-	// Check authentication state
-	const [isAuthenticated, setIsAuthenticated] = useState(false);
-	const [merchantId, setMerchantId] = useState<string>("");
+	// SIMPLIFIED: Use the new auth check hook
+	const { isAuthenticated } = useAuthCheck();
+	const merchantId = useMerchantId();
+
+	// Check if user can perform actions
+	const canPerformActions = isAuthenticated && !!merchantId;
 
 	useEffect(() => {
-		const token = userStore.getState().userToken?.accessToken;
-		const userMerchantId = userStore.getState().user?.merchantId || "HTL001";
+		console.log("🔄 Stock Management - Auth Status:", {
+			isAuthenticated,
+			merchantId,
+			canPerformActions,
+		});
+	}, [isAuthenticated, merchantId, canPerformActions]);
 
-		console.log("🔄 Stock Page - Auth Check:");
-		console.log("   Token exists:", !!token);
-		console.log("   Merchant ID:", userMerchantId);
-
-		setIsAuthenticated(!!token);
-		setMerchantId(userMerchantId);
-
-		if (!token) {
-			console.warn("⚠️ User not authenticated - stock mutations will fail");
-			message.warning("Please login to manage stock");
-		}
-	}, []);
-
+	// UPDATED: Use merchantId in query
 	const {
 		data: inventory = [],
 		isLoading,
 		error,
 	} = useQuery({
-		queryKey: ["inventory"],
-		queryFn: inventoryService.listMenu,
+		queryKey: ["inventory", merchantId],
+		queryFn: () => inventoryService.getAllItems(merchantId!),
+		enabled: !!merchantId && isAuthenticated,
 	});
 
 	// CORRECT: Field mapping based on actual API response
 	const getItemData = (item: any): InventoryItem => {
 		if (!item) {
-			return { id: 0, name: "Unknown Item", price: 0, quantity: 0 };
+			return {
+				id: 0,
+				itemName: "Unknown Item",
+				unitPrice: 0,
+				availableStock: 0,
+				merchantId: "",
+				itemCode: "",
+				startingStock: 0,
+				addedStock: 0,
+				soldStock: 0,
+				closingStock: 0,
+				totalSales: 0,
+				grossSales: 0,
+				netlSales: 0,
+				deductions: 0,
+				unitCost: 0,
+				expenseNote: "",
+				isActive: false,
+				recordDate: "",
+			};
 		}
 
 		return {
 			id: item.id || 0,
-			name: item.itemName || "Unknown Item",
-			price: item.unitPrice || 0,
-			quantity: item.availableStock || 0,
-			description: item.expenseNote || "",
+			itemName: item.itemName || "Unknown Item",
+			unitPrice: item.unitPrice || 0,
+			availableStock: item.availableStock || 0,
 			merchantId: item.merchantId,
 			itemCode: item.itemCode,
 			startingStock: item.startingStock,
-			availableStock: item.availableStock,
-			unitPrice: item.unitPrice,
+			addedStock: item.addedStock,
+			soldStock: item.soldStock,
+			closingStock: item.closingStock,
+			totalSales: item.totalSales,
+			grossSales: item.grossSales,
+			netlSales: item.netlSales,
+			deductions: item.deductions,
+			unitCost: item.unitCost,
 			expenseNote: item.expenseNote,
+			isActive: item.isActive,
+			recordDate: item.recordDate,
+			productImageUrl: item.productImageUrl,
+			productDescription: item.productDescription,
+			productCategory: item.productCategory,
+			productBrand: item.productBrand,
 		};
 	};
 
-	// Enhanced add stock mutation with detailed logging
+	// Enhanced add stock mutation
 	const addStockMutation = useMutation({
 		mutationFn: async (data: { merchantId: string; items: StockItem[] }) => {
-			console.group("🔄 Add Stock Mutation Started");
-			console.log("📦 Mutation data:", data);
+			console.log("🔄 Add Stock Mutation Started:", data);
 
-			const token = userStore.getState().userToken?.accessToken;
-			console.log("🔑 Token at mutation time:", token ? `${token.substring(0, 50)}...` : "No token");
+			if (!canPerformActions) {
+				throw new Error("User not authenticated or missing merchant ID");
+			}
 
 			try {
 				const result = await inventoryService.addStock(data);
@@ -176,8 +202,6 @@ export default function StockManagementPage() {
 			} catch (error) {
 				console.error("❌ Add stock failed:", error);
 				throw error;
-			} finally {
-				console.groupEnd();
 			}
 		},
 		onSuccess: () => {
@@ -201,8 +225,12 @@ export default function StockManagementPage() {
 			console.group("🔄 CSV Import Started");
 			console.log("📁 File:", file.name, file.size);
 
+			if (!canPerformActions) {
+				throw new Error("User not authenticated or missing merchant ID");
+			}
+
 			try {
-				const result = await inventoryService.importInventory(file, merchantId);
+				const result = await inventoryService.importInventory(file, merchantId!);
 				console.log("✅ Import successful:", result);
 				return result;
 			} catch (error) {
@@ -225,8 +253,10 @@ export default function StockManagementPage() {
 	// Edit item mutation
 	const editItemMutation = useMutation({
 		mutationFn: async (item: InventoryItem) => {
+			if (!canPerformActions) {
+				throw new Error("User not authenticated");
+			}
 			// Since we don't have a direct update endpoint, we'll use addStock to update quantity
-			// For name and price updates, we might need a different approach
 			message.info("Edit functionality requires additional API endpoints");
 			return Promise.resolve();
 		},
@@ -234,11 +264,17 @@ export default function StockManagementPage() {
 			message.success("Item updated successfully!");
 			queryClient.invalidateQueries({ queryKey: ["inventory"] });
 		},
+		onError: (error: Error) => {
+			message.error(`Failed to update item: ${error.message}`);
+		},
 	});
 
 	// Delete item mutation
 	const deleteItemMutation = useMutation({
 		mutationFn: async (itemId: number) => {
+			if (!canPerformActions) {
+				throw new Error("User not authenticated");
+			}
 			message.info("Delete functionality requires additional API endpoints");
 			return Promise.resolve();
 		},
@@ -246,18 +282,21 @@ export default function StockManagementPage() {
 			message.success("Item deleted successfully!");
 			queryClient.invalidateQueries({ queryKey: ["inventory"] });
 		},
+		onError: (error: Error) => {
+			message.error(`Failed to delete item: ${error.message}`);
+		},
 	});
 
 	// Format currency to KShs
 	const formatCurrency = (amount: number) => {
-		return `KShs ${amount.toFixed(2)}`;
+		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
 
 	// Process inventory data with correct field mapping
 	const processedInventory = inventory.map(getItemData);
 
 	const filteredInventory = processedInventory.filter((item: InventoryItem) => {
-		return item.name.toLowerCase().includes(searchTerm.toLowerCase());
+		return item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
 	});
 
 	const getStockStatus = (quantity: number) => {
@@ -267,7 +306,7 @@ export default function StockManagementPage() {
 	};
 
 	const handleAddStock = (item: InventoryItem) => {
-		if (!isAuthenticated) {
+		if (!canPerformActions) {
 			message.error("Please login to add stock");
 			return;
 		}
@@ -275,7 +314,7 @@ export default function StockManagementPage() {
 	};
 
 	const handleEditItem = (item: InventoryItem) => {
-		if (!isAuthenticated) {
+		if (!canPerformActions) {
 			message.error("Please login to edit items");
 			return;
 		}
@@ -284,12 +323,12 @@ export default function StockManagementPage() {
 	};
 
 	const handleDeleteItem = (item: InventoryItem) => {
-		if (!isAuthenticated) {
+		if (!canPerformActions) {
 			message.error("Please login to delete items");
 			return;
 		}
 
-		if (window.confirm(`Are you sure you want to delete "${item.name}"?`)) {
+		if (window.confirm(`Are you sure you want to delete "${item.itemName}"?`)) {
 			deleteItemMutation.mutate(item.id);
 		}
 	};
@@ -310,7 +349,7 @@ export default function StockManagementPage() {
 
 	// Handle Import CSV functionality
 	const handleImportCSV = () => {
-		if (!isAuthenticated) {
+		if (!canPerformActions) {
 			message.error("Please login to import CSV");
 			return;
 		}
@@ -348,9 +387,9 @@ export default function StockManagementPage() {
 
 	// Calculate overview statistics
 	const totalItems = processedInventory.length;
-	const lowStockItems = processedInventory.filter((item) => item.quantity < 10 && item.quantity > 0).length;
-	const outOfStockItems = processedInventory.filter((item) => item.quantity === 0).length;
-	const totalValue = processedInventory.reduce((total, item) => total + item.price * item.quantity, 0);
+	const lowStockItems = processedInventory.filter((item) => item.availableStock < 10 && item.availableStock > 0).length;
+	const outOfStockItems = processedInventory.filter((item) => item.availableStock === 0).length;
+	const totalValue = processedInventory.reduce((total, item) => total + item.unitPrice * item.availableStock, 0);
 
 	if (error) {
 		return (
@@ -383,7 +422,7 @@ export default function StockManagementPage() {
 							<CardTitle>Add Stock</CardTitle>
 							<CardDescription>
 								How many units do you want to add to{" "}
-								{processedInventory.find((item) => item.id === stockToAdd.inventoryId)?.name}?
+								{processedInventory.find((item) => item.id === stockToAdd.inventoryId)?.itemName}?
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
@@ -398,7 +437,7 @@ export default function StockManagementPage() {
 								<Button variant="outline" onClick={() => setStockToAdd(null)} disabled={addStockMutation.isPending}>
 									Cancel
 								</Button>
-								<Button onClick={confirmAddStock} disabled={addStockMutation.isPending || !isAuthenticated}>
+								<Button onClick={confirmAddStock} disabled={addStockMutation.isPending || !canPerformActions}>
 									{addStockMutation.isPending ? (
 										<>
 											<Icon icon="eos-icons:loading" className="mr-2" />
@@ -410,7 +449,7 @@ export default function StockManagementPage() {
 								</Button>
 							</div>
 
-							{!isAuthenticated && (
+							{!canPerformActions && (
 								<div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
 									<p className="text-sm text-yellow-800">
 										<Icon icon="lucide:alert-triangle" className="inline h-4 w-4 mr-1" />
@@ -445,17 +484,24 @@ export default function StockManagementPage() {
 					{/* Auth Status Indicator */}
 					<div
 						className={`px-3 py-1 rounded-full text-sm font-medium ${
-							isAuthenticated ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+							canPerformActions ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
 						}`}
 					>
-						{isAuthenticated ? "✅ Authenticated" : "❌ Not Authenticated"}
+						{canPerformActions ? "✅ Authenticated" : "❌ Not Authenticated"}
 					</div>
+
+					{/* Merchant ID Display */}
+					{merchantId && (
+						<div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+							Merchant: {merchantId}
+						</div>
+					)}
 
 					{/* Import CSV Button - Circular with text below */}
 					<div className="flex flex-col items-center gap-1">
 						<Button
 							onClick={handleImportCSV}
-							disabled={importCSVMutation.isPending || !isAuthenticated}
+							disabled={importCSVMutation.isPending || !canPerformActions}
 							className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
 							variant="default"
 							title="Import CSV File"
@@ -559,15 +605,15 @@ export default function StockManagementPage() {
 								</thead>
 								<tbody>
 									{filteredInventory.map((item: InventoryItem) => {
-										const stockStatus = getStockStatus(item.quantity);
-										const totalValue = item.price * item.quantity;
+										const stockStatus = getStockStatus(item.availableStock);
+										const totalValue = item.unitPrice * item.availableStock;
 
 										return (
 											<tr key={item.id} className="border-b hover:bg-gray-50">
 												<td className="p-4">
 													<div>
-														<p className="font-medium">{item.name}</p>
-														{item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+														<p className="font-medium">{item.itemName}</p>
+														{item.expenseNote && <p className="text-sm text-muted-foreground">{item.expenseNote}</p>}
 													</div>
 												</td>
 												<td className="p-4">
@@ -580,10 +626,10 @@ export default function StockManagementPage() {
 													</Badge>
 												</td>
 												<td className="p-4">
-													<p className="font-medium">{item.quantity} units</p>
+													<p className="font-medium">{item.availableStock} units</p>
 												</td>
 												<td className="p-4">
-													<p className="font-medium">{formatCurrency(item.price)}</p>
+													<p className="font-medium">{formatCurrency(item.unitPrice)}</p>
 												</td>
 												<td className="p-4">
 													<p className="font-medium text-green-600">{formatCurrency(totalValue)}</p>
@@ -593,8 +639,8 @@ export default function StockManagementPage() {
 														<Button
 															size="sm"
 															onClick={() => handleAddStock(item)}
-															disabled={!isAuthenticated}
-															title="Add Stock"
+															disabled={!canPerformActions}
+															title={canPerformActions ? "Add Stock" : "Please login to add stock"}
 														>
 															<Icon icon="lucide:plus" className="h-4 w-4" />
 														</Button>
@@ -602,8 +648,8 @@ export default function StockManagementPage() {
 															size="sm"
 															variant="outline"
 															onClick={() => handleEditItem(item)}
-															disabled={!isAuthenticated}
-															title="Edit Item"
+															disabled={!canPerformActions}
+															title={canPerformActions ? "Edit Item" : "Please login to edit items"}
 														>
 															<Icon icon="lucide:edit" className="h-4 w-4" />
 														</Button>
@@ -611,8 +657,8 @@ export default function StockManagementPage() {
 															size="sm"
 															variant="destructive"
 															onClick={() => handleDeleteItem(item)}
-															disabled={!isAuthenticated}
-															title="Delete Item"
+															disabled={!canPerformActions}
+															title={canPerformActions ? "Delete Item" : "Please login to delete items"}
 														>
 															<Icon icon="lucide:trash" className="h-4 w-4" />
 														</Button>

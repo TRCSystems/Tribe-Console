@@ -167,6 +167,7 @@
 				"import": "Import Inventory",
 				"closeDay": "Close Business Day"
 			},
+			"management": "User Management",
 			"analytics": {
 				"index": "Analytics",
 				"dailySales": "Daily Sales",

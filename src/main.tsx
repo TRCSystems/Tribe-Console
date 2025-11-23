@@ -9,6 +9,7 @@ import menuService from "./api/services/menuService";
 import { registerLocalIcons } from "./components/icon";
 import { GLOBAL_CONFIG } from "./global-config";
 import ErrorBoundary from "./routes/components/error-boundary";
+import { RoleRouteGuard } from "./routes/components/role-route-guard"; // ADDED
 import { routesSection } from "./routes/sections";
 
 const initApp = async () => {
@@ -16,14 +17,14 @@ const initApp = async () => {
 
 	// MSW disabled since we have a working backend
 	// if (import.meta.env.DEV) {
-	// 	try {
-	// 		await worker.start({
-	// 			onUnhandledRequest: "bypass",
-	// 		});
-	// 		console.log("MSW started successfully");
-	// 	} catch (error) {
-	// 		console.warn("MSW failed to start, continuing without mocking", error);
-	// 	}
+	//   try {
+	//     await worker.start({
+	//       onUnhandledRequest: "bypass",
+	//     });
+	//     console.log("MSW started successfully");
+	//   } catch (error) {
+	//     console.warn("MSW failed to start, continuing without mocking", error);
+	//   }
 	// }
 
 	if (GLOBAL_CONFIG.routerMode === "backend") {
@@ -35,7 +36,10 @@ const initApp = async () => {
 			{
 				Component: () => (
 					<App>
-						<Outlet />
+						<RoleRouteGuard>
+							{" "}
+							<Outlet />
+						</RoleRouteGuard>
 					</App>
 				),
 				errorElement: <ErrorBoundary />,

@@ -1,3 +1,4 @@
+// src/pages/pos/index.tsx - FINAL FIXED VERSION
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useState } from "react";
@@ -7,6 +8,8 @@ import inventoryService, {
 	type SaleItem,
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
+import { UserRoleIndicator } from "@/components/user-role-indicator";
+import { useAuthCheck, useMerchantId } from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -38,7 +41,7 @@ const SuccessModal = ({
 	if (!isOpen) return null;
 
 	const formatCurrency = (amount: number) => {
-		return `KShs ${amount.toFixed(2)}`;
+		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
 
 	return (
@@ -79,9 +82,9 @@ const SuccessModal = ({
 							{items.map((item) => (
 								<div key={item.id} className="flex justify-between text-sm">
 									<span>
-										{item.name} x {item.orderQuantity}
+										{item.itemName} x {item.orderQuantity}
 									</span>
-									<span>{formatCurrency(item.price * item.orderQuantity)}</span>
+									<span>{formatCurrency(item.unitPrice * item.orderQuantity)}</span>
 								</div>
 							))}
 						</div>
@@ -108,6 +111,39 @@ const SuccessModal = ({
 	);
 };
 
+// Validation function
+const validateSaleData = (saleData: ProcessSaleRequest): string | null => {
+	if (!saleData.merchantId || saleData.merchantId.trim() === "") {
+		return "Merchant ID is required";
+	}
+
+	if (!saleData.customerPhone || saleData.customerPhone.trim() === "") {
+		return "Customer phone number is required";
+	}
+
+	// Validate phone number format (Kenyan format: 254XXXXXXXXX)
+	const phoneRegex = /^254[17]\d{8}$/;
+	if (!phoneRegex.test(saleData.customerPhone.replace(/\s+/g, ""))) {
+		return "Please enter a valid Kenyan phone number (format: 254XXXXXXXXX)";
+	}
+
+	if (!saleData.items || saleData.items.length === 0) {
+		return "At least one item is required";
+	}
+
+	for (const item of saleData.items) {
+		if (!item.inventoryId || item.inventoryId <= 0) {
+			return `Invalid inventory ID: ${item.inventoryId}`;
+		}
+
+		if (!item.quantity || item.quantity <= 0) {
+			return `Invalid quantity for item ${item.inventoryId}: ${item.quantity}`;
+		}
+	}
+
+	return null; // No errors
+};
+
 export default function PointOfSalePage() {
 	const queryClient = useQueryClient();
 	const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
@@ -122,52 +158,87 @@ export default function PointOfSalePage() {
 		items: OrderItem[];
 	} | null>(null);
 
-	// Fetch inventory data
+	// Authentication
+	const { isAuthenticated } = useAuthCheck();
+	const merchantId = useMerchantId();
+	const canPerformActions = isAuthenticated && !!merchantId;
+
+	// UPDATED: Use merchantId in query with proper field mapping
 	const {
 		data: inventory = [],
 		isLoading,
 		error,
 		refetch,
 	} = useQuery({
-		queryKey: ["inventory-pos"],
-		queryFn: inventoryService.listMenu,
+		queryKey: ["inventory-pos", merchantId],
+		queryFn: () => inventoryService.listMenu(merchantId!),
+		enabled: !!merchantId && isAuthenticated,
 	});
 
 	// CORRECT: Field mapping based on actual API response
 	const getItemData = (item: any): InventoryItem => {
 		if (!item) {
-			return { id: 0, name: "Unknown Item", price: 0, quantity: 0 };
+			return {
+				id: 0,
+				itemName: "Unknown Item",
+				unitPrice: 0,
+				availableStock: 0,
+				merchantId: "",
+				itemCode: "",
+				startingStock: 0,
+				addedStock: 0,
+				soldStock: 0,
+				closingStock: 0,
+				totalSales: 0,
+				grossSales: 0,
+				netlSales: 0,
+				deductions: 0,
+				unitCost: 0,
+				expenseNote: "",
+				isActive: false,
+				recordDate: "",
+			};
 		}
 
 		return {
 			id: item.id || 0,
-			name: item.itemName || "Unknown Item", // ✅ API uses itemName
-			price: item.unitPrice || 0, // ✅ API uses unitPrice
-			quantity: item.availableStock || 0, // ✅ API uses availableStock
-			category: item.category || "",
-			description: item.expenseNote || "",
-			// Include API fields
+			itemName: item.itemName || "Unknown Item",
+			unitPrice: item.unitPrice || 0,
+			availableStock: item.availableStock || 0,
 			merchantId: item.merchantId,
 			itemCode: item.itemCode,
-			itemName: item.itemName,
 			startingStock: item.startingStock,
-			availableStock: item.availableStock,
-			unitPrice: item.unitPrice,
+			addedStock: item.addedStock,
+			soldStock: item.soldStock,
+			closingStock: item.closingStock,
+			totalSales: item.totalSales,
+			grossSales: item.grossSales,
+			netlSales: item.netlSales,
+			deductions: item.deductions,
+			unitCost: item.unitCost,
 			expenseNote: item.expenseNote,
+			isActive: item.isActive,
+			recordDate: item.recordDate,
+			productImageUrl: item.productImageUrl,
+			productDescription: item.productDescription,
+			productCategory: item.productCategory,
+			productBrand: item.productBrand,
 		};
 	};
 
 	// Filter inventory based on search
 	const filteredInventory = inventory.filter((item: any) => {
 		const itemData = getItemData(item);
-		const name = itemData.name.toLowerCase();
+		const name = itemData.itemName.toLowerCase();
 		return name.includes(searchTerm.toLowerCase());
 	});
 
-	// Process sale mutation
+	// FIXED: Process sale mutation with proper error handling
 	const processSaleMutation = useMutation({
 		mutationFn: (saleData: ProcessSaleRequest) => inventoryService.processSale(saleData),
 		onSuccess: (data, variables) => {
+			console.log("✅ Sale processed successfully:", data);
+
 			// Store transaction details for success modal
 			setLastTransaction({
 				paymentMethod: selectedPaymentMethod,
@@ -190,13 +261,28 @@ export default function PointOfSalePage() {
 			message.success("Sale processed successfully!");
 		},
 		onError: (error: Error) => {
-			message.error(`Failed to process sale: ${error.message}`);
+			console.error("❌ Sale processing failed:", error);
+
+			// Enhanced error messages based on error type
+			let errorMessage = `Failed to process sale: ${error.message}`;
+
+			if (error.message.includes("rollback-only")) {
+				errorMessage = "Database error: Unable to complete the sale. Please check item availability and try again.";
+			} else if (error.message.includes("401")) {
+				errorMessage = "Authentication failed. Please login again.";
+			} else if (error.message.includes("500")) {
+				errorMessage = "Server error. Please try again or contact support.";
+			} else if (error.message.includes("Invalid items")) {
+				errorMessage = "Some items are invalid. Please check your order and try again.";
+			}
+
+			message.error(errorMessage);
 		},
 	});
 
-	// Close day mutation
+	// UPDATED: Close day mutation with actual merchantId
 	const closeDayMutation = useMutation({
-		mutationFn: () => inventoryService.closeDay({ merchantId: "HTL001" }),
+		mutationFn: () => inventoryService.closeDay({ merchantId: merchantId! }),
 		onSuccess: () => {
 			message.success("Day closed successfully!");
 			// Refresh inventory data to reflect changes
@@ -209,7 +295,7 @@ export default function PointOfSalePage() {
 
 	const addToOrder = (item: any) => {
 		const itemData = getItemData(item);
-		const availableQuantity = itemData.quantity;
+		const availableQuantity = itemData.availableStock;
 
 		if (availableQuantity === 0) {
 			message.warning("This item is out of stock");
@@ -243,7 +329,7 @@ export default function PointOfSalePage() {
 			removeFromOrder(itemId);
 		} else {
 			const item = inventory.find((i: any) => getItemData(i).id === itemId);
-			if (item && quantity > getItemData(item).quantity) {
+			if (item && quantity > getItemData(item).availableStock) {
 				message.warning("Not enough stock available");
 				return;
 			}
@@ -258,7 +344,7 @@ export default function PointOfSalePage() {
 		setOrderItems((prevOrder) => prevOrder.filter((item) => item.id !== itemId));
 	};
 
-	// Process sale
+	// FIXED: Process sale with proper validation and API format
 	const processSale = async (paymentMethod: PaymentMethod) => {
 		if (orderItems.length === 0) {
 			message.warning("Order is empty");
@@ -270,15 +356,47 @@ export default function PointOfSalePage() {
 			return;
 		}
 
+		if (!merchantId) {
+			message.error("Merchant ID not found. Please login again.");
+			return;
+		}
+
+		// FIXED: Ensure customer phone is provided for the API
+		if (!customerContact || customerContact.trim() === "") {
+			message.warning("Please enter customer phone number for the sale");
+			return;
+		}
+
+		// FIXED: Create sale items in exact API format
 		const saleItems: SaleItem[] = orderItems.map((item) => ({
 			inventoryId: item.id,
 			quantity: item.orderQuantity,
 		}));
 
+		console.log("🛒 Sale Request Data (API Format):", {
+			merchantId: merchantId,
+			customerPhone: customerContact,
+			items: saleItems,
+		});
+
+		// FIXED: Enhanced validation
+		const validationError = validateSaleData({
+			merchantId: merchantId,
+			customerPhone: customerContact,
+			items: saleItems,
+		});
+
+		if (validationError) {
+			message.error(validationError);
+			return;
+		}
+
 		setSelectedPaymentMethod(paymentMethod);
 
+		// FIXED: Send the exact data structure that API expects
 		processSaleMutation.mutate({
-			merchantId: "HTL001",
+			merchantId: merchantId,
+			customerPhone: customerContact,
 			items: saleItems,
 		});
 	};
@@ -292,6 +410,11 @@ export default function PointOfSalePage() {
 	};
 
 	const handleCloseDay = () => {
+		if (!merchantId) {
+			message.error("Merchant ID not found. Please login again.");
+			return;
+		}
+
 		// Confirm before closing the day
 		if (window.confirm("Are you sure you want to close the day? This action cannot be undone.")) {
 			closeDayMutation.mutate();
@@ -307,12 +430,77 @@ export default function PointOfSalePage() {
 		window.location.href = "/analytics/weekly";
 	};
 
-	const totalAmount = orderItems.reduce((total, item) => total + item.price * item.orderQuantity, 0);
+	// ADDED: Debug function to check inventory items
+	const debugInventoryItems = () => {
+		console.log(
+			"🔍 Current Inventory Items:",
+			inventory.map((item: any) => ({
+				id: item.id,
+				name: item.itemName,
+				availableStock: item.availableStock,
+				unitPrice: item.unitPrice,
+			})),
+		);
+
+		console.log(
+			"🔍 Current Order Items:",
+			orderItems.map((item) => ({
+				id: item.id,
+				name: item.itemName,
+				orderQuantity: item.orderQuantity,
+				availableStock: item.availableStock,
+			})),
+		);
+
+		message.info("Check console for inventory details");
+	};
+
+	// ADDED: Test function for simple sale
+	const testSimpleSale = async () => {
+		if (!merchantId) {
+			message.error("Merchant ID not found");
+			return;
+		}
+
+		// Use the first available inventory item
+		const firstItem = inventory[0];
+		if (!firstItem) {
+			message.error("No inventory items available");
+			return;
+		}
+
+		const testData = {
+			merchantId: merchantId,
+			customerPhone: "254712345678", // Test phone
+			items: [
+				{
+					inventoryId: firstItem.id,
+					quantity: 1,
+				},
+			],
+		};
+
+		console.log("🧪 Testing with simple data:", testData);
+
+		try {
+			const result = await inventoryService.recordSale(testData);
+			console.log("✅ Simple test success:", result);
+			message.success("Simple test successful!");
+
+			// Refresh inventory after test
+			queryClient.invalidateQueries({ queryKey: ["inventory-pos"] });
+		} catch (error: any) {
+			console.error("❌ Simple test failed:", error);
+			message.error(`Test failed: ${error.message}`);
+		}
+	};
+
+	const totalAmount = orderItems.reduce((total, item) => total + item.unitPrice * item.orderQuantity, 0);
 	const totalItems = orderItems.reduce((total, item) => total + item.orderQuantity, 0);
 
 	// Format currency to KSH
 	const formatCurrency = (amount: number) => {
-		return `KShs ${amount.toFixed(2)}`;
+		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
 
 	if (error) {
@@ -345,16 +533,19 @@ export default function PointOfSalePage() {
 						<p className="text-muted-foreground">Process orders and manage transactions</p>
 					</div>
 					<div className="flex items-center gap-4">
+						<UserRoleIndicator />
+
 						<Badge variant="secondary" className="text-lg">
 							Total: {formatCurrency(totalAmount)}
 						</Badge>
 						<Badge variant="outline" className="text-lg">
 							Items: {totalItems}
 						</Badge>
-						<Button variant="outline" onClick={() => refetch()} disabled={isLoading}>
-							<Icon icon="lucide:refresh-cw" className="mr-2 h-4 w-4" />
-							Refresh
-						</Button>
+						{merchantId && (
+							<Badge variant="default" className="text-lg">
+								ID: {merchantId}
+							</Badge>
+						)}
 					</div>
 				</div>
 
@@ -389,7 +580,7 @@ export default function PointOfSalePage() {
 												key={itemData.id}
 												className={`
                           cursor-pointer transition-all duration-300 transform hover:scale-110
-                          ${itemData.quantity === 0 ? "opacity-50 grayscale" : "hover:shadow-2xl"}
+                          ${itemData.availableStock === 0 ? "opacity-50 grayscale" : "hover:shadow-2xl"}
                           flex flex-col items-center justify-center
                           rounded-3xl border-2 border-black shadow-lg
                           bg-gradient-to-br from-white to-gray-50
@@ -403,22 +594,26 @@ export default function PointOfSalePage() {
 
 												<div className="text-center mb-2 z-10">
 													<h3 className="font-black text-lg leading-tight text-gray-800 line-clamp-2">
-														{itemData.name}
+														{itemData.itemName}
 													</h3>
 												</div>
 
 												<div className="text-center mb-2 z-10">
-													<p className="text-md font-extrabold text-green-600">{formatCurrency(itemData.price)}</p>
+													<p className="text-md font-extrabold text-green-600">{formatCurrency(itemData.unitPrice)}</p>
 												</div>
 
 												<div className="text-center z-10">
 													<Badge
 														variant={
-															itemData.quantity === 0 ? "destructive" : itemData.quantity < 5 ? "warning" : "secondary"
+															itemData.availableStock === 0
+																? "destructive"
+																: itemData.availableStock < 5
+																	? "warning"
+																	: "secondary"
 														}
 														className="text-xs px-2 py-1 border border-black/20"
 													>
-														{itemData.quantity === 0 ? "Sold Out" : `${itemData.quantity} in stock`}
+														{itemData.availableStock === 0 ? "Sold Out" : `${itemData.availableStock} in stock`}
 													</Badge>
 												</div>
 
@@ -450,14 +645,42 @@ export default function PointOfSalePage() {
 						</CardHeader>
 						<CardContent className="space-y-6">
 							<div className="space-y-3">
-								<Label htmlFor="customerContact">Customer Contact Number</Label>
+								<Label htmlFor="customerContact">Customer Contact Number *</Label>
 								<Input
 									id="customerContact"
-									placeholder="Enter phone number e.g., 0712656502"
+									placeholder="Enter phone number e.g., 254712656502"
 									value={customerContact}
-									onChange={(e) => setCustomerContact(e.target.value)}
+									onChange={(e) => {
+										// Auto-format to 254 format
+										let value = e.target.value.replace(/\D/g, ""); // Remove non-digits
+
+										// Convert 07... or 01... to 254...
+										if (value.startsWith("0") && value.length === 10) {
+											value = "254" + value.substring(1);
+										} else if (value.startsWith("7") && value.length === 9) {
+											value = "254" + value;
+										} else if (value.startsWith("1") && value.length === 9) {
+											value = "254" + value;
+										}
+
+										setCustomerContact(value);
+									}}
+									className="font-mono"
 								/>
-								<p className="text-xs text-muted-foreground">Provide customer phone number for M-Pesa payments</p>
+								<div className="text-xs text-muted-foreground space-y-1">
+									<p>• Format: 2547******** </p>
+									<p>• We'll automatically convert 071... to 25471...</p>
+									<p
+										className={`${customerContact && !/^254[17]\d{8}$/.test(customerContact) ? "text-red-500 font-medium" : "text-green-500"}`}
+									>
+										• Current format:{" "}
+										{customerContact
+											? /^254[17]\d{8}$/.test(customerContact)
+												? "Valid ✅"
+												: "Invalid ❌"
+											: "Waiting for input..."}
+									</p>
+								</div>
 							</div>
 
 							{orderItems.length === 0 ? (
@@ -474,9 +697,10 @@ export default function PointOfSalePage() {
 											className="flex items-center justify-between p-3 border-2 border-black rounded-xl"
 										>
 											<div className="flex-1 min-w-0">
-												<p className="font-bold text-gray-800 truncate">{item.name}</p>
-												<p className="text-sm text-muted-foreground">{formatCurrency(item.price)} each</p>
-												<p className="text-xs text-muted-foreground">Stock: {item.quantity}</p>
+												<p className="font-bold text-gray-800 truncate">{item.itemName}</p>
+												<p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} each</p>
+												<p className="text-xs text-muted-foreground">Stock: {item.availableStock}</p>
+												<p className="text-xs text-muted-foreground">ID: {item.id}</p>
 											</div>
 											<div className="flex items-center gap-2">
 												<Button
@@ -493,7 +717,7 @@ export default function PointOfSalePage() {
 													variant="outline"
 													className="border border-black"
 													onClick={() => updateOrderQuantity(item.id, item.orderQuantity + 1)}
-													disabled={item.orderQuantity >= item.quantity}
+													disabled={item.orderQuantity >= item.availableStock}
 												>
 													<Icon icon="lucide:plus" className="h-3 w-3" />
 												</Button>
@@ -526,7 +750,9 @@ export default function PointOfSalePage() {
 								<Button
 									className="w-full h-14 text-lg font-bold shadow-xl hover:shadow-2xl transition-all duration-200 rounded-2xl border-2 border-black"
 									onClick={handleMpesaPayment}
-									disabled={processSaleMutation.isPending || orderItems.length === 0}
+									disabled={
+										processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions || !customerContact
+									}
 									style={{
 										background: "linear-gradient(135deg, #00B300 0%, #008000 100%)",
 										color: "white",
@@ -548,7 +774,9 @@ export default function PointOfSalePage() {
 								<Button
 									className="w-full h-14 text-lg font-bold shadow-xl hover:shadow-2xl transition-all duration-200 rounded-2xl border-2 border-black"
 									onClick={handleCashPayment}
-									disabled={processSaleMutation.isPending || orderItems.length === 0}
+									disabled={
+										processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions || !customerContact
+									}
 									style={{
 										background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
 										color: "white",
@@ -571,6 +799,12 @@ export default function PointOfSalePage() {
 							{orderItems.length === 0 && (
 								<div className="text-center text-sm text-muted-foreground p-4 border-2 border-black rounded-2xl bg-muted/20">
 									<p>Add items to your order to enable payment options</p>
+								</div>
+							)}
+
+							{!canPerformActions && (
+								<div className="text-center text-sm text-destructive p-4 border-2 border-destructive rounded-2xl bg-destructive/10">
+									<p>Authentication required. Please login to process sales.</p>
 								</div>
 							)}
 
@@ -607,13 +841,13 @@ export default function PointOfSalePage() {
 								{/* Close Day Button */}
 								<button
 									onClick={handleCloseDay}
-									disabled={closeDayMutation.isPending}
+									disabled={closeDayMutation.isPending || !merchantId}
 									className={`
                     relative w-16 h-16 rounded-full flex flex-col items-center justify-center
                     transition-all duration-300 transform hover:scale-110
                     shadow-lg hover:shadow-xl border-2 border-red-600
                     ${
-											closeDayMutation.isPending
+											closeDayMutation.isPending || !merchantId
 												? "bg-red-400 cursor-not-allowed"
 												: "bg-red-600 hover:bg-red-700 cursor-pointer"
 										}
