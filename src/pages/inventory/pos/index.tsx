@@ -1,7 +1,7 @@
-// src/pages/pos/index.tsx - FINAL FIXED VERSION
+// src/pages/pos/index.tsx - FINAL VERSION WITH CORRECTED IMPORTS
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import inventoryService, {
 	type InventoryItem,
 	type ProcessSaleRequest,
@@ -9,7 +9,7 @@ import inventoryService, {
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
-import { useAuthCheck, useMerchantId } from "@/store/userStore";
+import { useAuthCheck, useMerchantId, useUserInfo } from "@/store/userStore"; // FIXED: useUserInfo instead of useUser
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -22,14 +22,109 @@ interface OrderItem extends InventoryItem {
 
 type PaymentMethod = "mpesa" | "cash" | null;
 
-// Success Modal Component
-const SuccessModal = ({
+// Toast Notification Component
+const SaleToastNotification = ({
+	isOpen,
+	onClose,
+	onPrint,
+	type,
+	message: toastMessage,
+	details,
+}: {
+	isOpen: boolean;
+	onClose: () => void;
+	onPrint: () => void;
+	type: "success" | "error";
+	message: string;
+	details?: {
+		totalAmount: number;
+		paymentMethod: string;
+		itemsCount: number;
+		transactionId: string;
+	};
+}) => {
+	useEffect(() => {
+		if (isOpen) {
+			const timer = setTimeout(() => {
+				onClose();
+			}, 8000);
+
+			return () => clearTimeout(timer);
+		}
+	}, [isOpen, onClose]);
+
+	const formatCurrency = (amount: number) => {
+		return `KShs ${amount?.toFixed(2) || "0.00"}`;
+	};
+
+	if (!isOpen) return null;
+
+	return (
+		<div className="fixed top-4 right-4 z-50 max-w-sm w-full">
+			<div
+				className={`p-4 rounded-lg shadow-lg border-2 ${
+					type === "success" ? "bg-green-50 border-green-500 text-green-800" : "bg-red-50 border-red-500 text-red-800"
+				}`}
+			>
+				<div className="flex items-start justify-between">
+					<div className="flex items-center">
+						{type === "success" ? (
+							<Icon icon="lucide:check-circle" className="h-6 w-6 text-green-600 mr-3" />
+						) : (
+							<Icon icon="lucide:x-circle" className="h-6 w-6 text-red-600 mr-3" />
+						)}
+						<div className="flex-1">
+							<h4 className="font-bold text-lg">{toastMessage}</h4>
+							{details && type === "success" && (
+								<div className="mt-2 text-sm space-y-1">
+									<div className="flex justify-between">
+										<span>Transaction ID:</span>
+										<span className="font-semibold">{details.transactionId}</span>
+									</div>
+									<div className="flex justify-between">
+										<span>Amount:</span>
+										<span className="font-semibold">{formatCurrency(details.totalAmount)}</span>
+									</div>
+									<div className="flex justify-between">
+										<span>Payment:</span>
+										<span className="font-semibold">{details.paymentMethod}</span>
+									</div>
+									<div className="flex justify-between">
+										<span>Items:</span>
+										<span className="font-semibold">{details.itemsCount} items</span>
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+					<button onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700 flex-shrink-0">
+						<Icon icon="lucide:x" className="h-4 w-4" />
+					</button>
+				</div>
+
+				{type === "success" && (
+					<div className="mt-3 flex justify-end">
+						<Button size="sm" onClick={onPrint} className="bg-blue-600 hover:bg-blue-700 text-white">
+							<Icon icon="lucide:printer" className="mr-2 h-4 w-4" />
+							Print Receipt
+						</Button>
+					</div>
+				)}
+			</div>
+		</div>
+	);
+};
+
+// Print Receipt Component - UPDATED WITH MERCHANT NAME
+const PrintReceipt = ({
 	isOpen,
 	onClose,
 	paymentMethod,
 	totalAmount,
 	customerContact,
 	items,
+	transactionId,
+	merchantName, // ADDED: Merchant name prop
 }: {
 	isOpen: boolean;
 	onClose: () => void;
@@ -37,6 +132,8 @@ const SuccessModal = ({
 	totalAmount: number;
 	customerContact: string;
 	items: OrderItem[];
+	transactionId: string;
+	merchantName: string; // ADDED: Merchant name
 }) => {
 	if (!isOpen) return null;
 
@@ -44,53 +141,103 @@ const SuccessModal = ({
 		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
 
+	const currentDate = new Date();
+	const formattedDate = currentDate.toLocaleDateString("en-US", {
+		year: "numeric",
+		month: "long",
+		day: "numeric",
+	});
+	const formattedTime = currentDate.toLocaleTimeString("en-US", {
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+
+	// Default merchant name if not provided
+	const displayMerchantName = merchantName || "My Business";
+
 	return (
 		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
 			<Card className="w-full max-w-md">
 				<CardHeader className="text-center">
-					<div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-						<Icon icon="lucide:check" className="h-8 w-8 text-green-600" />
-					</div>
-					<CardTitle className="text-green-600">Payment Successful!</CardTitle>
-					<CardDescription>Your transaction has been processed successfully</CardDescription>
+					<CardTitle>Print Receipt</CardTitle>
+					<CardDescription>Review receipt before printing</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="space-y-3">
-						<div className="flex justify-between">
-							<span className="text-sm text-muted-foreground">Payment Method:</span>
-							<span className="font-medium">{paymentMethod === "mpesa" ? "M-Pesa" : "Cash"}</span>
+					<div className="space-y-3 border-2 border-gray-300 p-4 rounded-lg bg-white">
+						{/* Receipt Header - UPDATED WITH DYNAMIC MERCHANT NAME */}
+						<div className="text-center border-b-2 border-dashed border-gray-400 pb-3 mb-3">
+							<h3 className="font-bold text-xl text-gray-800">{displayMerchantName.toUpperCase()}</h3>
+							<p className="text-sm text-gray-600 mt-1">Sales Receipt</p>
+							<p className="text-xs text-gray-500 mt-1">
+								{formattedDate} at {formattedTime}
+							</p>
 						</div>
-						<div className="flex justify-between">
-							<span className="text-sm text-muted-foreground">Total Amount:</span>
-							<span className="font-bold text-lg">{formatCurrency(totalAmount)}</span>
-						</div>
-						{customerContact && (
-							<div className="flex justify-between">
-								<span className="text-sm text-muted-foreground">Customer Contact:</span>
-								<span className="font-medium">{customerContact}</span>
+
+						{/* Transaction Details */}
+						<div className="space-y-2">
+							<div className="flex justify-between text-sm">
+								<span className="text-gray-600">Transaction ID:</span>
+								<span className="font-medium text-gray-800">{transactionId}</span>
 							</div>
-						)}
-						<div className="flex justify-between">
-							<span className="text-sm text-muted-foreground">Transaction ID:</span>
-							<span className="font-medium">TXN-{Date.now().toString().slice(-6)}</span>
-						</div>
-					</div>
-
-					<div className="border-t pt-3">
-						<h4 className="font-semibold mb-2">Items Purchased:</h4>
-						<div className="space-y-2 max-h-32 overflow-y-auto">
-							{items.map((item) => (
-								<div key={item.id} className="flex justify-between text-sm">
-									<span>
-										{item.itemName} x {item.orderQuantity}
-									</span>
-									<span>{formatCurrency(item.unitPrice * item.orderQuantity)}</span>
+							<div className="flex justify-between text-sm">
+								<span className="text-gray-600">Payment Method:</span>
+								<span className="font-medium text-gray-800">{paymentMethod === "mpesa" ? "M-Pesa" : "Cash"}</span>
+							</div>
+							{customerContact && (
+								<div className="flex justify-between text-sm">
+									<span className="text-gray-600">Customer Phone:</span>
+									<span className="font-medium text-gray-800">{customerContact}</span>
 								</div>
-							))}
+							)}
+						</div>
+
+						{/* Items List */}
+						<div className="border-t border-dashed border-gray-400 pt-3">
+							<h4 className="font-semibold mb-2 text-sm text-gray-700">ITEMS PURCHASED:</h4>
+							<div className="space-y-2 max-h-48 overflow-y-auto">
+								{items.map((item) => (
+									<div key={item.id} className="flex justify-between text-xs border-b border-gray-200 pb-2">
+										<div className="flex-1">
+											<p className="font-medium text-gray-800">{item.itemName}</p>
+											<p className="text-gray-600">
+												{formatCurrency(item.unitPrice)} × {item.orderQuantity}
+											</p>
+										</div>
+										<span className="font-bold text-gray-800 ml-2">
+											{formatCurrency(item.unitPrice * item.orderQuantity)}
+										</span>
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* Totals */}
+						<div className="border-t-2 border-double border-gray-400 pt-3 space-y-2">
+							<div className="flex justify-between text-sm">
+								<span className="text-gray-600">Subtotal:</span>
+								<span className="font-medium text-gray-800">{formatCurrency(totalAmount)}</span>
+							</div>
+							<div className="flex justify-between text-sm">
+								<span className="text-gray-600">Tax (0%):</span>
+								<span className="font-medium text-gray-800">{formatCurrency(0)}</span>
+							</div>
+							<div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-2">
+								<span className="text-gray-800">TOTAL:</span>
+								<span className="text-gray-800">{formatCurrency(totalAmount)}</span>
+							</div>
+						</div>
+
+						{/* Footer - UPDATED WITH MERCHANT NAME */}
+						<div className="text-center border-t border-dashed border-gray-400 pt-3">
+							<p className="text-xs text-gray-500 mb-1">Thank you for your business!</p>
+							<p className="text-xs text-gray-500">
+								For inquiries: support@{displayMerchantName.toLowerCase().replace(/\s+/g, "")}.com
+							</p>
+							<p className="text-xs text-gray-500 mt-2">Powered by {displayMerchantName}</p>
 						</div>
 					</div>
 
-					<div className="flex gap-3 pt-4">
+					<div className="flex gap-3 pt-2">
 						<Button variant="outline" className="flex-1" onClick={onClose}>
 							Close
 						</Button>
@@ -150,18 +297,35 @@ export default function PointOfSalePage() {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(null);
 	const [customerContact, setCustomerContact] = useState("");
-	const [showSuccessModal, setShowSuccessModal] = useState(false);
+	const [showToast, setShowToast] = useState(false);
+	const [toastConfig, setToastConfig] = useState<{
+		type: "success" | "error";
+		message: string;
+		details?: {
+			totalAmount: number;
+			paymentMethod: string;
+			itemsCount: number;
+			transactionId: string;
+		};
+	}>({ type: "success", message: "" });
+
+	const [showPrintReceipt, setShowPrintReceipt] = useState(false);
 	const [lastTransaction, setLastTransaction] = useState<{
 		paymentMethod: PaymentMethod;
 		totalAmount: number;
 		customerContact: string;
 		items: OrderItem[];
+		transactionId: string;
 	} | null>(null);
 
-	// Authentication
+	// Authentication - CORRECTED: Use useUserInfo instead of useUser
 	const { isAuthenticated } = useAuthCheck();
 	const merchantId = useMerchantId();
+	const userInfo = useUserInfo(); // FIXED: useUserInfo instead of useUser
 	const canPerformActions = isAuthenticated && !!merchantId;
+
+	// Get merchant name from user data - UPDATED
+	const merchantName = userInfo?.username || "My Business";
 
 	// UPDATED: Use merchantId in query with proper field mapping
 	const {
@@ -233,22 +397,41 @@ export default function PointOfSalePage() {
 		return name.includes(searchTerm.toLowerCase());
 	});
 
-	// FIXED: Process sale mutation with proper error handling
+	// Generate transaction ID function
+	const generateTransactionId = () => {
+		return `TXN-${Date.now().toString().slice(-8)}`;
+	};
+
+	// UPDATED: Process sale mutation with toast notifications
 	const processSaleMutation = useMutation({
 		mutationFn: (saleData: ProcessSaleRequest) => inventoryService.processSale(saleData),
 		onSuccess: (data, variables) => {
 			console.log("✅ Sale processed successfully:", data);
 
-			// Store transaction details for success modal
+			// Generate transaction ID
+			const transactionId = generateTransactionId();
+
+			// Store transaction details for receipt
 			setLastTransaction({
 				paymentMethod: selectedPaymentMethod,
 				totalAmount: totalAmount,
 				customerContact: customerContact || "",
 				items: [...orderItems],
+				transactionId: transactionId,
 			});
 
-			// Show success modal
-			setShowSuccessModal(true);
+			// Show success toast WITH TRANSACTION ID
+			setToastConfig({
+				type: "success",
+				message: "Sale Completed Successfully!",
+				details: {
+					totalAmount: totalAmount,
+					paymentMethod: selectedPaymentMethod === "mpesa" ? "M-Pesa" : "Cash",
+					itemsCount: orderItems.reduce((total, item) => total + item.orderQuantity, 0),
+					transactionId: transactionId,
+				},
+			});
+			setShowToast(true);
 
 			// Refresh inventory data
 			queryClient.invalidateQueries({ queryKey: ["inventory-pos"] });
@@ -257,26 +440,30 @@ export default function PointOfSalePage() {
 			setOrderItems([]);
 			setSelectedPaymentMethod(null);
 			setCustomerContact("");
-
-			message.success("Sale processed successfully!");
 		},
 		onError: (error: Error) => {
 			console.error("❌ Sale processing failed:", error);
 
-			// Enhanced error messages based on error type
-			let errorMessage = `Failed to process sale: ${error.message}`;
+			let errorMessage = "Sale Failed!";
 
 			if (error.message.includes("rollback-only")) {
-				errorMessage = "Database error: Unable to complete the sale. Please check item availability and try again.";
+				errorMessage = "Database error: Unable to complete sale.";
 			} else if (error.message.includes("401")) {
-				errorMessage = "Authentication failed. Please login again.";
+				errorMessage = "Authentication failed. Please login.";
 			} else if (error.message.includes("500")) {
-				errorMessage = "Server error. Please try again or contact support.";
+				errorMessage = "Server error. Please try again.";
 			} else if (error.message.includes("Invalid items")) {
-				errorMessage = "Some items are invalid. Please check your order and try again.";
+				errorMessage = "Some items are invalid.";
+			} else {
+				errorMessage = `Sale failed: ${error.message}`;
 			}
 
-			message.error(errorMessage);
+			// Show error toast
+			setToastConfig({
+				type: "error",
+				message: errorMessage,
+			});
+			setShowToast(true);
 		},
 	});
 
@@ -292,6 +479,17 @@ export default function PointOfSalePage() {
 			message.error(`Failed to close day: ${error.message}`);
 		},
 	});
+
+	// Print receipt handler
+	const handlePrintReceipt = () => {
+		setShowPrintReceipt(true);
+		setShowToast(false); // Close toast when printing
+	};
+
+	// Close toast handler
+	const handleCloseToast = () => {
+		setShowToast(false);
+	};
 
 	const addToOrder = (item: any) => {
 		const itemData = getItemData(item);
@@ -379,7 +577,6 @@ export default function PointOfSalePage() {
 			items: saleItems,
 		});
 
-		// FIXED: Enhanced validation
 		const validationError = validateSaleData({
 			merchantId: merchantId,
 			customerPhone: customerContact,
@@ -430,71 +627,6 @@ export default function PointOfSalePage() {
 		window.location.href = "/analytics/weekly";
 	};
 
-	// ADDED: Debug function to check inventory items
-	const debugInventoryItems = () => {
-		console.log(
-			"🔍 Current Inventory Items:",
-			inventory.map((item: any) => ({
-				id: item.id,
-				name: item.itemName,
-				availableStock: item.availableStock,
-				unitPrice: item.unitPrice,
-			})),
-		);
-
-		console.log(
-			"🔍 Current Order Items:",
-			orderItems.map((item) => ({
-				id: item.id,
-				name: item.itemName,
-				orderQuantity: item.orderQuantity,
-				availableStock: item.availableStock,
-			})),
-		);
-
-		message.info("Check console for inventory details");
-	};
-
-	// ADDED: Test function for simple sale
-	const testSimpleSale = async () => {
-		if (!merchantId) {
-			message.error("Merchant ID not found");
-			return;
-		}
-
-		// Use the first available inventory item
-		const firstItem = inventory[0];
-		if (!firstItem) {
-			message.error("No inventory items available");
-			return;
-		}
-
-		const testData = {
-			merchantId: merchantId,
-			customerPhone: "254712345678", // Test phone
-			items: [
-				{
-					inventoryId: firstItem.id,
-					quantity: 1,
-				},
-			],
-		};
-
-		console.log("🧪 Testing with simple data:", testData);
-
-		try {
-			const result = await inventoryService.recordSale(testData);
-			console.log("✅ Simple test success:", result);
-			message.success("Simple test successful!");
-
-			// Refresh inventory after test
-			queryClient.invalidateQueries({ queryKey: ["inventory-pos"] });
-		} catch (error: any) {
-			console.error("❌ Simple test failed:", error);
-			message.error(`Test failed: ${error.message}`);
-		}
-	};
-
 	const totalAmount = orderItems.reduce((total, item) => total + item.unitPrice * item.orderQuantity, 0);
 	const totalItems = orderItems.reduce((total, item) => total + item.orderQuantity, 0);
 
@@ -543,7 +675,7 @@ export default function PointOfSalePage() {
 						</Badge>
 						{merchantId && (
 							<Badge variant="default" className="text-lg">
-								ID: {merchantId}
+								Merchant: {merchantName}
 							</Badge>
 						)}
 					</div>
@@ -700,7 +832,6 @@ export default function PointOfSalePage() {
 												<p className="font-bold text-gray-800 truncate">{item.itemName}</p>
 												<p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} each</p>
 												<p className="text-xs text-muted-foreground">Stock: {item.availableStock}</p>
-												<p className="text-xs text-muted-foreground">ID: {item.id}</p>
 											</div>
 											<div className="flex items-center gap-2">
 												<Button
@@ -868,14 +999,31 @@ export default function PointOfSalePage() {
 				</div>
 			</div>
 
-			<SuccessModal
-				isOpen={showSuccessModal}
-				onClose={() => setShowSuccessModal(false)}
+			{/* Toast Notification */}
+			<SaleToastNotification
+				isOpen={showToast}
+				onClose={handleCloseToast}
+				onPrint={handlePrintReceipt}
+				type={toastConfig.type}
+				message={toastConfig.message}
+				details={toastConfig.details}
+			/>
+
+			{/* Print Receipt Modal - UPDATED WITH MERCHANT NAME */}
+			<PrintReceipt
+				isOpen={showPrintReceipt}
+				onClose={() => setShowPrintReceipt(false)}
 				paymentMethod={lastTransaction?.paymentMethod || null}
 				totalAmount={lastTransaction?.totalAmount || 0}
 				customerContact={lastTransaction?.customerContact || ""}
 				items={lastTransaction?.items || []}
+				transactionId={lastTransaction?.transactionId || generateTransactionId()}
+				merchantName={merchantName} // PASS MERCHANT NAME
 			/>
+
+			<div className="text-center mt-8">
+				<p className="text-gray-500 text-sm">Powered by TRIBE • Your trusted business growth platform</p>
+			</div>
 		</>
 	);
 }

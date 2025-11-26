@@ -1,6 +1,6 @@
 import { Suspense, lazy } from "react";
-import { Outlet } from "react-router";
 import type { RouteObject } from "react-router";
+import { Outlet } from "react-router";
 
 const LoginPage = lazy(() => import("@/pages/sys/login"));
 const authCustom: RouteObject[] = [

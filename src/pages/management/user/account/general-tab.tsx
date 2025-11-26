@@ -1,8 +1,8 @@
-import { faker } from "@faker-js/faker";
+// src/pages/management/user-account/general-tab.tsx - FIXED
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { UploadAvatar } from "@/components/upload";
-import { useUserInfo } from "@/store/userStore";
+import { useUserInfo, useUserEmail, useUserActions } from "@/store/userStore"; // ADDED
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardFooter } from "@/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/ui/form";
@@ -22,20 +22,33 @@ type FieldType = {
 };
 
 export default function GeneralTab() {
-	const { avatar, username, email } = useUserInfo();
+	const { avatar, username } = useUserInfo();
+	const userEmail = useUserEmail(); // ADDED: Get real email
+	const { setUserInfo } = useUserActions(); // ADDED: To update user info
+	
 	const form = useForm<FieldType>({
 		defaultValues: {
-			name: username,
-			email,
-			phone: faker.phone.number(),
-			address: faker.location.county(),
-			city: faker.location.city(),
-			code: faker.location.zipCode(),
-			about: faker.lorem.paragraph(),
+			name: username || "", // Use real username
+			email: userEmail || "", // Use real email
+			phone: "", // Remove faker data
+			address: "", // Remove faker data
+			city: "", // Remove faker data
+			code: "", // Remove faker data
+			about: "", // Remove faker data
 		},
 	});
 
 	const handleClick = () => {
+		// Get updated form values
+		const formData = form.getValues();
+		
+		// Update user info in store
+		setUserInfo({
+			username: formData.name || username,
+			email: formData.email || userEmail,
+			// Add other fields as needed
+		});
+		
 		toast.success("Update success!");
 	};
 
@@ -67,7 +80,7 @@ export default function GeneralTab() {
 										<FormItem>
 											<FormLabel>Username</FormLabel>
 											<FormControl>
-												<Input {...field} />
+												<Input {...field} placeholder="Enter your username" />
 											</FormControl>
 										</FormItem>
 									)}
@@ -79,7 +92,7 @@ export default function GeneralTab() {
 										<FormItem>
 											<FormLabel>Email</FormLabel>
 											<FormControl>
-												<Input {...field} />
+												<Input {...field} type="email" placeholder="Enter your email" />
 											</FormControl>
 										</FormItem>
 									)}
@@ -91,7 +104,7 @@ export default function GeneralTab() {
 										<FormItem>
 											<FormLabel>Phone</FormLabel>
 											<FormControl>
-												<Input {...field} />
+												<Input {...field} placeholder="Enter your phone number" />
 											</FormControl>
 										</FormItem>
 									)}
@@ -103,7 +116,7 @@ export default function GeneralTab() {
 										<FormItem>
 											<FormLabel>Address</FormLabel>
 											<FormControl>
-												<Input {...field} />
+												<Input {...field} placeholder="Enter your address" />
 											</FormControl>
 										</FormItem>
 									)}
@@ -115,7 +128,7 @@ export default function GeneralTab() {
 										<FormItem>
 											<FormLabel>City</FormLabel>
 											<FormControl>
-												<Input {...field} />
+												<Input {...field} placeholder="Enter your city" />
 											</FormControl>
 										</FormItem>
 									)}
@@ -125,9 +138,9 @@ export default function GeneralTab() {
 									name="code"
 									render={({ field }) => (
 										<FormItem>
-											<FormLabel>Code</FormLabel>
+											<FormLabel>Postal Code</FormLabel>
 											<FormControl>
-												<Input {...field} />
+												<Input {...field} placeholder="Enter postal code" />
 											</FormControl>
 										</FormItem>
 									)}
@@ -141,7 +154,7 @@ export default function GeneralTab() {
 										<FormItem>
 											<FormLabel>About</FormLabel>
 											<FormControl>
-												<Textarea {...field} />
+												<Textarea {...field} placeholder="Tell us about yourself..." />
 											</FormControl>
 										</FormItem>
 									)}

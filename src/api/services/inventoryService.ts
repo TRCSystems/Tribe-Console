@@ -1,5 +1,6 @@
-// src/api/services/inventoryService.ts - CRITICAL FIXES
+// src/api/services/inventoryService.ts - FINAL FIXED VERSION
 import { loyaltyApiClient } from "@/api/apiClient";
+import useUserStore from "@/store/userStore";
 
 export interface StockItemRequest {
 	inventoryId: number;
@@ -110,21 +111,114 @@ export interface CloseDayResponse {
 	message?: string;
 }
 
+export interface ExpenseResponse {
+	success?: boolean;
+	message?: string;
+	expenseId?: number;
+	[key: string]: any;
+}
+
+// Helper function to get merchant ID from store
+const getMerchantId = (): string => {
+	const state = useUserStore.getState();
+	const merchantId = state.merchantId;
+
+	if (!merchantId) {
+		console.error("❌ No merchant ID found in user store");
+		throw new Error("Merchant ID not available. Please login again.");
+	}
+
+	return merchantId;
+};
+
 class InventoryService {
-	async addStock(data: StockRequest): Promise<StockResponse> {
+	/**
+	 * Add stock to inventory
+	 */
+	async addStock(data: Omit<StockRequest, "merchantId">): Promise<StockResponse> {
+		const merchantId = getMerchantId();
+
+		const requestData: StockRequest = {
+			merchantId,
+			items: data.items,
+		};
+
 		return loyaltyApiClient.post({
 			url: "/inventory/add-stock",
-			data,
+			data: requestData,
 		});
 	}
 
-	async recordExpense(data: ExpenseData): Promise<{ success: boolean }> {
-		return loyaltyApiClient.post({
-			url: "/inventory/expense",
-			data,
-		});
+	/**
+	 * Record an expense
+	 */
+	async recordExpense(data: Omit<ExpenseData, "merchantId">): Promise<ExpenseResponse> {
+		const merchantId = getMerchantId();
+
+		console.group("💰 Record Expense API Call");
+		console.log("📦 Expense Request Data:", { merchantId, ...data });
+
+		// Enhanced validation
+		if (!data.amount || data.amount <= 0) {
+			throw new Error("Valid amount is required");
+		}
+
+		if (!data.note || data.note.trim() === "") {
+			throw new Error("Expense note/description is required");
+		}
+
+		try {
+			console.log("🚀 Sending request to /inventory/expense...");
+
+			const requestData: ExpenseData = {
+				merchantId,
+				amount: data.amount,
+				note: data.note.trim(),
+			};
+
+			const response = await loyaltyApiClient.post({
+				url: "/inventory/expense",
+				data: requestData,
+			});
+
+			console.log("✅ Expense API Response:", response);
+			console.groupEnd();
+
+			// Handle different response formats
+			if (typeof response === "object") {
+				return {
+					success: true,
+					message: "Expense recorded successfully",
+					...response,
+				};
+			}
+
+			return {
+				success: true,
+				message: "Expense recorded successfully",
+			};
+		} catch (error: any) {
+			console.error("❌ Expense API Error:", error);
+			console.error("❌ Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+
+			// Provide more specific error messages
+			if (error.response?.data?.message) {
+				throw new Error(error.response.data.message);
+			} else if (error.response?.data?.error) {
+				throw new Error(error.response.data.error);
+			}
+			throw error;
+		}
 	}
 
+	/**
+	 * Record deduction for an inventory item
+	 */
 	async recordDeduction(inventoryId: number, amount: number): Promise<InventoryItem> {
 		return loyaltyApiClient.put({
 			url: `/inventory/${inventoryId}/deduction`,
@@ -132,7 +226,12 @@ class InventoryService {
 		});
 	}
 
-	async importInventory(file: File, merchantId: string): Promise<{ success: boolean; imported: number }> {
+	/**
+	 * Import inventory from file
+	 */
+	async importInventory(file: File): Promise<{ success: boolean; imported: number }> {
+		const merchantId = getMerchantId();
+
 		const formData = new FormData();
 		formData.append("file", file);
 
@@ -144,7 +243,12 @@ class InventoryService {
 		});
 	}
 
-	async getAllItems(merchantId: string): Promise<InventoryItem[]> {
+	/**
+	 * Get all inventory items for the current merchant
+	 */
+	async getAllItems(): Promise<InventoryItem[]> {
+		const merchantId = getMerchantId();
+
 		return loyaltyApiClient
 			.get<any>({
 				url: "/inventory/all",
@@ -177,27 +281,28 @@ class InventoryService {
 	}
 
 	// ALIAS for getAllItems for POS compatibility
-	async listMenu(merchantId: string): Promise<InventoryItem[]> {
-		return this.getAllItems(merchantId);
+	async listMenu(): Promise<InventoryItem[]> {
+		return this.getAllItems();
 	}
 
-	// FIXED: Enhanced recordSale method with proper API alignment
-	async recordSale(data: SaleRequest): Promise<SaleResponse> {
+	/**
+	 * Record a sale
+	 */
+	async recordSale(data: Omit<SaleRequest, "merchantId">): Promise<SaleResponse> {
+		const merchantId = getMerchantId();
+
 		console.group("🛒 Record Sale API Call");
-		console.log("📦 Sale Request Data (Final):", JSON.stringify(data, null, 2));
+		console.log("📦 Sale Request Data (Final):", JSON.stringify({ merchantId, ...data }, null, 2));
 
-		// FIXED: Enhanced validation
-		if (!data.merchantId || data.merchantId.trim() === "") {
-			throw new Error("Merchant ID is required");
-		}
-
+		// Enhanced validation
 		if (!data.customerPhone || data.customerPhone.trim() === "") {
 			throw new Error("Customer phone number is required");
 		}
 
 		// Validate phone number format (Kenyan format: 254XXXXXXXXX)
 		const phoneRegex = /^254[17]\d{8}$/;
-		if (!phoneRegex.test(data.customerPhone.replace(/\s+/g, ""))) {
+		const cleanedPhone = data.customerPhone.replace(/\s+/g, "");
+		if (!phoneRegex.test(cleanedPhone)) {
 			throw new Error("Please enter a valid Kenyan phone number (format: 254XXXXXXXXX)");
 		}
 
@@ -217,16 +322,18 @@ class InventoryService {
 		try {
 			console.log("🚀 Sending request to /inventory/sale...");
 
+			const requestData: SaleRequest = {
+				merchantId,
+				customerPhone: cleanedPhone,
+				items: data.items.map((item) => ({
+					inventoryId: item.inventoryId,
+					quantity: item.quantity,
+				})),
+			};
+
 			const response = await loyaltyApiClient.post({
 				url: "/inventory/sale",
-				data: {
-					merchantId: data.merchantId,
-					customerPhone: data.customerPhone,
-					items: data.items.map((item) => ({
-						inventoryId: item.inventoryId,
-						quantity: item.quantity,
-					})),
-				},
+				data: requestData,
 			});
 
 			console.log("✅ Sale API Response:", response);
@@ -252,11 +359,16 @@ class InventoryService {
 	}
 
 	// ALIAS for recordSale for POS compatibility
-	async processSale(data: SaleRequest): Promise<SaleResponse> {
+	async processSale(data: Omit<SaleRequest, "merchantId">): Promise<SaleResponse> {
 		return this.recordSale(data);
 	}
 
-	async getDailySalesSummary(merchantId: string, date?: string): Promise<DailySummaryResponse> {
+	/**
+	 * Get daily sales summary for the current merchant
+	 */
+	async getDailySalesSummary(date?: string): Promise<DailySummaryResponse> {
+		const merchantId = getMerchantId();
+
 		return loyaltyApiClient
 			.get<any>({
 				url: `/inventory/daily-summary/${merchantId}`,
@@ -275,29 +387,68 @@ class InventoryService {
 			});
 	}
 
-	async closeDay(data: CloseDayRequest): Promise<CloseDayResponse> {
+	/**
+	 * Close day for the current merchant
+	 */
+	async closeDay(): Promise<CloseDayResponse> {
+		const merchantId = getMerchantId();
+
+		const requestData: CloseDayRequest = {
+			merchantId,
+		};
+
 		return loyaltyApiClient.post({
 			url: "/inventory/close-day",
-			data,
+			data: requestData,
 		});
 	}
 
-	async getWeeklyAnalytics(merchantId: string, start?: string, end?: string): Promise<WeeklyAnalyticsResponse> {
+	/**
+	 * Get weekly analytics for the current merchant - FIXED PARAMETERS
+	 */
+	async getWeeklyAnalytics(start?: string, end?: string): Promise<WeeklyAnalyticsResponse> {
+		const merchantId = getMerchantId();
+
+		console.log("📈 Weekly Analytics Request:", { merchantId, start, end });
+
 		return loyaltyApiClient
 			.get<any>({
 				url: "/inventory/weekly",
-				params: { merchantId, start, end },
+				params: {
+					merchantId: merchantId,
+					start: start,
+					end: end,
+				},
 			})
 			.then((response) => {
 				console.log("📈 Weekly Analytics API response:", response);
 				return response;
+			})
+			.catch((error) => {
+				console.error("❌ Weekly Analytics API error:", error);
+				throw error;
 			});
 	}
 
-	async getMerchantReport(merchantId: number): Promise<number> {
+	/**
+	 * Get merchant report
+	 */
+	async getMerchantReport(): Promise<number> {
+		const merchantId = getMerchantId();
+
+		// Convert string merchantId to number if needed by the API
+		const merchantIdNum = parseInt(merchantId.replace(/\D/g, "") || "0");
+
 		return loyaltyApiClient.get({
-			url: `/inventory/report/${merchantId}`,
+			url: `/inventory/report/${merchantIdNum}`,
 		});
+	}
+
+	/**
+	 * Get current merchant ID (for components that need it)
+	 */
+	getCurrentMerchantId(): string {
+		return getMerchantId();
 	}
 }
 

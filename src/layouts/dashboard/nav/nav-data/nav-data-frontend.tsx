@@ -4,7 +4,7 @@ import { Icon } from "@/components/icon";
 import type { NavProps } from "@/components/nav";
 
 export const frontendNavData: NavProps["data"] = [
-	{
+	/*{
 		name: "sys.nav.dashboard",
 		items: [
 			{
@@ -18,7 +18,7 @@ export const frontendNavData: NavProps["data"] = [
 				icon: <Icon icon="local:ic-analysis" size="24" />,
 			},
 		],
-	},
+	},*/
 	{
 		name: "sys.nav.pages",
 		items: [
@@ -32,7 +32,7 @@ export const frontendNavData: NavProps["data"] = [
 				path: "/management",
 				icon: <Icon icon="local:ic-management" size="24" />,
 				children: [
-					{
+					/*{
 						title: "sys.nav.user.index",
 						path: "/management/user",
 						children: [
@@ -45,7 +45,7 @@ export const frontendNavData: NavProps["data"] = [
 								path: "/management/user/account",
 							},
 						],
-					},
+					},*/
 					{
 						title: "sys.nav.campaign.index",
 						path: "/management/campaign",
@@ -56,7 +56,7 @@ export const frontendNavData: NavProps["data"] = [
 							},
 						],
 					},
-					{
+					/*{
 						title: "sys.nav.merchant.index",
 						path: "/management/merchant",
 						children: [
@@ -66,7 +66,7 @@ export const frontendNavData: NavProps["data"] = [
 							},
 						],
 					},
-					// NEW: System Users Section
+					
 					{
 						title: "System Users",
 						path: "/management/system-users",
@@ -76,7 +76,7 @@ export const frontendNavData: NavProps["data"] = [
 								path: "/management/system-users/create",
 							},
 						],
-					},
+					},*/
 				],
 			},
 			{
@@ -94,6 +94,8 @@ export const frontendNavData: NavProps["data"] = [
 					},
 				],
 			},
+			{ title: "marketing", path: "/marketing", icon: <Icon icon="lucide:megaphone" size="24" /> },
+			{ title: "finance", path: "/finance", icon: <Icon icon="lucide:coins" size="24" /> },
 		],
 	},
 ];

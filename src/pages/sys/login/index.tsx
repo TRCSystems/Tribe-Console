@@ -1,8 +1,8 @@
+// src/pages/sys/login/index.tsx - UPDATED
 import { Navigate } from "react-router";
 import PlaceholderImg from "@/assets/images/background/loyalty.png";
 import LocalePicker from "@/components/locale-picker";
 import Logo from "@/components/logo";
-import { GLOBAL_CONFIG } from "@/global-config";
 import SettingButton from "@/layouts/components/setting-button";
 import { useUserToken } from "@/store/userStore";
 import LoginForm from "./login-form";
@@ -16,7 +16,7 @@ function LoginPage() {
 	const token = useUserToken();
 
 	if (token.accessToken) {
-		return <Navigate to={GLOBAL_CONFIG.defaultRoute} replace />;
+		return <Navigate to="/welcome" replace />;
 	}
 
 	return (
@@ -25,7 +25,7 @@ function LoginPage() {
 				<div className="flex justify-center gap-2 md:justify-start">
 					<div className="flex items-center gap-2 font-medium cursor-pointer">
 						<Logo size={28} />
-						<span>{GLOBAL_CONFIG.appName}</span>
+						<span>TRIBE</span>
 					</div>
 				</div>
 				<div className="flex flex-1 items-center justify-center">

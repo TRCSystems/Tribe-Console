@@ -1,12 +1,13 @@
-// src/routes/sections/dashboard/frontend.tsx - FINAL CORRECTED
+// src/routes/sections/dashboard/frontend.tsx - UPDATED
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
 import { Component } from "./utils";
 
 export function getFrontendDashboardRoutes(): RouteObject[] {
 	const frontendDashboardRoutes: RouteObject[] = [
-		{ path: "workbench", element: Component("/pages/dashboard/workbench") },
-		{ path: "analysis", element: Component("/pages/dashboard/analysis") },
+		{ path: "welcome", element: Component("/pages/welcome") },
+		//{ path: "workbench", element: Component("/pages/dashboard/workbench") },
+		//{ path: "analysis", element: Component("/pages/dashboard/analysis") },
 		{ path: "pos", element: Component("/pages/inventory/pos") },
 
 		{
@@ -31,7 +32,7 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 						{ path: "templates", element: Component("/pages/management/campaign/templates") },
 					],
 				},
-				{
+				/*{
 					path: "merchant",
 					children: [
 						{ index: true, element: <Navigate to="list" replace /> },
@@ -39,7 +40,7 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 						{ path: "create", element: Component("/pages/management/merchant/create") },
 						{ path: "edit/:id", element: Component("/pages/management/merchant/edit") },
 					],
-				},
+				}, */
 				{
 					path: "system-users",
 					children: [
@@ -69,6 +70,8 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 				{ path: "weekly", element: Component("/pages/analytics/weekly") },
 			],
 		},
+		{ path: "marketing", element: Component("/pages/marketing/social/index") },
+		{ path: "finance", element: Component("/pages/finance/overview/index") },
 	];
 	return frontendDashboardRoutes;
 }

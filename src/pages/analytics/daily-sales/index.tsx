@@ -1,16 +1,16 @@
-// src/pages/analytics/daily-sales/index.tsx - UPDATED
+// src/pages/analytics/daily-sales/index.tsx - FIXED VERSION
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
-import { useMerchantId } from "@/store/userStore"; // ADD THIS IMPORT
+import { useMerchantId } from "@/store/userStore";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
 
 export default function DailySalesPage() {
 	const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
-	const merchantId = useMerchantId(); // GET MERCHANT ID FROM TOKEN
+	const merchantId = useMerchantId();
 
 	const {
 		data: dailySummary,
@@ -19,8 +19,8 @@ export default function DailySalesPage() {
 		refetch,
 	} = useQuery({
 		queryKey: ["daily-sales", merchantId, selectedDate],
-		queryFn: () => inventoryService.getDailySalesSummary(merchantId!, selectedDate),
-		enabled: !!merchantId, // ONLY FETCH WHEN MERCHANT ID IS AVAILABLE
+		queryFn: () => inventoryService.getDailySalesSummary(selectedDate), // FIXED: Remove merchantId parameter
+		enabled: !!merchantId,
 	});
 
 	// SIMPLIFIED: Directly use the API response
@@ -184,6 +184,14 @@ export default function DailySalesPage() {
 									<p className="text-sm text-muted-foreground">Merchant ID</p>
 									<p className="text-xl font-bold">{merchantId}</p>
 								</div>
+								{transformedData.grossSales > 0 && (
+									<div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+										<p className="text-sm text-muted-foreground">Profit Margin</p>
+										<p className="text-xl font-bold text-purple-600">
+											{((transformedData.netSales / transformedData.grossSales) * 100).toFixed(1)}%
+										</p>
+									</div>
+								)}
 							</div>
 						</div>
 					) : (

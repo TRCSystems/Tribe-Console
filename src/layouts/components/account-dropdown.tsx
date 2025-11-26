@@ -67,7 +67,7 @@ export default function AccountDropdown() {
 				</div>
 				<DropdownMenuSeparator />
 				<DropdownMenuItem asChild>
-					<NavLink to="https://docs-admin.slashspaces.com/" target="_blank">
+					<NavLink to="https://github.com/Marcellas28/TRIBE.git" target="_blank">
 						{t("sys.docs")}
 					</NavLink>
 				</DropdownMenuItem>

@@ -148,7 +148,7 @@ export function UserRoleIndicator() {
 					className="flex items-center gap-2 cursor-pointer"
 					onClick={() => {
 						// Navigate to profile page
-						window.location.href = "/stock";
+						window.location.href = "/inventory/stock";
 					}}
 				>
 					<Icon icon="lucide:user" className="h-4 w-4" />

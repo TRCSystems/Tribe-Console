@@ -159,7 +159,7 @@
 				"list": "Merchant List",
 				"create": "Create Merchant"
 			},
-			"pos": "POS",
+			"pos": "P.O.S",
 			"inventory": {
 				"index": "Inventory Management",
 				"stock": "Stock Management",
@@ -167,7 +167,7 @@
 				"import": "Import Inventory",
 				"closeDay": "Close Business Day"
 			},
-			"management": "User Management",
+			"management": "Management",
 			"analytics": {
 				"index": "Analytics",
 				"dailySales": "Daily Sales",

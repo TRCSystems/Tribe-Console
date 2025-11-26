@@ -1,14 +1,18 @@
+// src/pages/management/user-profile/index.tsx - FIXED
 import bannerImage from "@/assets/images/background/banner-1.png";
 import { Icon } from "@/components/icon";
-import { useUserInfo } from "@/store/userStore";
+import { useUserInfo, useUserRole, useUserEmail } from "@/store/userStore"; // ADDED
 import { themeVars } from "@/theme/theme.css";
 import { Avatar, AvatarImage } from "@/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Text, Title } from "@/ui/typography";
 import type { CSSProperties } from "react";
 import ProfileTab from "./profile-tab";
+
 function UserProfile() {
 	const { avatar, username } = useUserInfo();
+	const userRole = useUserRole(); // ADDED
+	const userEmail = useUserEmail(); // ADDED
 
 	const bgStyle: CSSProperties = {
 		position: "absolute",
@@ -25,9 +29,18 @@ function UserProfile() {
 			title: "Profile",
 			content: <ProfileTab />,
 		},
-		
-		
 	];
+
+	// Get role display name
+	const getRoleDisplayName = (role: string | null) => {
+		switch (role) {
+			case "ADMIN": return "Administrator";
+			case "MERCHANT": return "Merchant";
+			case "SALES_PERSON": return "Sales Person";
+			case "LEAD_COLLECTOR": return "Lead Collector";
+			default: return "User";
+		}
+	};
 
 	return (
 		<Tabs defaultValue={tabs[0].title} className="w-full">
@@ -40,11 +53,16 @@ function UserProfile() {
 					<div className="flex flex-col justify-center items-center gap-2">
 						<div className="flex items-center gap-2">
 							<Title as="h5" className="text-xl">
-								{username}
+								{username || "User"}
 							</Title>
 							<Icon icon="heroicons:check-badge-solid" size={20} color={themeVars.colors.palette.primary.default} />
 						</div>
-						<Text variant="body2">TS FullStack</Text>
+						<Text variant="body2">{getRoleDisplayName(userRole)}</Text>
+						{userEmail && (
+							<Text variant="body2" className="text-muted-foreground">
+								{userEmail}
+							</Text>
+						)}
 					</div>
 				</div>
 				<TabsList className="z-5">

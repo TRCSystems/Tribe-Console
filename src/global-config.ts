@@ -1,3 +1,4 @@
+// src/global-config.ts - UPDATED (Optional)
 import packageJson from "../package.json";
 
 export type GlobalConfig = {
@@ -12,9 +13,9 @@ export type GlobalConfig = {
 };
 
 export const GLOBAL_CONFIG: GlobalConfig = {
-	appName: "Tribe",
+	appName: "TRIBE",
 	appVersion: packageJson.version,
-	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/workbench",
+	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/welcome", // CHANGED to welcome
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",
 	apiBaseUrl: import.meta.env.VITE_APP_API_BASE_URL || "http://38.242.155.236:8080/api/v1",
 	routerMode: import.meta.env.VITE_APP_ROUTER_MODE || "frontend",

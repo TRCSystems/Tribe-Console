@@ -1,5 +1,4 @@
-// src/routes/components/role-route-guard.tsx - FINAL
-
+// src/routes/components/role-route-guard.tsx - UPDATED
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { ROLE_PERMISSIONS, ROUTE_PERMISSIONS, type UserRole } from "#/entity";
@@ -19,8 +18,15 @@ export const RoleRouteGuard = ({ children }: RoleRouteGuardProps) => {
 
 		const currentPath = location.pathname;
 
+		// NEW: If user lands on root, workbench, or default routes, redirect to welcome page
+		if (currentPath === "/" || currentPath === "/workbench" || currentPath === "/dashboard") {
+			console.log(`🔄 Redirecting from ${currentPath} to /welcome`);
+			navigate("/welcome", { replace: true });
+			return;
+		}
+
 		// Skip role check for these public routes
-		const publicRoutes = ["/management/user/profile", "/management/user/account"];
+		const publicRoutes = ["/management/user/profile", "/management/user/account", "/welcome"];
 		if (publicRoutes.some((route) => currentPath.startsWith(route))) {
 			return;
 		}
@@ -44,8 +50,8 @@ export const RoleRouteGuard = ({ children }: RoleRouteGuardProps) => {
 
 			if (!hasAccess) {
 				console.warn(`🚫 Access denied for ${userRole} to ${currentPath}`);
-				// Redirect manager to their default route
-				navigate("/pos", { replace: true });
+				// Redirect manager to welcome page
+				navigate("/welcome", { replace: true });
 			}
 		}
 	}, [userRole, location.pathname, navigate]);

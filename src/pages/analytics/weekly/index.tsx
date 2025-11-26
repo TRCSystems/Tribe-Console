@@ -27,7 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-// Export service functions - USING CURRENT PAGE DATA
+// Export service functions
 const exportReport = async (
 	currentData: any,
 	merchantId: string,
@@ -444,7 +444,7 @@ export default function WeeklyAnalyticsPage() {
 
 	const { start, end } = getDateRange();
 
-	// Handle Export - USING CURRENT PAGE DATA
+	// Handle Export
 	const handleExport = async (format: string = "pdf") => {
 		if (!merchantId || !transformedData) {
 			console.error("No merchant ID or data available for export");
@@ -463,14 +463,14 @@ export default function WeeklyAnalyticsPage() {
 		}
 	};
 
-	// Weekly Analytics Query
+	// Weekly Analytics Query - FIXED: No merchantId parameter
 	const {
 		data: weeklyAnalytics,
 		isLoading: analyticsLoading,
 		error: analyticsError,
 	} = useQuery({
 		queryKey: ["weekly-analytics", merchantId, start, end],
-		queryFn: () => inventoryService.getWeeklyAnalytics(merchantId!, start, end),
+		queryFn: () => inventoryService.getWeeklyAnalytics(start, end),
 		enabled: !!merchantId,
 	});
 
@@ -611,7 +611,7 @@ export default function WeeklyAnalyticsPage() {
 				</CardContent>
 			</Card>
 
-			{/* Rest of the UI remains exactly the same as before */}
+			{/* Rest of the UI remains the same */}
 			{/* Key Metrics Overview */}
 			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
 				<Card>
