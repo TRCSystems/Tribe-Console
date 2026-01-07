@@ -145,24 +145,11 @@
     --layout-multi-tabs-height: 48px;
 }
 
-
-/* Add this to your global.css file */
-
+/* =========================================== */
+/* ✅ CRITICAL ELECTRON OTP FIX - MUST BE HERE */
+/* =========================================== */
 
 /* Prevent browser authentication dialog */
-
-* {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-
-/* Hide any potential auth dialogs */
-
 input[type="password"]::-webkit-credentials-auto-fill-button,
 input[type="password"]::-webkit-credentials-auto-fill-button:hover {
     visibility: hidden;
@@ -170,4 +157,99 @@ input[type="password"]::-webkit-credentials-auto-fill-button:hover {
     pointer-events: none;
     position: absolute;
     right: -10000px;
+}
+
+/* Base fix for all text */
+* {
+    -webkit-touch-callout: default;
+}
+
+/* ✅ CRITICAL: Force ALL inputs to be editable in Electron */
+input:not([type="checkbox"]):not([type="radio"]),
+textarea,
+[contenteditable="true"] {
+    -webkit-user-modify: read-write !important;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    caret-color: #3b82f6 !important;
+    pointer-events: auto !important;
+}
+
+/* ✅ SPECIFIC FIX FOR OTP INPUTS - MOST IMPORTANT */
+input[type="text"][inputmode="numeric"],
+input[pattern="[0-9]*"],
+.otp-input {
+    -webkit-user-modify: read-write-plaintext-only !important;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    caret-color: #3b82f6 !important;
+    pointer-events: auto !important;
+    /* Remove number spinner */
+    -moz-appearance: textfield !important;
+}
+
+/* Hide number spinners */
+input[type="text"][inputmode="numeric"]::-webkit-outer-spin-button,
+input[type="text"][inputmode="numeric"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none !important;
+    margin: 0 !important;
+}
+
+/* Allow text selection in content areas */
+div, p, span, h1, h2, h3, h4, h5, h6, li, td, th {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* Enable drag for specific elements only */
+.draggable {
+    -webkit-app-region: drag;
+}
+
+/* Disable drag for interactive elements */
+input, textarea, button, select, [contenteditable] {
+    -webkit-app-region: no-drag !important;
+}
+
+/* Ensure body allows text selection */
+body {
+    -webkit-user-select: text;
+    user-select: text;
+}
+
+/* ✅ CRITICAL: Fix for focus in Electron - more aggressive */
+input:focus,
+textarea:focus,
+[contenteditable="true"]:focus {
+    outline: 3px solid #3b82f6 !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2) !important;
+    border-color: #3b82f6 !important;
+}
+
+/* ✅ CRITICAL: When body has electron class (added by JS) */
+body.electron-app {
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+}
+
+/* ✅ CRITICAL: Remove any blockers from OTP modal */
+.otp-modal *,
+[data-otp-modal] *,
+[data-electron-fix="true"] {
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+}
+
+/* ✅ CRITICAL: Fix for Tailwind focus rings in Electron */
+.focus\:border-blue-500:focus {
+    border-color: #3b82f6 !important;
+}
+
+.focus\:ring-2:focus,
+.focus\:ring-4:focus {
+    --tw-ring-color: rgba(59, 130, 246, 0.5) !important;
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
 }

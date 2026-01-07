@@ -1,0 +1,51 @@
+appId: com.loyaltyengine.desktop
+productName: TRIBE
+copyright: Copyright © 2025 TRIBE
+
+directories:
+  output: dist-electron
+  buildResources: electron/build-resources
+
+files:
+  - electron/**/*
+  - !electron/**/*.map
+  - package.json
+
+win:
+  target:
+    - portable
+    - nsis
+  icon: electron/build-resources/icon.ico
+  publisherName: TRIBE
+  sign: false
+  verifyUpdateCodeSignature: false
+  signingHashAlgorithms: null
+  certificateFile: null
+  certificatePassword: null
+  certificateSubjectName: null
+  certificateSha1: null
+  rfc3161TimeStampServer: null
+  timeStampServer: null
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: TRIBE
+  installerIcon: electron/build-resources/icon.ico
+  uninstallerIcon: electron/build-resources/tray-icon.png
+  license: license.txt
+
+publish:
+  - provider: generic
+    url: http://38.242.155.236/downloads/
+
+asar: true
+asarUnpack:
+  - node_modules/electron-squirrel-startup/**/*
+
+forceCodeSigning: false
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false

@@ -1,12 +1,14 @@
-// src/api/services/merchantService.ts - FIXED TO MATCH API
+// src/api/services/merchantService.ts - FINAL CORRECTED VERSION
 import { loyaltyApiClient } from "../apiClient";
 
 export interface Merchant {
 	id: number;
 	businessName: string;
+	businessType: string;
 	location: string;
 	tillNumber: string;
-	businessType: string;
+	businessPhone: string;
+	merchantOtp?: string;
 	createdAt: string;
 	metaConnected?: boolean;
 	facebookPageId?: string;
@@ -21,55 +23,65 @@ export interface Merchant {
 	metaSyncError?: string;
 }
 
+export interface CreateMerchantRequest {
+	businessName: string;
+	businessType: string;
+	location: string;
+	tillNumber: string;
+	businessPhone: string;
+}
+
 export interface ApiResponse<T = any> {
 	status: string;
 	message: string;
 	respObject?: T;
 }
 
-// Enhanced merchants API with better error handling
-const createMerchant = (data: Omit<Merchant, "id" | "createdAt">) =>
+const createMerchant = (data: CreateMerchantRequest) =>
 	loyaltyApiClient.post<ApiResponse>({
 		url: "/merchants/createMerchant",
-		data,
+		data: {
+			...data,
+			// Set default values for optional fields
+			merchantOtp: "",
+			metaConnected: false,
+			metaSyncEnabled: false,
+		},
 	});
 
 const getMerchants = () =>
 	loyaltyApiClient
-		.get<any>({
+		.get<Merchant[]>({
 			url: "/merchants",
 		})
 		.then((response) => {
 			console.log("🛠️ Merchants API raw response:", response);
 
-			// Handle different response formats more robustly
+			// Handle different response structures
+			let merchants: Merchant[] = [];
+
 			if (Array.isArray(response)) {
-				console.log("🛠️ Merchants: Direct array response");
-				return response;
+				merchants = response;
 			} else if (response?.respObject && Array.isArray(response.respObject)) {
-				console.log("🛠️ Merchants: Array in respObject");
-				return response.respObject;
-			} else if (response?.data && Array.isArray(response.data)) {
-				console.log("🛠️ Merchants: Array in data");
-				return response.data;
+				merchants = response.respObject;
 			} else if (response && typeof response === "object") {
-				// If it's an object but not the expected structure, try to extract any array
-				const possibleArrays = Object.values(response).filter((val) => Array.isArray(val));
-				if (possibleArrays.length > 0) {
-					console.log("🛠️ Merchants: Found array in object values");
-					return possibleArrays[0];
+				const arrays = Object.values(response).filter((val) => Array.isArray(val));
+				if (arrays.length > 0) {
+					merchants = arrays[0];
+				} else if (response.id || response.businessName) {
+					merchants = [response];
 				}
 			}
 
-			console.warn("🛠️ Merchants API returned unexpected format, returning empty array:", response);
-			return [];
+			console.log(`✅ Extracted ${merchants.length} merchants`);
+			return merchants;
 		})
 		.catch((error) => {
-			console.error("🛠️ Merchants API error:", error);
-			return []; // Return empty array on error to prevent crashes
+			console.error("❌ Merchants API error:", error);
+			throw error;
 		});
 
-const getMerchantById = (id: number) =>
+const getMerchantById = (id: string) =>
 	loyaltyApiClient.get<Merchant>({
 		url: `/merchants/${id}`,
 	});
@@ -79,13 +91,13 @@ const getMerchantByTill = (tillNumber: string) =>
 		url: `/merchants/till/${tillNumber}`,
 	});
 
-const updateMerchant = (id: number, data: Merchant) =>
+const updateMerchant = (id: string, data: Partial<Merchant>) =>
 	loyaltyApiClient.put<Merchant>({
 		url: `/merchants/${id}`,
 		data,
 	});
 
-const deleteMerchant = (id: number) =>
+const deleteMerchant = (id: string) =>
 	loyaltyApiClient.delete<void>({
 		url: `/merchants/${id}`,
 	});

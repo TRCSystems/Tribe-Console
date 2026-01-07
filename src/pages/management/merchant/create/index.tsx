@@ -1,10 +1,9 @@
-// src/pages/management/merchant/create/index.tsx - UPDATED VERSION
+// src/pages/management/merchant/create/index.tsx - FINAL CORRECTED VERSION
 
 import { useMutation } from "@tanstack/react-query";
 import { message } from "antd";
-import { useState } from "react";
 import { useNavigate } from "react-router";
-import merchantService from "@/api/services/merchantService";
+import merchantService, { type CreateMerchantRequest } from "@/api/services/merchantService";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -17,12 +16,16 @@ export default function CreateMerchantPage() {
 
 	const createMutation = useMutation({
 		mutationFn: merchantService.createMerchant,
-		onSuccess: () => {
-			message.success("Merchant onboarded successfully!");
-			navigate("/management/merchant/list");
+		onSuccess: (data) => {
+			if (data.status === "200" || data.status === "SUCCESS") {
+				message.success("✅ Merchant onboarded successfully!");
+				navigate("/management/merchant/list");
+			} else {
+				message.error(`❌ Failed to create merchant: ${data.message || "Unknown error"}`);
+			}
 		},
 		onError: (error: Error) => {
-			message.error(`Failed to create merchant: ${error.message}`);
+			message.error(`❌ Request failed: ${error.message}`);
 		},
 	});
 
@@ -30,13 +33,15 @@ export default function CreateMerchantPage() {
 		event.preventDefault();
 
 		const formData = new FormData(event.currentTarget);
-		const merchantData = {
+		const merchantData: CreateMerchantRequest = {
 			businessName: formData.get("businessName") as string,
 			location: formData.get("location") as string,
 			tillNumber: formData.get("tillNumber") as string,
 			businessType: formData.get("businessType") as string,
+			businessPhone: formData.get("businessPhone") as string, // ADDED REQUIRED FIELD
 		};
 
+		console.log("🛠️ Creating merchant with data:", merchantData);
 		createMutation.mutate(merchantData);
 	};
 
@@ -83,7 +88,20 @@ export default function CreateMerchantPage() {
 
 							<div className="space-y-2">
 								<Label htmlFor="tillNumber">Till Number *</Label>
-								<Input id="tillNumber" name="tillNumber" placeholder="Enter till number" required />
+								<Input
+									id="tillNumber"
+									name="tillNumber"
+									placeholder="Enter till number"
+									required
+									pattern="\d{5,10}"
+									title="Till number must be 5-10 digits"
+								/>
+							</div>
+
+							{/* ADDED BUSINESS PHONE FIELD */}
+							<div className="space-y-2">
+								<Label htmlFor="businessPhone">Business Phone *</Label>
+								<Input id="businessPhone" name="businessPhone" placeholder="e.g., +254712345678" required />
 							</div>
 						</div>
 
@@ -98,7 +116,12 @@ export default function CreateMerchantPage() {
 									"Onboard Merchant"
 								)}
 							</Button>
-							<Button type="button" variant="outline" onClick={() => navigate("/management/merchant/list")}>
+							<Button
+								type="button"
+								variant="outline"
+								onClick={() => navigate("/management/merchant/list")}
+								disabled={createMutation.isPending}
+							>
 								Cancel
 							</Button>
 						</div>

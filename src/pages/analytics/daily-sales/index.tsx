@@ -1,16 +1,19 @@
-// src/pages/analytics/daily-sales/index.tsx - FIXED VERSION
+// src/pages/analytics/daily-sales/index.tsx - UPDATED VERSION
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { useNavigate } from "react-router";
 import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { useMerchantId } from "@/store/userStore";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
+import { UserRoleIndicator } from "@/components/user-role-indicator";
 
 export default function DailySalesPage() {
 	const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
 	const merchantId = useMerchantId();
+	const navigate = useNavigate(); // ADD NAVIGATION HOOK
 
 	const {
 		data: dailySummary,
@@ -19,9 +22,14 @@ export default function DailySalesPage() {
 		refetch,
 	} = useQuery({
 		queryKey: ["daily-sales", merchantId, selectedDate],
-		queryFn: () => inventoryService.getDailySalesSummary(selectedDate), // FIXED: Remove merchantId parameter
+		queryFn: () => inventoryService.getDailySalesSummary(selectedDate),
 		enabled: !!merchantId,
 	});
+
+	// Function to navigate to sold items page
+	const handleViewSoldItems = () => {
+		navigate(`/analytics/sold-items?date=${selectedDate}`);
+	};
 
 	// SIMPLIFIED: Directly use the API response
 	const getTransformedData = () => {
@@ -90,12 +98,47 @@ export default function DailySalesPage() {
 					<p className="text-muted-foreground">View daily sales performance for your merchant account</p>
 				</div>
 				<div className="flex items-center gap-4">
-					<div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-						Merchant: {merchantId}
-					</div>
-					<Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-40" />
+					<UserRoleIndicator />
+					{/* <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-40" /> */}
 				</div>
 			</div>
+
+			{/* NEW: Action Buttons Card */}
+			<Card>
+				<CardHeader>
+					<CardTitle>Sales Actions</CardTitle>
+					<CardDescription>Additional actions you can perform with daily sales data</CardDescription>
+				</CardHeader>
+				<CardContent>
+					<div className="flex flex-wrap gap-4">
+						<Button onClick={handleViewSoldItems} className="flex items-center gap-2" variant="outline">
+							<Icon icon="lucide:list" className="h-4 w-4" />
+							View Sold Items
+						</Button>
+						{/*  <Button 
+              onClick={() => refetch()}
+              className="flex items-center gap-2"
+              variant="secondary"
+            >
+              <Icon icon="lucide:refresh-cw" className="h-4 w-4" />
+              Refresh Data
+            </Button> */}
+						{/*{transformedData && (
+              <Button 
+                onClick={() => window.print()}
+                className="flex items-center gap-2"
+                variant="outline"
+              >
+                <Icon icon="lucide:printer" className="h-4 w-4" />
+                Print Summary
+              </Button> 
+            )}*/}
+					</div>
+					<p className="text-sm text-muted-foreground mt-3">
+						Click "View Sold Items" to see detailed list of items sold on {new Date(selectedDate).toLocaleDateString()}
+					</p>
+				</CardContent>
+			</Card>
 
 			{/* Overview Cards */}
 			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -146,7 +189,12 @@ export default function DailySalesPage() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Daily Performance Details</CardTitle>
-					<CardDescription>Comprehensive breakdown of daily sales performance for {merchantId}</CardDescription>
+					<CardDescription>
+						Comprehensive breakdown of daily sales performance for {merchantId}
+						<span className="ml-2 text-blue-600 font-medium">
+							• {new Date(selectedDate).toLocaleDateString("en-US", { weekday: "long" })}
+						</span>
+					</CardDescription>
 				</CardHeader>
 				<CardContent>
 					{isLoading ? (
@@ -170,6 +218,21 @@ export default function DailySalesPage() {
 								<div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
 									<span className="font-medium">Net Sales</span>
 									<span className="font-bold text-blue-600">{formatCurrency(transformedData.netSales)}</span>
+								</div>
+
+								{/* Sold Items Quick Action */}
+								<div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+									<div className="flex items-center justify-between">
+										<div>
+											<h4 className="font-semibold text-amber-800 dark:text-amber-300">Sold Items Details</h4>
+											<p className="text-sm text-amber-600 dark:text-amber-400 mt-1">
+												View detailed list of all items sold
+											</p>
+										</div>
+										<Button onClick={handleViewSoldItems} size="sm" className="bg-amber-600 hover:bg-amber-700">
+											View Items
+										</Button>
+									</div>
 								</div>
 							</div>
 
@@ -199,10 +262,26 @@ export default function DailySalesPage() {
 							<Icon icon="lucide:bar-chart" className="h-16 w-16 mx-auto mb-4 opacity-50" />
 							<p className="text-lg font-medium">No data available for selected date</p>
 							<p className="text-sm">Try selecting a different date or check if sales were processed for this date</p>
+							<Button onClick={handleViewSoldItems} className="mt-4 flex items-center gap-2" variant="outline">
+								<Icon icon="lucide:package-search" className="h-4 w-4" />
+								Check for sold items anyway
+							</Button>
 						</div>
 					)}
 				</CardContent>
 			</Card>
+			<footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+				<div className="flex flex-col items-center justify-center gap-2">
+					<div className="flex items-center gap-2">
+						<Icon icon="lucide:shield" className="h-4 w-4 text-gray-400" />
+						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
+					</div>
+					<p className="text-xs text-gray-400 dark:text-gray-500">
+						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+					</p>
+					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
+				</div>
+			</footer>
 		</div>
 	);
 }

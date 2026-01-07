@@ -1,13 +1,9 @@
-// src/api/apiClient.ts - FIXED USING YOUR GLOBAL CONFIG
+// src/api/apiClient.ts - FINAL COMPLETE VERSION
 import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from "axios";
-import { toast } from "sonner";
-import type { Result } from "#/api";
-import { ResultStatus } from "#/enum";
 import { GLOBAL_CONFIG } from "@/global-config";
-import { t } from "@/locales/i18n";
 import useUserStore from "@/store/userStore";
 
-// Create separate instances for different base URLs - USING YOUR EXISTING CONFIG
+// Create separate instances for different base URLs
 const mainApiInstance = axios.create({
 	baseURL: GLOBAL_CONFIG.apiBaseUrl,
 	timeout: 50000,
@@ -18,7 +14,6 @@ const mainApiInstance = axios.create({
 	},
 });
 
-// FIXED: Use your existing loyaltyApiBaseUrl from global config
 const loyaltyApiInstance = axios.create({
 	baseURL: GLOBAL_CONFIG.loyaltyApiBaseUrl,
 	timeout: 50000,
@@ -54,10 +49,19 @@ const requestInterceptor = (config: AxiosRequestConfig) => {
 	return newConfig;
 };
 
-// Enhanced response interceptor to handle API responses properly
+// COMPLETE RESPONSE INTERCEPTOR WITH ERROR HANDLER
 const responseInterceptor = {
 	success: (res: AxiosResponse) => {
 		console.log(`✅ API Success: ${res.status} ${res.config.method?.toUpperCase()} ${res.config.url}`);
+
+		// Debug logging for all responses
+		console.log("🔍 Response data:", res.data);
+		console.log("🔍 Response data type:", typeof res.data);
+
+		if (res.data && typeof res.data === "object") {
+			console.log("🔍 Response keys:", Object.keys(res.data));
+			console.log("🔍 Response is empty?", Object.keys(res.data).length === 0);
+		}
 
 		// Remove WWW-Authenticate headers to prevent browser auth dialog
 		if (res.headers) {
@@ -65,76 +69,135 @@ const responseInterceptor = {
 			delete res.headers["WWW-Authenticate"];
 		}
 
-		return res.data;
-	},
-	error: (error: AxiosError) => {
-		// Handle cancellation differently
-		if (axios.isCancel(error)) {
-			return Promise.reject(error);
-		}
+		// FIX: Handle empty responses for credit score endpoint
+		if (res.config.url?.includes("/credit/score")) {
+			console.log("🔍 Credit score endpoint detected, checking response...");
 
-		const { response, config } = error || {};
+			// Check if response is empty/null
+			if (!res.data || (typeof res.data === "object" && Object.keys(res.data).length === 0)) {
+				console.warn("⚠️ Empty credit score response detected");
 
-		console.group(`❌ API Error: ${response?.status} ${config?.method?.toUpperCase()} ${config?.url}`);
-		console.log("Status:", response?.status);
-		console.log("Error message:", error.message);
-		console.log("Response data:", response?.data);
-		console.groupEnd();
-
-		// Remove WWW-Authenticate headers from error response
-		if (response?.headers) {
-			delete response.headers["www-authenticate"];
-			delete response.headers["WWW-Authenticate"];
-		}
-
-		// Special handling for 401 - Enhanced logic
-		if (response?.status === 401) {
-			console.log("🔐 Authentication failed (401) - checking auth state");
-
-			const currentState = useUserStore.getState();
-			console.log("🔐 Current auth state:", {
-				isAuthenticated: currentState.isAuthenticated,
-				hasToken: !!currentState.userToken,
-				merchantId: currentState.merchantId,
-			});
-
-			// Clear authentication state
-			useUserStore.getState().actions.clearUserInfoAndToken();
-
-			setTimeout(() => {
-				toast.error("Session expired. Please login again.", {
-					position: "top-center",
-					duration: 5000,
-				});
-
-				// Only redirect if not already on login page
-				if (!window.location.pathname.includes("/login")) {
-					window.location.href = "/login";
+				// Try to extract merchant ID from request
+				let merchantId = "unknown";
+				try {
+					if (res.config.data) {
+						const requestData = typeof res.config.data === "string" ? JSON.parse(res.config.data) : res.config.data;
+						merchantId = requestData.merchant_id || requestData.merchantId || "unknown";
+					}
+				} catch (e) {
+					console.error("Failed to parse request data:", e);
 				}
-			}, 100);
 
-			return Promise.reject(error);
-		}
+				// Return a placeholder response for empty data
+				const placeholderResponse = {
+					merchant_id: merchantId,
+					score: 0,
+					grade: "N/A",
+					calculated_on: new Date().toISOString(),
+					data_period: {
+						from: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
+						to: new Date().toISOString(),
+					},
+					breakdown: {},
+					is_provisional: true,
+					_isPlaceholder: true, // Flag to identify placeholder data
+					message: "Credit score not yet calculated",
+				};
 
-		// For other errors, show appropriate message
-		let errMsg = error.message || t("sys.api.errorMessage");
-
-		if (response?.data) {
-			if (typeof response.data === "string") {
-				errMsg = response.data;
-			} else if (response.data.message) {
-				errMsg = response.data.message;
-			} else if (response.data.error) {
-				errMsg = response.data.error;
+				console.log("🔄 Returning placeholder response for merchant:", merchantId);
+				return placeholderResponse;
 			}
 		}
 
-		// Don't show toast for 401 (handled above) or if it's a network error
-		if (response?.status !== 401 && error.code !== "NETWORK_ERROR") {
-			toast.error(errMsg, { position: "top-center" });
+		return res.data;
+	},
+
+	// COMPLETE ERROR HANDLER:
+	error: (error: AxiosError) => {
+		const method = error.config?.method?.toUpperCase() || "REQUEST";
+		const url = error.config?.url || "unknown endpoint";
+		const status = error.response?.status;
+
+		console.error(`❌ API Error: ${method} ${url}`, {
+			status: status,
+			data: error.response?.data,
+			message: error.message,
+		});
+
+		// Remove WWW-Authenticate headers to prevent browser auth dialog
+		if (error.response?.headers) {
+			delete error.response.headers["www-authenticate"];
+			delete error.response.headers["WWW-Authenticate"];
 		}
 
-		return Promise.reject(error);
+		// Handle specific HTTP status codes
+		if (status === 401) {
+			console.log("🔐 Unauthorized - clearing user store");
+			useUserStore.getState().clearUser();
+
+			// Only redirect if not already on login page
+			if (!window.location.pathname.includes("/login")) {
+				window.location.href = "/login";
+			}
+
+			return Promise.reject(new Error("Session expired. Please login again."));
+		}
+
+		if (status === 403) {
+			console.warn("⛔ Forbidden access to resource");
+			return Promise.reject(new Error("You don't have permission to access this resource."));
+		}
+
+		if (status === 404) {
+			console.warn("🔍 Resource not found");
+			return Promise.reject(new Error("The requested resource was not found."));
+		}
+
+		if (status === 400) {
+			console.warn("⚠️ Bad request");
+			// Extract validation errors if available
+			const data = error.response?.data as any;
+			if (data?.errors) {
+				const errorMessages = Object.values(data.errors).flat().join(", ");
+				return Promise.reject(new Error(`Validation error: ${errorMessages}`));
+			}
+		}
+
+		if (status === 500) {
+			console.error("💥 Server error occurred");
+			return Promise.reject(new Error("Server error. Please try again later."));
+		}
+
+		// Extract error message from response
+		let errorMessage = "An unexpected error occurred";
+
+		if (error.response?.data) {
+			const data = error.response.data as any;
+			if (data.message) {
+				errorMessage = data.message;
+			} else if (data.error) {
+				errorMessage = data.error;
+			} else if (data.detail) {
+				errorMessage = data.detail;
+			} else if (typeof data === "string") {
+				errorMessage = data;
+			} else if (Array.isArray(data)) {
+				errorMessage = data.join(", ");
+			}
+		}
+
+		// For network errors
+		if (error.message === "Network Error") {
+			errorMessage = "Network error. Please check your internet connection.";
+		}
+
+		// For timeout errors
+		if (error.code === "ECONNABORTED") {
+			errorMessage = "Request timeout. Please try again.";
+		}
+
+		// Reject with a proper error
+		return Promise.reject(new Error(errorMessage));
 	},
 };
 

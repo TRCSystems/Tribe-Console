@@ -172,8 +172,30 @@
 				"index": "Analytics",
 				"dailySales": "Daily Sales",
 				"weekly": "Weekly Analytics"
-			}
+			},
+
+			"marketing": "Marketing",
+			"finance": "Finance"
 		},
+
+		"search": {
+			"systemUsers": "System Users",
+			"createUser": "Create User",
+			"marketing": "Marketing",
+			"finance": "Finance"
+		},
+
+		"breadcrumb": {
+			"systemUsers": "System Users"
+		},
+
+		"common": {
+			"marketing": "Marketing",
+			"finance": "Finance",
+			"systemUsers": "System Users",
+			"createUser": "Create User"
+		},
+
 		"settings": {
 			"accordion": "Accordion Menu",
 			"breadcrumb": "BreadCrumb",

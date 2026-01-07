@@ -116,18 +116,6 @@ export function UserRoleIndicator() {
 				</DropdownMenuItem>
 
 				<DropdownMenuSeparator />
-
-				<DropdownMenuItem
-					className="flex items-center gap-2 cursor-pointer text-destructive"
-					onClick={() => {
-						// Add logout logic here
-						localStorage.removeItem("userStore");
-						window.location.reload();
-					}}
-				>
-					<Icon icon="lucide:log-out" className="h-4 w-4" />
-					<span>Log out</span>
-				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

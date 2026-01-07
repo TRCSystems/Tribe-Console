@@ -1,4 +1,4 @@
-// src/pages/management/system-users/create/index.tsx - FIXED
+// src/pages/management/system-users/create/index.tsx - FIXED SELECT ISSUE
 import { useMutation } from "@tanstack/react-query";
 import { Form, message } from "antd";
 import { useNavigate } from "react-router";
@@ -16,7 +16,6 @@ export default function CreateUserPage() {
 	const createUserMutation = useMutation({
 		mutationFn: userService.createUser,
 		onSuccess: (data) => {
-			// Handle different response statuses with popup messages
 			if (data.status === "200" || data.status === "201" || data.status === "SUCCESS") {
 				message.success("✅ User created successfully!");
 				form.resetFields();
@@ -51,13 +50,12 @@ export default function CreateUserPage() {
 	}) => {
 		console.log("🛠️ Creating user with data:", values);
 
-		// Prepare data according to API schema
 		const userData = {
 			username: values.username,
 			password: values.password,
 			role: values.role,
 			status: values.status,
-			merchantId: values.merchantId || "", // Optional field
+			merchantId: values.merchantId || "",
 		};
 
 		createUserMutation.mutate(userData);
@@ -86,7 +84,7 @@ export default function CreateUserPage() {
 						layout="vertical"
 						onFinish={handleSubmit}
 						initialValues={{
-							role: "MERCHANT", // Default to MERCHANT as per API enum
+							role: "MERCHANT",
 							status: "ACTIVE",
 						}}
 					>
@@ -115,10 +113,10 @@ export default function CreateUserPage() {
 								<Input type="password" placeholder="Enter password" />
 							</Form.Item>
 
-							{/* Role Field - CORRECTED TO MATCH API ENUM */}
+							{/* Role Field - FIXED SELECT */}
 							<Form.Item name="role" label="Role" rules={[{ required: true, message: "Please select a role" }]}>
-								<Select>
-									<SelectTrigger>
+								<Select onValueChange={(value) => form.setFieldValue("role", value)} defaultValue="MERCHANT">
+									<SelectTrigger className="w-full">
 										<SelectValue placeholder="Select role" />
 									</SelectTrigger>
 									<SelectContent>
@@ -130,10 +128,10 @@ export default function CreateUserPage() {
 								</Select>
 							</Form.Item>
 
-							{/* Status Field */}
+							{/* Status Field - FIXED SELECT */}
 							<Form.Item name="status" label="Status" rules={[{ required: true, message: "Please select a status" }]}>
-								<Select>
-									<SelectTrigger>
+								<Select onValueChange={(value) => form.setFieldValue("status", value)} defaultValue="ACTIVE">
+									<SelectTrigger className="w-full">
 										<SelectValue placeholder="Select status" />
 									</SelectTrigger>
 									<SelectContent>
@@ -141,11 +139,6 @@ export default function CreateUserPage() {
 										<SelectItem value="INACTIVE">Inactive</SelectItem>
 									</SelectContent>
 								</Select>
-							</Form.Item>
-
-							{/* Merchant ID Field (Optional) */}
-							<Form.Item name="merchantId" label="Merchant ID (Optional)">
-								<Input placeholder="Enter merchant ID if applicable" />
 							</Form.Item>
 
 							{/* Form Actions */}

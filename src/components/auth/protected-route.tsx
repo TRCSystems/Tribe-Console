@@ -47,4 +47,3 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 	// ADD ROLE-BASED PROTECTION
 	return <RoleRouteGuard>{children}</RoleRouteGuard>;
 };
-//[file content end]

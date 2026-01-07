@@ -18,16 +18,16 @@ import {
 type UserStore = {
 	userInfo: Partial<UserInfo>;
 	userToken: UserToken;
-	// ADDED: Direct authentication state for easy checking
+	// Direct authentication state for easy checking
 	isAuthenticated: boolean;
-	merchantId: string | null; // ADDED: Direct merchant ID access
+	merchantId: string | null; // Direct merchant ID access
 	actions: {
 		setUserInfo: (userInfo: UserInfo) => void;
 		setUserToken: (token: UserToken) => void;
 		clearUserInfoAndToken: () => void;
-		// ADDED: Quick auth check method
+		//  Quick auth check method
 		checkAuthState: () => boolean;
-		// ADDED: Sync auth state method
+		//  Sync auth state method
 		syncAuthState: () => void;
 	};
 };
@@ -37,12 +37,12 @@ const useUserStore = create<UserStore>()(
 		(set, get) => ({
 			userInfo: {},
 			userToken: {},
-			isAuthenticated: false, // ADDED: Direct auth state
-			merchantId: null, // ADDED: Direct merchant ID
+			isAuthenticated: false, //Direct auth state
+			merchantId: null, // Direct merchant ID
 			actions: {
 				setUserInfo: (userInfo) => {
 					console.log("🛠️ Setting user info:", userInfo);
-					// FIXED: Set merchantId directly and update auth state
+					// Set merchantId directly and update auth state
 					const merchantId = userInfo.merchantId || null;
 					const hasValidData = !!userInfo.username && !!userInfo.id;
 					set({
@@ -58,7 +58,7 @@ const useUserStore = create<UserStore>()(
 						tokenPreview: userToken?.accessToken ? `${userToken.accessToken.substring(0, 20)}...` : "No token",
 					});
 
-					// FIXED: Extract merchant ID from token immediately
+					// Extract merchant ID from token immediately
 					let merchantId: string | null = null;
 					if (userToken?.accessToken) {
 						try {
@@ -70,7 +70,7 @@ const useUserStore = create<UserStore>()(
 						}
 					}
 
-					// FIXED: Set authentication state based on token presence AND merchant ID
+					// Set authentication state based on token presence AND merchant ID
 					const hasValidToken = !!userToken?.accessToken;
 					set({
 						userToken,
@@ -270,7 +270,7 @@ export const useTokenDebug = () => {
 	};
 };
 
-// FIXED: Enhanced auth check hook
+//  Enhanced auth check hook
 export const useAuthCheck = () => {
 	const isAuthenticated = useIsAuthenticated();
 	const merchantId = useMerchantId();

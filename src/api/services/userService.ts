@@ -1,4 +1,4 @@
-// src/api/services/userService.ts - FIXED TO MATCH API
+// src/api/services/userService.ts - FINAL VERSION
 import type { UserInfo, UserToken } from "#/entity";
 import { loyaltyApiClient } from "../apiClient";
 
@@ -55,20 +55,37 @@ const signup = (data: SignUpReq) => loyaltyApiClient.post<SignInRes>({ url: User
 
 const logout = () => loyaltyApiClient.get({ url: "/logout" });
 
-const getUserById = (userId: number) => loyaltyApiClient.get<ApiResponse>({ url: `${UserApi.GetById}/${userId}` });
+const getUserById = (userId: number) =>
+	loyaltyApiClient.get<ApiResponse>({
+		url: `${UserApi.GetById}/${userId}`,
+	});
 
-const getAllUsers = () => loyaltyApiClient.get<ApiResponse>({ url: UserApi.GetAll });
+const getAllUsers = () =>
+	loyaltyApiClient.get<ApiResponse>({
+		url: UserApi.GetAll,
+	});
 
-// FIXED: Changed to use request body as required by API
+// FIXED: Correct implementation using POST with role in request body
 const getUsersByRole = (role: string) =>
 	loyaltyApiClient.post<ApiResponse>({
 		url: UserApi.GetByRole,
 		data: role,
+		headers: {
+			"Content-Type": "application/json",
+		},
 	});
 
-const updateUser = (data: UpdateUserDto) => loyaltyApiClient.put<ApiResponse>({ url: UserApi.Update, data });
+const updateUser = (data: UpdateUserDto) =>
+	loyaltyApiClient.put<ApiResponse>({
+		url: UserApi.Update,
+		data,
+	});
 
-const createUser = (data: CreateUserReq) => loyaltyApiClient.post<ApiResponse>({ url: UserApi.SignUp, data });
+const createUser = (data: CreateUserReq) =>
+	loyaltyApiClient.post<ApiResponse>({
+		url: UserApi.SignUp,
+		data,
+	});
 
 export default {
 	signin,

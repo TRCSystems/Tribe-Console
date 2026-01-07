@@ -1,4 +1,4 @@
-// src/pages/pos/index.tsx - FINAL VERSION WITH CORRECTED IMPORTS
+// src/pages/pos/index.tsx - FINAL VERSION WITH RESEND OTP AND OPTIONAL CUSTOMER CONTACT
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useState } from "react";
@@ -8,8 +8,9 @@ import inventoryService, {
 	type SaleItem,
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
+import { OTPModal } from "@/components/otp-modal";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
-import { useAuthCheck, useMerchantId, useUserInfo } from "@/store/userStore"; // FIXED: useUserInfo instead of useUser
+import { useAuthCheck, useMerchantId, useUserInfo } from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -115,7 +116,121 @@ const SaleToastNotification = ({
 	);
 };
 
-// Print Receipt Component - UPDATED WITH MERCHANT NAME
+// Close Day Toast Notification Component
+const CloseDayToastNotification = ({
+	isOpen,
+	onClose,
+	type,
+	message: toastMessage,
+	details,
+}: {
+	isOpen: boolean;
+	onClose: () => void;
+	type: "success" | "error" | "info";
+	message: string;
+	details?: {
+		businessName: string;
+		closedDate: string;
+		totalSales?: number;
+		merchantName?: string;
+	};
+}) => {
+	useEffect(() => {
+		if (isOpen) {
+			const timer = setTimeout(() => {
+				onClose();
+			}, 5000); // 5 seconds as requested
+
+			return () => clearTimeout(timer);
+		}
+	}, [isOpen, onClose]);
+
+	const formatDate = (dateString: string) => {
+		try {
+			const date = new Date(dateString);
+			return date.toLocaleDateString("en-US", {
+				weekday: "short",
+				year: "numeric",
+				month: "short",
+				day: "numeric",
+				hour: "2-digit",
+				minute: "2-digit",
+			});
+		} catch {
+			return "Today";
+		}
+	};
+
+	const formatCurrency = (amount: number) => {
+		return `KShs ${amount?.toFixed(2) || "0.00"}`;
+	};
+
+	if (!isOpen) return null;
+
+	const getBgColor = () => {
+		switch (type) {
+			case "success":
+				return "bg-green-50 border-green-500 text-green-800";
+			case "error":
+				return "bg-red-50 border-red-500 text-red-800";
+			case "info":
+				return "bg-blue-50 border-blue-500 text-blue-800";
+			default:
+				return "bg-gray-50 border-gray-500 text-gray-800";
+		}
+	};
+
+	const getIcon = () => {
+		switch (type) {
+			case "success":
+				return "lucide:check-circle";
+			case "error":
+				return "lucide:x-circle";
+			case "info":
+				return "lucide:info";
+			default:
+				return "lucide:info";
+		}
+	};
+
+	return (
+		<div className="fixed top-20 right-4 z-50 max-w-sm w-full">
+			<div className={`p-4 rounded-lg shadow-lg border-2 ${getBgColor()}`}>
+				<div className="flex items-start justify-between">
+					<div className="flex items-center">
+						<Icon icon={getIcon()} className="h-6 w-6 mr-3" />
+						<div className="flex-1">
+							<h4 className="font-bold text-lg">{toastMessage}</h4>
+							{details && (
+								<div className="mt-2 text-sm space-y-1">
+									<div className="flex justify-between">
+										<span>Business:</span>
+										<span className="font-semibold">{details.businessName}</span>
+									</div>
+									{details.totalSales !== undefined && (
+										<div className="flex justify-between">
+											<span>Total Sales:</span>
+											<span className="font-semibold">{formatCurrency(details.totalSales)}</span>
+										</div>
+									)}
+									<div className="flex justify-between">
+										<span>Closed Date:</span>
+										<span className="font-semibold">{formatDate(details.closedDate)}</span>
+									</div>
+								</div>
+							)}
+						</div>
+					</div>
+					<button onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700 flex-shrink-0">
+						<Icon icon="lucide:x" className="h-4 w-4" />
+					</button>
+				</div>
+			</div>
+		</div>
+	);
+};
+
+// Print Receipt Component
 const PrintReceipt = ({
 	isOpen,
 	onClose,
@@ -124,7 +239,7 @@ const PrintReceipt = ({
 	customerContact,
 	items,
 	transactionId,
-	merchantName, // ADDED: Merchant name prop
+	merchantName,
 }: {
 	isOpen: boolean;
 	onClose: () => void;
@@ -133,7 +248,7 @@ const PrintReceipt = ({
 	customerContact: string;
 	items: OrderItem[];
 	transactionId: string;
-	merchantName: string; // ADDED: Merchant name
+	merchantName: string;
 }) => {
 	if (!isOpen) return null;
 
@@ -164,7 +279,7 @@ const PrintReceipt = ({
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div className="space-y-3 border-2 border-gray-300 p-4 rounded-lg bg-white">
-						{/* Receipt Header - UPDATED WITH DYNAMIC MERCHANT NAME */}
+						{/* Receipt Header */}
 						<div className="text-center border-b-2 border-dashed border-gray-400 pb-3 mb-3">
 							<h3 className="font-bold text-xl text-gray-800">{displayMerchantName.toUpperCase()}</h3>
 							<p className="text-sm text-gray-600 mt-1">Sales Receipt</p>
@@ -227,13 +342,13 @@ const PrintReceipt = ({
 							</div>
 						</div>
 
-						{/* Footer - UPDATED WITH MERCHANT NAME */}
+						{/* Footer */}
 						<div className="text-center border-t border-dashed border-gray-400 pt-3">
 							<p className="text-xs text-gray-500 mb-1">Thank you for your business!</p>
 							<p className="text-xs text-gray-500">
-								For inquiries: support@{displayMerchantName.toLowerCase().replace(/\s+/g, "")}.com
+								For inquiries contact: @{displayMerchantName.toLowerCase().replace(/\s+/g, "")}
 							</p>
-							<p className="text-xs text-gray-500 mt-2">Powered by {displayMerchantName}</p>
+							<p className="text-xs text-gray-500 mt-2">Powered by TRC Systems</p>
 						</div>
 					</div>
 
@@ -258,20 +373,19 @@ const PrintReceipt = ({
 	);
 };
 
-// Validation function
+// Validation function - UPDATED: Phone number is now optional
 const validateSaleData = (saleData: ProcessSaleRequest): string | null => {
 	if (!saleData.merchantId || saleData.merchantId.trim() === "") {
 		return "Merchant ID is required";
 	}
 
-	if (!saleData.customerPhone || saleData.customerPhone.trim() === "") {
-		return "Customer phone number is required";
-	}
-
-	// Validate phone number format (Kenyan format: 254XXXXXXXXX)
-	const phoneRegex = /^254[17]\d{8}$/;
-	if (!phoneRegex.test(saleData.customerPhone.replace(/\s+/g, ""))) {
-		return "Please enter a valid Kenyan phone number (format: 254XXXXXXXXX)";
+	// Phone number is now optional, so remove the required check
+	// Only validate phone number format if it's provided
+	if (saleData.customerPhone && saleData.customerPhone.trim() !== "") {
+		const phoneRegex = /^254[17]\d{8}$/;
+		if (!phoneRegex.test(saleData.customerPhone.replace(/\s+/g, ""))) {
+			return "Please enter a valid Kenyan phone number (format: 254XXXXXXXXX) or leave empty";
+		}
 	}
 
 	if (!saleData.items || saleData.items.length === 0) {
@@ -318,16 +432,34 @@ export default function PointOfSalePage() {
 		transactionId: string;
 	} | null>(null);
 
-	// Authentication - CORRECTED: Use useUserInfo instead of useUser
+	// Close day states
+	const [showOTPModal, setShowOTPModal] = useState(false);
+	const [closeDayStep, setCloseDayStep] = useState<"idle" | "initiated" | "verifying">("idle");
+	const [merchantPhone, setMerchantPhone] = useState<string>("");
+
+	// NEW: Close day toast state
+	const [showCloseDayToast, setShowCloseDayToast] = useState(false);
+	const [closeDayToastConfig, setCloseDayToastConfig] = useState<{
+		type: "success" | "error" | "info";
+		message: string;
+		details?: {
+			businessName: string;
+			closedDate: string;
+			totalSales?: number;
+			merchantName?: string;
+		};
+	}>({ type: "info", message: "" });
+
+	// Authentication
 	const { isAuthenticated } = useAuthCheck();
 	const merchantId = useMerchantId();
-	const userInfo = useUserInfo(); // FIXED: useUserInfo instead of useUser
+	const userInfo = useUserInfo();
 	const canPerformActions = isAuthenticated && !!merchantId;
 
-	// Get merchant name from user data - UPDATED
+	// Get merchant name from user data
 	const merchantName = userInfo?.username || "My Business";
 
-	// UPDATED: Use merchantId in query with proper field mapping
+	// Inventory query
 	const {
 		data: inventory = [],
 		isLoading,
@@ -339,7 +471,187 @@ export default function PointOfSalePage() {
 		enabled: !!merchantId && isAuthenticated,
 	});
 
-	// CORRECT: Field mapping based on actual API response
+	// Fetch merchant phone on mount
+	useEffect(() => {
+		const fetchMerchantPhone = async () => {
+			if (merchantId) {
+				try {
+					console.log("📱 Fetching merchant phone for ID:", merchantId);
+					const phone = await inventoryService.getMerchantPhone();
+					if (phone) {
+						setMerchantPhone(phone);
+						console.log("✅ Merchant phone set:", phone);
+					} else {
+						console.warn("⚠️ No merchant phone found");
+					}
+				} catch (error) {
+					console.error("❌ Failed to fetch merchant phone:", error);
+				}
+			}
+		};
+
+		if (merchantId && isAuthenticated) {
+			fetchMerchantPhone();
+		}
+	}, [merchantId, isAuthenticated]);
+
+	// NEW: Show close day toast
+	const showCloseDayNotification = (
+		type: "success" | "error" | "info",
+		message: string,
+		details?: {
+			businessName: string;
+			closedDate: string;
+			totalSales?: number;
+			merchantName?: string;
+		},
+	) => {
+		setCloseDayToastConfig({
+			type,
+			message,
+			details,
+		});
+		setShowCloseDayToast(true);
+	};
+
+	// Two-step close day mutations - FIXED
+	const initiateCloseDayMutation = useMutation({
+		mutationFn: () => inventoryService.initiateCloseDay(),
+		onSuccess: (data) => {
+			console.log("✅ OTP sent successfully:", data);
+			setCloseDayStep("initiated");
+			setShowOTPModal(true);
+
+			// Use the merchant phone from response or state
+			const displayPhone = data.merchantPhone || merchantPhone;
+			const phoneMessage = displayPhone
+				? `OTP sent to ${displayPhone.slice(0, 4)}****${displayPhone.slice(-3)}`
+				: "OTP sent to your registered phone";
+
+			// NEW: Show info toast for OTP sent
+			showCloseDayNotification("info", "OTP Sent Successfully", {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+				merchantName: merchantName,
+			});
+
+			// Keep the existing antd message for backward compatibility
+			message.success(data.message || phoneMessage);
+		},
+		onError: (error: Error) => {
+			console.error("❌ Failed to initiate close day:", error);
+			setCloseDayStep("idle");
+
+			// NEW: Show error toast
+			showCloseDayNotification("error", `Failed to initiate close day: ${error.message}`, {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+			});
+
+			// Keep the existing antd message for backward compatibility
+			message.error(`Failed to send OTP: ${error.message}`);
+		},
+	});
+
+	// NEW: Resend OTP mutation
+	const resendOTPMutation = useMutation({
+		mutationFn: () => inventoryService.initiateCloseDay(),
+		onSuccess: (data) => {
+			console.log("✅ OTP resent successfully:", data);
+
+			// Use the merchant phone from response or state
+			const displayPhone = data.merchantPhone || merchantPhone;
+			const phoneMessage = displayPhone
+				? `OTP resent to ${displayPhone.slice(0, 4)}****${displayPhone.slice(-3)}`
+				: "OTP resent to your registered phone";
+
+			// Show info toast for OTP resent
+			showCloseDayNotification("info", "OTP Resent Successfully", {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+				merchantName: merchantName,
+			});
+
+			// Keep the existing antd message for backward compatibility
+			message.success(data.message || phoneMessage);
+		},
+		onError: (error: Error) => {
+			console.error("❌ Failed to resend OTP:", error);
+
+			// Show error toast
+			showCloseDayNotification("error", `Failed to resend OTP: ${error.message}`, {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+			});
+
+			// Keep the existing antd message for backward compatibility
+			message.error(`Failed to resend OTP: ${error.message}`);
+		},
+	});
+
+	const finalizeCloseDayMutation = useMutation({
+		mutationFn: (otp: string) => inventoryService.finalizeCloseDay(otp),
+		onSuccess: (data) => {
+			console.log("✅ Day closed successfully:", data);
+
+			// NEW: Show success toast with business name
+			showCloseDayNotification("success", data.message || "Business Day Closed Successfully!", {
+				businessName: merchantName,
+				closedDate: data.closedDate || new Date().toISOString(),
+				merchantName: merchantName,
+			});
+
+			// FIRST: Close the modal
+			setShowOTPModal(false);
+
+			// SECOND: Reset all close day states
+			setCloseDayStep("idle");
+
+			// THIRD: Show success message (kept for backward compatibility)
+			message.success(data.message || "Business day closed successfully!");
+
+			// FOURTH: Refresh inventory data
+			queryClient.invalidateQueries({ queryKey: ["inventory-pos"] });
+		},
+		onError: (error: Error) => {
+			console.error("❌ Failed to finalize close day:", error);
+
+			// Check if it's an OTP error
+			const errorMessage = error.message.toLowerCase();
+			const isOTPError =
+				errorMessage.includes("invalid") ||
+				errorMessage.includes("wrong") ||
+				errorMessage.includes("incorrect") ||
+				errorMessage.includes("otp");
+
+			let toastMessage = "";
+
+			if (isOTPError) {
+				toastMessage = "Invalid OTP. Please check and try again.";
+				// Stay in initiated state to allow retry
+				setCloseDayStep("initiated");
+			} else {
+				toastMessage = `Failed to close day: ${error.message}`;
+				// Reset if it's a different error
+				setCloseDayStep("idle");
+			}
+
+			// NEW: Show error toast
+			showCloseDayNotification("error", toastMessage, {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+			});
+
+			// Keep existing antd message for backward compatibility
+			if (isOTPError) {
+				message.error("Invalid OTP. Please check and try again.");
+			} else {
+				message.error(`Failed to close day: ${error.message}`);
+			}
+		},
+	});
+
+	// Item data mapping
 	const getItemData = (item: any): InventoryItem => {
 		if (!item) {
 			return {
@@ -402,7 +714,7 @@ export default function PointOfSalePage() {
 		return `TXN-${Date.now().toString().slice(-8)}`;
 	};
 
-	// UPDATED: Process sale mutation with toast notifications
+	// Process sale mutation
 	const processSaleMutation = useMutation({
 		mutationFn: (saleData: ProcessSaleRequest) => inventoryService.processSale(saleData),
 		onSuccess: (data, variables) => {
@@ -467,23 +779,77 @@ export default function PointOfSalePage() {
 		},
 	});
 
-	// UPDATED: Close day mutation with actual merchantId
-	const closeDayMutation = useMutation({
-		mutationFn: () => inventoryService.closeDay({ merchantId: merchantId! }),
-		onSuccess: () => {
-			message.success("Day closed successfully!");
-			// Refresh inventory data to reflect changes
-			queryClient.invalidateQueries({ queryKey: ["inventory-pos"] });
-		},
-		onError: (error: Error) => {
-			message.error(`Failed to close day: ${error.message}`);
-		},
-	});
+	// Two-step close day handlers
+	const handleInitiateCloseDay = () => {
+		if (!merchantId) {
+			// NEW: Show error toast
+			showCloseDayNotification("error", "Merchant ID not found. Please login again.", {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+			});
+			message.error("Merchant ID not found. Please login again.");
+			return;
+		}
+
+		// Confirm before initiating close day
+		if (
+			window.confirm(
+				"Are you sure you want to close the business day? An OTP will be sent to your registered phone number.",
+			)
+		) {
+			setCloseDayStep("idle");
+			initiateCloseDayMutation.mutate();
+		}
+	};
+
+	// NEW: Handle resend OTP
+	const handleResendOTP = () => {
+		if (!merchantId) {
+			showCloseDayNotification("error", "Merchant ID not found. Please login again.", {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+			});
+			return;
+		}
+
+		// Show loading state in OTP modal
+		setCloseDayStep("initiated");
+
+		// Resend OTP
+		resendOTPMutation.mutate();
+	};
+
+	const handleVerifyOTP = (otp: string) => {
+		setCloseDayStep("verifying");
+		finalizeCloseDayMutation.mutate(otp);
+	};
+
+	const handleCloseOTPModal = () => {
+		console.log("Closing OTP modal...");
+
+		// NEW: Show info toast if user cancels during initiated or verifying state
+		if (closeDayStep === "initiated" || closeDayStep === "verifying") {
+			showCloseDayNotification("info", "Close day process cancelled", {
+				businessName: merchantName,
+				closedDate: new Date().toISOString(),
+			});
+			message.info("Close day process cancelled");
+		}
+
+		// Reset all OTP-related states
+		setShowOTPModal(false);
+		setCloseDayStep("idle");
+	};
+
+	// Close close day toast handler
+	const handleCloseDayToastClose = () => {
+		setShowCloseDayToast(false);
+	};
 
 	// Print receipt handler
 	const handlePrintReceipt = () => {
 		setShowPrintReceipt(true);
-		setShowToast(false); // Close toast when printing
+		setShowToast(false);
 	};
 
 	// Close toast handler
@@ -491,6 +857,7 @@ export default function PointOfSalePage() {
 		setShowToast(false);
 	};
 
+	// Add to order function
 	const addToOrder = (item: any) => {
 		const itemData = getItemData(item);
 		const availableQuantity = itemData.availableStock;
@@ -522,6 +889,7 @@ export default function PointOfSalePage() {
 		});
 	};
 
+	// Update order quantity function
 	const updateOrderQuantity = (itemId: number, quantity: number) => {
 		if (quantity === 0) {
 			removeFromOrder(itemId);
@@ -538,11 +906,12 @@ export default function PointOfSalePage() {
 		}
 	};
 
+	// Remove from order function
 	const removeFromOrder = (itemId: number) => {
 		setOrderItems((prevOrder) => prevOrder.filter((item) => item.id !== itemId));
 	};
 
-	// FIXED: Process sale with proper validation and API format
+	// Process sale function
 	const processSale = async (paymentMethod: PaymentMethod) => {
 		if (orderItems.length === 0) {
 			message.warning("Order is empty");
@@ -559,13 +928,12 @@ export default function PointOfSalePage() {
 			return;
 		}
 
-		// FIXED: Ensure customer phone is provided for the API
-		if (!customerContact || customerContact.trim() === "") {
-			message.warning("Please enter customer phone number for the sale");
-			return;
-		}
+		// REMOVED: Phone number is now optional, no warning required
+		// if (!customerContact || customerContact.trim() === "") {
+		// 	message.warning("Please enter customer phone number for the sale");
+		// 	return;
+		// }
 
-		// FIXED: Create sale items in exact API format
 		const saleItems: SaleItem[] = orderItems.map((item) => ({
 			inventoryId: item.id,
 			quantity: item.orderQuantity,
@@ -573,7 +941,7 @@ export default function PointOfSalePage() {
 
 		console.log("🛒 Sale Request Data (API Format):", {
 			merchantId: merchantId,
-			customerPhone: customerContact,
+			customerPhone: customerContact || "Not provided (optional)",
 			items: saleItems,
 		});
 
@@ -590,7 +958,6 @@ export default function PointOfSalePage() {
 
 		setSelectedPaymentMethod(paymentMethod);
 
-		// FIXED: Send the exact data structure that API expects
 		processSaleMutation.mutate({
 			merchantId: merchantId,
 			customerPhone: customerContact,
@@ -606,19 +973,7 @@ export default function PointOfSalePage() {
 		processSale("cash");
 	};
 
-	const handleCloseDay = () => {
-		if (!merchantId) {
-			message.error("Merchant ID not found. Please login again.");
-			return;
-		}
-
-		// Confirm before closing the day
-		if (window.confirm("Are you sure you want to close the day? This action cannot be undone.")) {
-			closeDayMutation.mutate();
-		}
-	};
-
-	// ADDED: Navigation handlers using window location
+	// Navigation handlers
 	const handleViewDailyAnalytics = () => {
 		window.location.href = "/analytics/daily-sales";
 	};
@@ -675,7 +1030,7 @@ export default function PointOfSalePage() {
 						</Badge>
 						{merchantId && (
 							<Badge variant="default" className="text-lg">
-								Merchant: {merchantName}
+								{merchantName}
 							</Badge>
 						)}
 					</div>
@@ -777,28 +1132,42 @@ export default function PointOfSalePage() {
 						</CardHeader>
 						<CardContent className="space-y-6">
 							<div className="space-y-3">
-								<Label htmlFor="customerContact">Customer Contact Number *</Label>
-								<Input
-									id="customerContact"
-									placeholder="Enter phone number e.g., 254712656502"
-									value={customerContact}
-									onChange={(e) => {
-										// Auto-format to 254 format
-										let value = e.target.value.replace(/\D/g, ""); // Remove non-digits
+								<div className="flex items-center justify-between">
+									<Label htmlFor="customerContact">Customer Contact Number</Label>
+								</div>
+								<div className="relative">
+									<Input
+										id="customerContact"
+										placeholder="Enter phone number e.g., 254712656502 (optional)"
+										value={customerContact}
+										onChange={(e) => {
+											// Auto-format to 254 format
+											let value = e.target.value.replace(/\D/g, ""); // Remove non-digits
 
-										// Convert 07... or 01... to 254...
-										if (value.startsWith("0") && value.length === 10) {
-											value = "254" + value.substring(1);
-										} else if (value.startsWith("7") && value.length === 9) {
-											value = "254" + value;
-										} else if (value.startsWith("1") && value.length === 9) {
-											value = "254" + value;
-										}
+											// Convert 07... or 01... to 254...
+											if (value.startsWith("0") && value.length === 10) {
+												value = "254" + value.substring(1);
+											} else if (value.startsWith("7") && value.length === 9) {
+												value = "254" + value;
+											} else if (value.startsWith("1") && value.length === 9) {
+												value = "254" + value;
+											}
 
-										setCustomerContact(value);
-									}}
-									className="font-mono"
-								/>
+											setCustomerContact(value);
+										}}
+										className="font-mono pr-10"
+									/>
+									{customerContact && (
+										<button
+											type="button"
+											onClick={() => setCustomerContact("")}
+											className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
+											title="Clear contact"
+										>
+											<Icon icon="lucide:x" className="h-4 w-4" />
+										</button>
+									)}
+								</div>
 								<div className="text-xs text-muted-foreground space-y-1">
 									<p>• Format: 2547******** </p>
 									<p>• We'll automatically convert 071... to 25471...</p>
@@ -810,7 +1179,7 @@ export default function PointOfSalePage() {
 											? /^254[17]\d{8}$/.test(customerContact)
 												? "Valid ✅"
 												: "Invalid ❌"
-											: "Waiting for input..."}
+											: "Not provided"}
 									</p>
 								</div>
 							</div>
@@ -880,33 +1249,10 @@ export default function PointOfSalePage() {
 							<div className="space-y-4">
 								<Button
 									className="w-full h-14 text-lg font-bold shadow-xl hover:shadow-2xl transition-all duration-200 rounded-2xl border-2 border-black"
-									onClick={handleMpesaPayment}
-									disabled={
-										processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions || !customerContact
-									}
-									style={{
-										background: "linear-gradient(135deg, #00B300 0%, #008000 100%)",
-										color: "white",
-									}}
-								>
-									{processSaleMutation.isPending && selectedPaymentMethod === "mpesa" ? (
-										<>
-											<Icon icon="eos-icons:loading" className="mr-3 h-5 w-5" />
-											Processing M-Pesa...
-										</>
-									) : (
-										<>
-											<Icon icon="lucide:smartphone" className="mr-3 h-5 w-5" />
-											Pay Via M-Pesa
-										</>
-									)}
-								</Button>
-
-								<Button
-									className="w-full h-14 text-lg font-bold shadow-xl hover:shadow-2xl transition-all duration-200 rounded-2xl border-2 border-black"
 									onClick={handleCashPayment}
 									disabled={
-										processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions || !customerContact
+										processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions
+										// REMOVED: Customer contact is optional, so don't disable if empty
 									}
 									style={{
 										background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
@@ -969,37 +1315,45 @@ export default function PointOfSalePage() {
 									<span className="text-white text-xs font-bold text-center leading-tight">Weekly</span>
 								</button>
 
-								{/* Close Day Button */}
+								{/* Close Day Button with Two-Step Process */}
 								<button
-									onClick={handleCloseDay}
-									disabled={closeDayMutation.isPending || !merchantId}
+									onClick={handleInitiateCloseDay}
+									disabled={initiateCloseDayMutation.isPending || !merchantId}
 									className={`
                     relative w-16 h-16 rounded-full flex flex-col items-center justify-center
                     transition-all duration-300 transform hover:scale-110
                     shadow-lg hover:shadow-xl border-2 border-red-600
                     ${
-											closeDayMutation.isPending || !merchantId
+											initiateCloseDayMutation.isPending || !merchantId
 												? "bg-red-400 cursor-not-allowed"
 												: "bg-red-600 hover:bg-red-700 cursor-pointer"
 										}
                   `}
 								>
-									{closeDayMutation.isPending ? (
+									{initiateCloseDayMutation.isPending ? (
 										<Icon icon="eos-icons:loading" className="h-5 w-5 text-white mb-1" />
 									) : (
 										<Icon icon="lucide:lock" className="h-5 w-5 text-white mb-1" />
 									)}
 									<span className="text-white text-xs font-bold text-center leading-tight">
-										{closeDayMutation.isPending ? "Closing..." : "Close Day"}
+										{initiateCloseDayMutation.isPending ? "Sending OTP..." : "Close Day"}
 									</span>
 								</button>
 							</div>
+
+							{/* Close Day Status Indicator */}
+							{closeDayStep === "initiated" && (
+								<div className="text-center text-sm text-blue-600 p-3 border-2 border-blue-300 rounded-2xl bg-blue-50">
+									<Icon icon="lucide:check-circle" className="inline h-4 w-4 mr-1" />
+									OTP sent to your phone. Check your messages and enter the code above.
+								</div>
+							)}
 						</CardContent>
 					</Card>
 				</div>
 			</div>
 
-			{/* Toast Notification */}
+			{/* Sale Toast Notification */}
 			<SaleToastNotification
 				isOpen={showToast}
 				onClose={handleCloseToast}
@@ -1009,7 +1363,28 @@ export default function PointOfSalePage() {
 				details={toastConfig.details}
 			/>
 
-			{/* Print Receipt Modal - UPDATED WITH MERCHANT NAME */}
+			{/* NEW: Close Day Toast Notification */}
+			<CloseDayToastNotification
+				isOpen={showCloseDayToast}
+				onClose={handleCloseDayToastClose}
+				type={closeDayToastConfig.type}
+				message={closeDayToastConfig.message}
+				details={closeDayToastConfig.details}
+			/>
+
+			{/* OTP Modal for Close Day Verification - FIXED */}
+			<OTPModal
+				isOpen={showOTPModal}
+				onClose={handleCloseOTPModal}
+				onVerify={handleVerifyOTP}
+				onResendOTP={handleResendOTP} // NEW: Added resend OTP handler
+				isLoading={finalizeCloseDayMutation.isPending}
+				isResending={resendOTPMutation.isPending} // NEW: Added resending state
+				merchantPhone={merchantPhone}
+				errorMessage={finalizeCloseDayMutation.error?.message}
+			/>
+
+			{/* Print Receipt Modal */}
 			<PrintReceipt
 				isOpen={showPrintReceipt}
 				onClose={() => setShowPrintReceipt(false)}
@@ -1018,12 +1393,21 @@ export default function PointOfSalePage() {
 				customerContact={lastTransaction?.customerContact || ""}
 				items={lastTransaction?.items || []}
 				transactionId={lastTransaction?.transactionId || generateTransactionId()}
-				merchantName={merchantName} // PASS MERCHANT NAME
+				merchantName={merchantName}
 			/>
 
-			<div className="text-center mt-8">
-				<p className="text-gray-500 text-sm">Powered by TRIBE • Your trusted business growth platform</p>
-			</div>
+			<footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+				<div className="flex flex-col items-center justify-center gap-2">
+					<div className="flex items-center gap-2">
+						<Icon icon="lucide:shield" className="h-4 w-4 text-gray-400" />
+						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
+					</div>
+					<p className="text-xs text-gray-400 dark:text-gray-500">
+						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+					</p>
+					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
+				</div>
+			</footer>
 		</>
 	);
 }

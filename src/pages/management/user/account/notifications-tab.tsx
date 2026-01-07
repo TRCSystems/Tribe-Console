@@ -54,7 +54,7 @@ export default function NotificationsTab() {
 		refetch,
 	} = useQuery({
 		queryKey: ["today-transactions", today, merchantId],
-		queryFn: () => inventoryService.getDailyTransactions(merchantId || "HTL001", today),
+		queryFn: () => inventoryService.getDailySalesSummary(merchantId || "HTL001", today),
 		refetchInterval: 30000, // Refresh every 30 seconds
 		enabled: !!merchantId, // Only fetch if we have a merchant ID
 	});
@@ -65,7 +65,7 @@ export default function NotificationsTab() {
 		// Here you would typically save the notification settings to your backend
 		// For now, we'll just show a success message
 		toast.success("Notification settings updated successfully!");
-		
+
 		// In a real app, you would make an API call here:
 		// userService.updateNotificationSettings(notificationSettings);
 	};
@@ -77,9 +77,9 @@ export default function NotificationsTab() {
 	};
 
 	const handleSettingChange = (key: keyof typeof notificationSettings, value: boolean) => {
-		setNotificationSettings(prev => ({
+		setNotificationSettings((prev) => ({
 			...prev,
-			[key]: value
+			[key]: value,
 		}));
 	};
 
@@ -95,11 +95,11 @@ export default function NotificationsTab() {
 	};
 
 	const formatDate = (dateString: string) => {
-		return new Date(dateString).toLocaleDateString('en-KE', {
-			weekday: 'long',
-			year: 'numeric',
-			month: 'long',
-			day: 'numeric'
+		return new Date(dateString).toLocaleDateString("en-KE", {
+			weekday: "long",
+			year: "numeric",
+			month: "long",
+			day: "numeric",
 		});
 	};
 
@@ -124,9 +124,7 @@ export default function NotificationsTab() {
 						<CardDescription>
 							Real-time sales transactions for {formatDate(today)}
 							{merchantId && (
-								<span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-									Merchant: {merchantId}
-								</span>
+								<span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">Merchant: {merchantId}</span>
 							)}
 						</CardDescription>
 						{totalSales > 0 && (
@@ -183,29 +181,28 @@ export default function NotificationsTab() {
 										<div className="flex items-center gap-3 mb-2">
 											<div
 												className={`w-3 h-3 rounded-full ${
-													transaction.paymentMethod === "mpesa" 
-														? "bg-green-500" 
-														: transaction.paymentMethod === "cash" 
-														? "bg-blue-500"
-														: "bg-purple-500"
+													transaction.paymentMethod === "mpesa"
+														? "bg-green-500"
+														: transaction.paymentMethod === "cash"
+															? "bg-blue-500"
+															: "bg-purple-500"
 												}`}
 											/>
 											<span className="font-mono text-sm font-bold">{transaction.transactionId}</span>
-											<Badge 
+											<Badge
 												variant={
-													transaction.paymentMethod === "mpesa" 
-														? "default" 
+													transaction.paymentMethod === "mpesa"
+														? "default"
 														: transaction.paymentMethod === "cash"
-														? "secondary"
-														: "outline"
+															? "secondary"
+															: "outline"
 												}
 											>
-												{transaction.paymentMethod === "mpesa" 
-													? "M-Pesa" 
+												{transaction.paymentMethod === "mpesa"
+													? "M-Pesa"
 													: transaction.paymentMethod === "cash"
-													? "Cash"
-													: transaction.paymentMethod
-												}
+														? "Cash"
+														: transaction.paymentMethod}
 											</Badge>
 										</div>
 										<div className="text-sm text-muted-foreground">
@@ -222,9 +219,7 @@ export default function NotificationsTab() {
 									</div>
 									<div className="text-right">
 										<div className="text-lg font-bold text-green-600">{formatCurrency(transaction.amount)}</div>
-										<div className="text-xs text-muted-foreground mt-1">
-											{formatTime(transaction.createdAt)}
-										</div>
+										<div className="text-xs text-muted-foreground mt-1">{formatTime(transaction.createdAt)}</div>
 									</div>
 								</div>
 							))}
@@ -234,9 +229,7 @@ export default function NotificationsTab() {
 							<Icon icon="lucide:shopping-cart" className="h-16 w-16 mx-auto mb-4 opacity-50" />
 							<p className="text-lg font-medium">No transactions today</p>
 							<p className="text-sm">Sales transactions will appear here as they occur</p>
-							{merchantId && (
-								<p className="text-xs mt-2">Merchant ID: {merchantId}</p>
-							)}
+							{merchantId && <p className="text-xs mt-2">Merchant ID: {merchantId}</p>}
 						</div>
 					)}
 				</CardContent>
@@ -246,9 +239,7 @@ export default function NotificationsTab() {
 			<Card>
 				<CardHeader>
 					<CardTitle>Notification Preferences</CardTitle>
-					<CardDescription>
-						Manage how you receive notifications and alerts
-					</CardDescription>
+					<CardDescription>Manage how you receive notifications and alerts</CardDescription>
 				</CardHeader>
 				<CardContent className="grid grid-cols-1 gap-6 lg:grid-cols-2">
 					<div className="space-y-6">
@@ -261,9 +252,9 @@ export default function NotificationsTab() {
 										<div className="font-medium">Email for successful sales</div>
 										<div className="text-xs text-muted-foreground">Receive email for each completed transaction</div>
 									</div>
-									<Switch 
+									<Switch
 										checked={notificationSettings.emailSales}
-										onCheckedChange={(checked) => handleSettingChange('emailSales', checked)}
+										onCheckedChange={(checked) => handleSettingChange("emailSales", checked)}
 									/>
 								</div>
 								<div className="flex items-center justify-between">
@@ -271,9 +262,9 @@ export default function NotificationsTab() {
 										<div className="font-medium">Push for large transactions</div>
 										<div className="text-xs text-muted-foreground">Get notified for transactions above KShs 10,000</div>
 									</div>
-									<Switch 
+									<Switch
 										checked={notificationSettings.pushLargeTransactions}
-										onCheckedChange={(checked) => handleSettingChange('pushLargeTransactions', checked)}
+										onCheckedChange={(checked) => handleSettingChange("pushLargeTransactions", checked)}
 									/>
 								</div>
 								<div className="flex items-center justify-between">
@@ -281,9 +272,9 @@ export default function NotificationsTab() {
 										<div className="font-medium">Daily sales summary</div>
 										<div className="text-xs text-muted-foreground">Receive end-of-day sales report</div>
 									</div>
-									<Switch 
+									<Switch
 										checked={notificationSettings.dailySummary}
-										onCheckedChange={(checked) => handleSettingChange('dailySummary', checked)}
+										onCheckedChange={(checked) => handleSettingChange("dailySummary", checked)}
 									/>
 								</div>
 							</div>
@@ -300,9 +291,9 @@ export default function NotificationsTab() {
 										<div className="font-medium">Low stock alerts</div>
 										<div className="text-xs text-muted-foreground">Get notified when inventory is running low</div>
 									</div>
-									<Switch 
+									<Switch
 										checked={notificationSettings.lowStockAlerts}
-										onCheckedChange={(checked) => handleSettingChange('lowStockAlerts', checked)}
+										onCheckedChange={(checked) => handleSettingChange("lowStockAlerts", checked)}
 									/>
 								</div>
 								<div className="flex items-center justify-between">
@@ -310,9 +301,9 @@ export default function NotificationsTab() {
 										<div className="font-medium">End of day reports</div>
 										<div className="text-xs text-muted-foreground">Detailed daily performance reports</div>
 									</div>
-									<Switch 
+									<Switch
 										checked={notificationSettings.endOfDayReports}
-										onCheckedChange={(checked) => handleSettingChange('endOfDayReports', checked)}
+										onCheckedChange={(checked) => handleSettingChange("endOfDayReports", checked)}
 									/>
 								</div>
 								<div className="flex items-center justify-between">
@@ -320,9 +311,9 @@ export default function NotificationsTab() {
 										<div className="font-medium">Weekly insights</div>
 										<div className="text-xs text-muted-foreground">Weekly performance and analytics</div>
 									</div>
-									<Switch 
+									<Switch
 										checked={notificationSettings.weeklyInsights}
-										onCheckedChange={(checked) => handleSettingChange('weeklyInsights', checked)}
+										onCheckedChange={(checked) => handleSettingChange("weeklyInsights", checked)}
 									/>
 								</div>
 							</div>
@@ -330,17 +321,20 @@ export default function NotificationsTab() {
 					</div>
 				</CardContent>
 				<CardFooter className="flex justify-between border-t pt-6">
-					<Button variant="outline" onClick={() => {
-						setNotificationSettings({
-							emailSales: true,
-							pushLargeTransactions: true,
-							dailySummary: true,
-							lowStockAlerts: true,
-							endOfDayReports: false,
-							weeklyInsights: true,
-						});
-						toast.info("Settings reset to defaults");
-					}}>
+					<Button
+						variant="outline"
+						onClick={() => {
+							setNotificationSettings({
+								emailSales: true,
+								pushLargeTransactions: true,
+								dailySummary: true,
+								lowStockAlerts: true,
+								endOfDayReports: false,
+								weeklyInsights: true,
+							});
+							toast.info("Settings reset to defaults");
+						}}
+					>
 						Reset to Defaults
 					</Button>
 					<Button onClick={handleSaveSettings}>Save Notification Settings</Button>

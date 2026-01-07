@@ -1,5 +1,3 @@
-// src/routes/sections/dashboard/nav-data-frontend.tsx - UPDATED WITH SYSTEM USERS
-
 import { Icon } from "@/components/icon";
 import type { NavProps } from "@/components/nav";
 
@@ -27,11 +25,11 @@ export const frontendNavData: NavProps["data"] = [
 				path: "/pos",
 				icon: <Icon icon="lucide:shopping-cart" size="24" />,
 			},
-			{
+			/*	{
 				title: "sys.nav.management",
 				path: "/management",
 				icon: <Icon icon="local:ic-management" size="24" />,
-				children: [
+				children: [ 
 					/*{
 						title: "sys.nav.user.index",
 						path: "/management/user",
@@ -46,7 +44,7 @@ export const frontendNavData: NavProps["data"] = [
 							},
 						],
 					},*/
-					{
+			/*	{
 						title: "sys.nav.campaign.index",
 						path: "/management/campaign",
 						children: [
@@ -55,8 +53,8 @@ export const frontendNavData: NavProps["data"] = [
 								path: "/management/campaign/list",
 							},
 						],
-					},
-					/*{
+					}, */
+			/*{
 						title: "sys.nav.merchant.index",
 						path: "/management/merchant",
 						children: [
@@ -65,9 +63,9 @@ export const frontendNavData: NavProps["data"] = [
 								path: "/management/merchant/list",
 							},
 						],
-					},
-					
-					{
+					}, */
+
+			/*	{
 						title: "System Users",
 						path: "/management/system-users",
 						children: [
@@ -75,10 +73,11 @@ export const frontendNavData: NavProps["data"] = [
 								title: "Create User",
 								path: "/management/system-users/create",
 							},
+							{ title: "TRIBE_Users", path: "/management/system-users/list" },
 						],
-					},*/
+					},
 				],
-			},
+			}, */
 			{
 				title: "sys.nav.inventory.index",
 				path: "/inventory",
@@ -94,8 +93,8 @@ export const frontendNavData: NavProps["data"] = [
 					},
 				],
 			},
-			{ title: "marketing", path: "/marketing", icon: <Icon icon="lucide:megaphone" size="24" /> },
-			{ title: "finance", path: "/finance", icon: <Icon icon="lucide:coins" size="24" /> },
+			//	{ title: "marketing", path: "/marketing", icon: <Icon icon="lucide:megaphone" size="24" /> },
+			{ title: "Stock_Finance", path: "/finance", icon: <Icon icon="lucide:coins" size="24" /> },
 		],
 	},
 ];

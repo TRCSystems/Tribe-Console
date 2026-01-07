@@ -62,6 +62,19 @@ export default function SocialMarketingPage() {
 					</Card>
 				</div>
 			</div>
+
+			<footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+				<div className="flex flex-col items-center justify-center gap-2">
+					<div className="flex items-center gap-2">
+						<Icon icon="lucide:shield" className="h-4 w-4 text-gray-400" />
+						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
+					</div>
+					<p className="text-xs text-gray-400 dark:text-gray-500">
+						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+					</p>
+					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
+				</div>
+			</footer>
 		</div>
 	);
 }

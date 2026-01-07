@@ -1,4 +1,4 @@
-// src/utils/jwt.ts - ENHANCED & FIXED VERSION
+// src/utils/jwt.ts - FIXED VERSION
 import { jwtDecode } from "jwt-decode";
 import type { UserRole } from "#/entity";
 
@@ -98,15 +98,44 @@ export const getUserIdFromToken = (token: string): string | null => {
 };
 
 /**
- * Extract username from JWT token - ENHANCED with multiple field support
+ * Extract username from JWT token - FIXED: Handle missing username fields
  */
 export const getUsernameFromToken = (token: string): string | null => {
 	try {
 		const decoded = decodeToken(token);
-		// Try multiple possible fields for username
-		const username = decoded?.username || decoded?.user_name || decoded?.preferred_username || decoded?.sub || "admin"; // Default fallback
 
-		console.log("🛠️ Extracted username from token:", username);
+		// FIXED: Enhanced debug to see what's actually available
+		console.log("🛠️ Username extraction debug:", {
+			availableFields: Object.keys(decoded || {}),
+			username: decoded?.username,
+			user_name: decoded?.user_name,
+			preferred_username: decoded?.preferred_username,
+			sub: decoded?.sub,
+			email: decoded?.email,
+			id: decoded?.id,
+		});
+
+		// FIXED: Try multiple possible fields for username with better fallbacks
+		let username = decoded?.username || decoded?.user_name || decoded?.preferred_username || decoded?.sub;
+
+		// FIXED: If no username fields found, create one from available data
+		if (!username) {
+			if (decoded?.email) {
+				// Use email prefix as username
+				username = decoded.email.split("@")[0];
+				console.log("🛠️ Using email prefix as username:", username);
+			} else if (decoded?.id) {
+				// Use ID-based username
+				username = `user_${decoded.id}`;
+				console.log("🛠️ Using ID-based username:", username);
+			} else {
+				// Final fallback
+				username = "admin";
+				console.log("🛠️ Using default username fallback");
+			}
+		}
+
+		console.log("🛠️ Final extracted username:", username);
 		return username;
 	} catch (error) {
 		console.error("Failed to get username from token:", error);
@@ -153,15 +182,16 @@ export const getMerchantIdFromToken = (token: string): string | null => {
 };
 
 /**
- * NEW: Validate token structure and required fields
+ * NEW: Enhanced token validation that handles missing username gracefully
  */
-export const validateToken = (token: string): { isValid: boolean; missingFields: string[] } => {
+export const validateToken = (token: string): { isValid: boolean; missingFields: string[]; warnings: string[] } => {
 	try {
 		const decoded = decodeToken(token);
 		const missingFields: string[] = [];
+		const warnings: string[] = [];
 
 		if (!decoded) {
-			return { isValid: false, missingFields: ["decodable"] };
+			return { isValid: false, missingFields: ["decodable"], warnings: [] };
 		}
 
 		// Check for essential fields
@@ -177,25 +207,32 @@ export const validateToken = (token: string): { isValid: boolean; missingFields:
 			missingFields.push("exp");
 		}
 
+		// FIXED: Username is not critical, just warn about it
+		if (!decoded?.username && !decoded?.user_name && !decoded?.preferred_username) {
+			warnings.push("username (will use fallback)");
+		}
+
 		const isValid = missingFields.length === 0;
 
 		console.log("🛠️ Token validation:", {
 			isValid,
 			missingFields,
+			warnings,
 			hasId: !!decoded.id,
 			hasRole: !!decoded.role,
 			hasExp: !!decoded.exp,
+			hasUsername: !!(decoded?.username || decoded?.user_name || decoded?.preferred_username),
 		});
 
-		return { isValid, missingFields };
+		return { isValid, missingFields, warnings };
 	} catch (error) {
 		console.error("❌ Token validation failed:", error);
-		return { isValid: false, missingFields: ["decodable"] };
+		return { isValid: false, missingFields: ["decodable"], warnings: [] };
 	}
 };
 
 /**
- * NEW: Get all user info from token in one call
+ * NEW: Get all user info from token in one call - FIXED
  */
 export const extractUserInfoFromToken = (token: string) => {
 	try {
@@ -206,10 +243,17 @@ export const extractUserInfoFromToken = (token: string) => {
 
 		const userInfo = {
 			id: getUserIdFromToken(token),
-			username: getUsernameFromToken(token),
+			username: getUsernameFromToken(token), // This now handles missing username properly
 			email: decoded.email || "",
 			role: getRoleFromToken(token) || "ADMIN",
 			merchantId: getMerchantIdFromToken(token),
+			// FIXED: Add raw token data for debugging
+			rawTokenData: {
+				hasUsername: !!(decoded.username || decoded.user_name || decoded.preferred_username),
+				hasEmail: !!decoded.email,
+				hasRole: !!decoded.role,
+				hasId: !!decoded.id,
+			},
 		};
 
 		console.log("🛠️ Extracted complete user info from token:", userInfo);

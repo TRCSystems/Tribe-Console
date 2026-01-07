@@ -1,30 +1,33 @@
-// src/pages/management/system-users/list/index.tsx
-
+// src/pages/management/system-users/list/index.tsx - UPDATED
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
+import userService from "@/api/services/userService";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table";
 
-// Temporary mock data - you'll replace this with actual API call
-const mockUsers = [
-	{ id: "1", username: "admin", role: "ADMIN", status: "ACTIVE" },
-	{ id: "2", username: "manager1", role: "MANAGER", status: "ACTIVE" },
-	{ id: "3", username: "manager2", role: "MANAGER", status: "INACTIVE" },
-];
-
 export default function SystemUsersListPage() {
 	const navigate = useNavigate();
 
-	const { data: users = [], isLoading } = useQuery({
+	const { data: usersData, isLoading } = useQuery({
 		queryKey: ["system-users"],
 		queryFn: async () => {
-			// TODO: Replace with actual API call
-			// return userService.getUsers();
-			return mockUsers;
+			const response = await userService.getAllUsers();
+			console.log("🛠️ Users API response:", response);
+
+			// Handle API response structure
+			if (response?.respObject && Array.isArray(response.respObject)) {
+				return response.respObject;
+			}
+			if (Array.isArray(response)) {
+				return response;
+			}
+			return [];
 		},
 	});
+
+	const users = usersData || [];
 
 	return (
 		<div className="space-y-6">
@@ -63,13 +66,19 @@ export default function SystemUsersListPage() {
 									</TableCell>
 								</TableRow>
 							) : (
-								users?.map((user) => (
+								users.map((user: any) => (
 									<TableRow key={user.id}>
 										<TableCell className="font-medium">{user.username}</TableCell>
 										<TableCell>
 											<span
 												className={`px-2 py-1 rounded-full text-xs ${
-													user.role === "ADMIN" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"
+													user.role === "ADMIN"
+														? "bg-blue-100 text-blue-800"
+														: user.role === "MERCHANT"
+															? "bg-green-100 text-green-800"
+															: user.role === "LEAD_COLLECTOR"
+																? "bg-purple-100 text-purple-800"
+																: "bg-gray-100 text-gray-800"
 												}`}
 											>
 												{user.role}

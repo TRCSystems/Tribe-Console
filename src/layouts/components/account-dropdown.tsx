@@ -51,7 +51,7 @@ export default function AccountDropdown() {
 					)}
 				</Button>
 			</DropdownMenuTrigger>
-			<DropdownMenuContent className="w-56">
+			<DropdownMenuContent className="w-68">
 				<div className="flex items-center gap-2 p-2">
 					{avatar ? (
 						<img className="h-10 w-10 rounded-full" src={avatar} alt="" />
@@ -66,18 +66,15 @@ export default function AccountDropdown() {
 					</div>
 				</div>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem asChild>
-					<NavLink to="https://github.com/Marcellas28/TRIBE.git" target="_blank">
-						{t("sys.docs")}
-					</NavLink>
-				</DropdownMenuItem>
-				<DropdownMenuItem asChild>
+				<b>TRIBE powered by TRC Systems </b>
+				<p>Your Business Growth Partner</p>
+				{/*<DropdownMenuItem asChild>
 					<NavLink to="/management/user/profile">{t("sys.nav.user.profile")}</NavLink>
 				</DropdownMenuItem>
 				<DropdownMenuItem asChild>
 					<NavLink to="/management/user/account">{t("sys.nav.user.account")}</NavLink>
 				</DropdownMenuItem>
-				<DropdownMenuSeparator />
+				<DropdownMenuSeparator />*/}
 				<DropdownMenuItem className="font-bold text-warning" onClick={logout}>
 					{t("sys.login.logout")}
 				</DropdownMenuItem>

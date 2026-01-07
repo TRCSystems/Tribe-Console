@@ -24,6 +24,7 @@ import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
+import { UserRoleIndicator } from "@/components/user-role-indicator";
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
@@ -99,7 +100,7 @@ const convertToCSV = (data: any) => {
 
 	const headers = ["Metric", "Value", "Category"];
 	const rows = [
-		["Merchant ID", data.merchantId, "Business Information"],
+		//["Merchant ID", data.merchantId, "Business Information"],
 		["Report Type", data.reportType, "Business Information"],
 		["Date Range", data.dateRange, "Business Information"],
 		["Generated At", new Date(data.generatedAt).toLocaleString(), "Business Information"],
@@ -149,7 +150,7 @@ const generateReportHTML = (data: any) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Analytics Report - ${data.merchantId}</title>
+    <title>Business Analytics Report - {Sales Report}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -276,10 +277,7 @@ const generateReportHTML = (data: any) => {
             <h1>Business Analytics Report</h1>
             <div class="subtitle">Comprehensive Performance Analysis</div>
             <div class="info-grid">
-                <div class="info-item">
-                    <div class="label">Merchant ID</div>
-                    <div class="value">${data.merchantId}</div>
-                </div>
+               
                 <div class="info-item">
                     <div class="label">Report Type</div>
                     <div class="value">${data.reportType}</div>
@@ -302,10 +300,7 @@ const generateReportHTML = (data: any) => {
                     <h3>Gross Revenue</h3>
                     <div class="value">KShs ${(data.data?.grossSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 </div>
-                <div class="summary-card" style="background: rgba(255,255,255,0.1); border-left-color: #fff;">
-                    <h3>Net Profit</h3>
-                    <div class="value">KShs ${(data.data?.netSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                </div>
+                <!-- Net Profit card removed -->
                 <div class="summary-card" style="background: rgba(255,255,255,0.1); border-left-color: #fff;">
                     <h3>Total Expenses</h3>
                     <div class="value">KShs ${(data.data?.deductions || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
@@ -339,7 +334,7 @@ const generateReportHTML = (data: any) => {
                         <td>${expensePercentage}%</td>
                     </tr>
                     <tr>
-                        <td><strong>Net Profit</strong></td>
+                        <td><strong>Net Sales</strong></td>
                         <td><strong>${(data.data?.netSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
                         <td><strong>${profitMargin}%</strong></td>
                     </tr>
@@ -388,7 +383,6 @@ const generateReportHTML = (data: any) => {
 
         <div class="footer">
             <p><strong>Report Generated:</strong> ${new Date(data.generatedAt).toLocaleString()}</p>
-            <p><strong>Report ID:</strong> ${data.merchantId}-${new Date().getTime()}</p>
             <p style="margin-top: 10px; color: #999;">
                 This report contains confidential business information. Please handle with care.
             </p>
@@ -541,9 +535,7 @@ export default function WeeklyAnalyticsPage() {
 					<p className="text-muted-foreground">Comprehensive business insights and performance reports</p>
 				</div>
 				<div className="flex items-center gap-3">
-					<div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-						Merchant: {merchantId}
-					</div>
+					<UserRoleIndicator />
 				</div>
 			</div>
 
@@ -565,19 +557,7 @@ export default function WeeklyAnalyticsPage() {
 								</SelectContent>
 							</Select>
 						</div>
-						<div className="flex-1">
-							<label className="text-sm font-medium mb-2 block">Report Type</label>
-							<Select value={reportType} onValueChange={setReportType}>
-								<SelectTrigger className="w-40">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="summary">Performance Summary</SelectItem>
-									<SelectItem value="financial">Financial Report</SelectItem>
-									<SelectItem value="trends">Sales Trends</SelectItem>
-								</SelectContent>
-							</Select>
-						</div>
+
 						<div className="flex items-end gap-2">
 							<Button
 								variant="outline"
@@ -613,7 +593,7 @@ export default function WeeklyAnalyticsPage() {
 
 			{/* Rest of the UI remains the same */}
 			{/* Key Metrics Overview */}
-			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
 				<Card>
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
@@ -631,22 +611,7 @@ export default function WeeklyAnalyticsPage() {
 					</CardContent>
 				</Card>
 
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">Net Profit</p>
-								<p className="text-2xl font-bold text-blue-600">
-									{isLoading ? "..." : formatCurrency(transformedData?.netSales || 0)}
-								</p>
-								<Badge variant="outline" className="mt-1">
-									+8% from last week
-								</Badge>
-							</div>
-							<Icon icon="lucide:trending-up" className="h-8 w-8 text-blue-500 opacity-60" />
-						</div>
-					</CardContent>
-				</Card>
+				{/* Net Profit card removed */}
 
 				<Card>
 					<CardContent className="p-6">
@@ -762,10 +727,7 @@ export default function WeeklyAnalyticsPage() {
 											<span className="font-medium">Total Expenses</span>
 											<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions)}</span>
 										</div>
-										<div className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-											<span className="font-medium">Net Profit</span>
-											<span className="font-bold text-blue-600">{formatCurrency(transformedData.netSales)}</span>
-										</div>
+										{/* Net Profit summary removed */}
 										<div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
 											<span className="font-medium">Profit Margin</span>
 											<span className="font-bold text-purple-600">
@@ -845,43 +807,38 @@ export default function WeeklyAnalyticsPage() {
 								</div>
 							) : transformedData ? (
 								<div className="space-y-6">
-									<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-										<div className="space-y-4">
-											<h3 className="font-semibold text-lg">Revenue Analysis</h3>
-											<div className="space-y-2">
-												<div className="flex justify-between">
-													<span>Total Revenue:</span>
-													<span className="font-bold">{formatCurrency(transformedData.grossSales)}</span>
-												</div>
-												<div className="flex justify-between">
-													<span>Operating Costs:</span>
-													<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions)}</span>
-												</div>
-												<div className="flex justify-between">
-													<span>Net Profit:</span>
-													<span className="font-bold text-green-600">{formatCurrency(transformedData.netSales)}</span>
-												</div>
+									<div className="space-y-4">
+										<h3 className="font-semibold text-lg">Revenue Analysis</h3>
+										<div className="space-y-2">
+											<div className="flex justify-between">
+												<span>Total Revenue:</span>
+												<span className="font-bold">{formatCurrency(transformedData.grossSales)}</span>
 											</div>
+											<div className="flex justify-between">
+												<span>Operating Costs:</span>
+												<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions)}</span>
+											</div>
+											{/* Net Profit line removed */}
 										</div>
-										<div className="space-y-4">
-											<h3 className="font-semibold text-lg">Performance Metrics</h3>
-											<div className="space-y-2">
-												<div className="flex justify-between">
-													<span>Profit Margin:</span>
-													<span className="font-bold">
-														{transformedData.grossSales
-															? `${((transformedData.netSales / transformedData.grossSales) * 100).toFixed(1)}%`
-															: "0%"}
-													</span>
-												</div>
-												<div className="flex justify-between">
-													<span>Revenue Efficiency:</span>
-													<span className="font-bold">
-														{transformedData.grossSales && transformedData.deductions
-															? `${(((transformedData.grossSales - transformedData.deductions) / transformedData.deductions) * 100).toFixed(1)}%`
-															: "0%"}
-													</span>
-												</div>
+									</div>
+									<div className="space-y-4">
+										<h3 className="font-semibold text-lg">Performance Metrics</h3>
+										<div className="space-y-2">
+											<div className="flex justify-between">
+												<span>Profit Margin:</span>
+												<span className="font-bold">
+													{transformedData.grossSales
+														? `${((transformedData.netSales / transformedData.grossSales) * 100).toFixed(1)}%`
+														: "0%"}
+												</span>
+											</div>
+											<div className="flex justify-between">
+												<span>Revenue Efficiency:</span>
+												<span className="font-bold">
+													{transformedData.grossSales && transformedData.deductions
+														? `${(((transformedData.grossSales - transformedData.deductions) / transformedData.deductions) * 100).toFixed(1)}%`
+														: "0%"}
+												</span>
 											</div>
 										</div>
 									</div>

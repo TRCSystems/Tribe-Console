@@ -2,7 +2,7 @@
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { UploadAvatar } from "@/components/upload";
-import { useUserInfo, useUserEmail, useUserActions } from "@/store/userStore"; // ADDED
+import { useUserActions, useUserEmail, useUserInfo } from "@/store/userStore"; // ADDED
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardFooter } from "@/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/ui/form";
@@ -25,30 +25,26 @@ export default function GeneralTab() {
 	const { avatar, username } = useUserInfo();
 	const userEmail = useUserEmail(); // ADDED: Get real email
 	const { setUserInfo } = useUserActions(); // ADDED: To update user info
-	
+
 	const form = useForm<FieldType>({
 		defaultValues: {
 			name: username || "", // Use real username
 			email: userEmail || "", // Use real email
 			phone: "", // Remove faker data
-			address: "", // Remove faker data
-			city: "", // Remove faker data
-			code: "", // Remove faker data
-			about: "", // Remove faker data
 		},
 	});
 
 	const handleClick = () => {
 		// Get updated form values
 		const formData = form.getValues();
-		
+
 		// Update user info in store
 		setUserInfo({
 			username: formData.name || username,
 			email: formData.email || userEmail,
 			// Add other fields as needed
 		});
-		
+
 		toast.success("Update success!");
 	};
 
@@ -105,56 +101,6 @@ export default function GeneralTab() {
 											<FormLabel>Phone</FormLabel>
 											<FormControl>
 												<Input {...field} placeholder="Enter your phone number" />
-											</FormControl>
-										</FormItem>
-									)}
-								/>
-								<FormField
-									control={form.control}
-									name="address"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Address</FormLabel>
-											<FormControl>
-												<Input {...field} placeholder="Enter your address" />
-											</FormControl>
-										</FormItem>
-									)}
-								/>
-								<FormField
-									control={form.control}
-									name="city"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>City</FormLabel>
-											<FormControl>
-												<Input {...field} placeholder="Enter your city" />
-											</FormControl>
-										</FormItem>
-									)}
-								/>
-								<FormField
-									control={form.control}
-									name="code"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>Postal Code</FormLabel>
-											<FormControl>
-												<Input {...field} placeholder="Enter postal code" />
-											</FormControl>
-										</FormItem>
-									)}
-								/>
-							</div>
-							<div className="mt-4">
-								<FormField
-									control={form.control}
-									name="about"
-									render={({ field }) => (
-										<FormItem>
-											<FormLabel>About</FormLabel>
-											<FormControl>
-												<Textarea {...field} placeholder="Tell us about yourself..." />
 											</FormControl>
 										</FormItem>
 									)}

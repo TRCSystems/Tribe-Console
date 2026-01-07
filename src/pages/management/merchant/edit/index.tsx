@@ -1,3 +1,5 @@
+// src/pages/management/merchant/edit/index.tsx - FINAL CORRECTED VERSION
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router";
 import merchantService from "@/api/services/merchantService";
@@ -20,17 +22,26 @@ export default function EditMerchantPage() {
 		error,
 	} = useQuery({
 		queryKey: ["merchant", id],
-		queryFn: () => merchantService.getMerchantById(id!),
+		queryFn: () => {
+			if (!id) throw new Error("Merchant ID is required");
+			return merchantService.getMerchantById(id);
+		},
 		enabled: !!id,
 	});
 
 	// Update merchant mutation
 	const updateMutation = useMutation({
-		mutationFn: (data: any) => merchantService.updateMerchant(id!, data),
+		mutationFn: (data: any) => {
+			if (!id) throw new Error("Merchant ID is required");
+			return merchantService.updateMerchant(id, data);
+		},
 		onSuccess: () => {
-			// Refresh the merchants list
 			queryClient.invalidateQueries({ queryKey: ["merchants"] });
+			queryClient.invalidateQueries({ queryKey: ["merchant", id] });
 			navigate("/management/merchant/list");
+		},
+		onError: (error: Error) => {
+			console.error("❌ Update merchant error:", error);
 		},
 	});
 
@@ -43,6 +54,7 @@ export default function EditMerchantPage() {
 			location: formData.get("location") as string,
 			tillNumber: formData.get("tillNumber") as string,
 			businessType: formData.get("businessType") as string,
+			businessPhone: formData.get("businessPhone") as string,
 		};
 
 		updateMutation.mutate(merchantData);
@@ -142,6 +154,20 @@ export default function EditMerchantPage() {
 									name="tillNumber"
 									defaultValue={merchant.tillNumber}
 									placeholder="Enter till number"
+									required
+									pattern="\d{5,10}"
+									title="Till number must be 5-10 digits"
+								/>
+							</div>
+
+							{/* ADDED BUSINESS PHONE FIELD */}
+							<div className="space-y-2">
+								<Label htmlFor="businessPhone">Business Phone *</Label>
+								<Input
+									id="businessPhone"
+									name="businessPhone"
+									defaultValue={merchant.businessPhone}
+									placeholder="e.g., +254712345678"
 									required
 								/>
 							</div>

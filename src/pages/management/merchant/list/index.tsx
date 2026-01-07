@@ -1,4 +1,4 @@
-// src/pages/management/merchant/list/index.tsx - WITH CREATE USER BUTTON
+// src/pages/management/merchant/list/index.tsx - FINAL VERSION
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
@@ -35,7 +35,7 @@ export default function MerchantListPage() {
 	});
 
 	const handleDeleteClick = (merchantId: string) => {
-		setMerchantToDelete(merchantId);
+		setMerchantToDelete(merchantId.toString());
 	};
 
 	const confirmDelete = () => {
@@ -106,13 +106,14 @@ export default function MerchantListPage() {
 								<TableHead>Location</TableHead>
 								<TableHead>Till Number</TableHead>
 								<TableHead>Business Type</TableHead>
+								<TableHead>Business Phone</TableHead>
 								<TableHead>Actions</TableHead>
 							</TableRow>
 						</TableHeader>
 						<TableBody>
 							{isLoading ? (
 								<TableRow>
-									<TableCell colSpan={5} className="text-center">
+									<TableCell colSpan={6} className="text-center">
 										<Icon icon="eos-icons:loading" className="h-6 w-6 mx-auto mb-2" />
 										Loading merchants...
 									</TableCell>
@@ -124,6 +125,7 @@ export default function MerchantListPage() {
 										<TableCell>{merchant.location}</TableCell>
 										<TableCell>{merchant.tillNumber}</TableCell>
 										<TableCell>{merchant.businessType}</TableCell>
+										<TableCell>{merchant.businessPhone}</TableCell>
 										<TableCell>
 											<div className="flex gap-2">
 												<Button
@@ -137,7 +139,7 @@ export default function MerchantListPage() {
 													variant="outline"
 													size="sm"
 													className="text-destructive hover:text-destructive"
-													onClick={() => handleDeleteClick(merchant.id)}
+													onClick={() => handleDeleteClick(merchant.id.toString())}
 													disabled={deleteMutation.isPending}
 												>
 													Delete

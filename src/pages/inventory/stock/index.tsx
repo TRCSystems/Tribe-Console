@@ -1,4 +1,3 @@
-// src/pages/inventory/stock/index.tsx - FINAL FIXED VERSION
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +8,14 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
+import { UserRoleIndicator } from "@/components/user-role-indicator";
+
+// CSV Template Content
+const CSV_TEMPLATE_CONTENT = `ITEM,UNIT_PRICE,STARTING_STOCK
+Product 1,2000,30
+Product 2,1500,20
+Product 3,1200,40
+Product 4,30,200`;
 
 // Edit Modal Component
 const EditInventoryModal = ({
@@ -20,11 +27,11 @@ const EditInventoryModal = ({
 	open: boolean;
 	setOpen: (open: boolean) => void;
 	item: InventoryItem | null;
-	onSave: (item: InventoryItem) => void;
+	onSave: (id: number, data: { itemName: string; quantity: number; unitPrice: number }) => void;
 }) => {
 	const [formData, setFormData] = useState({
 		itemName: "",
-		availableStock: 0,
+		quantity: 0,
 		unitPrice: 0,
 	});
 
@@ -32,21 +39,22 @@ const EditInventoryModal = ({
 		if (item) {
 			setFormData({
 				itemName: item.itemName,
-				availableStock: item.availableStock,
+				quantity: item.availableStock,
 				unitPrice: item.unitPrice,
 			});
 		}
 	}, [item]);
 
 	const handleSave = () => {
-		if (item && formData.itemName && formData.availableStock >= 0 && formData.unitPrice >= 0) {
-			onSave({
-				...item,
+		if (item && formData.itemName && formData.quantity >= 0 && formData.unitPrice >= 0) {
+			onSave(item.id, {
 				itemName: formData.itemName,
-				availableStock: formData.availableStock,
+				quantity: formData.quantity,
 				unitPrice: formData.unitPrice,
 			});
 			setOpen(false);
+		} else {
+			message.error("Please fill in all fields correctly");
 		}
 	};
 
@@ -61,25 +69,27 @@ const EditInventoryModal = ({
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
-						<label className="text-sm font-medium">Item Name</label>
+						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Item Name</label>
 						<Input
 							value={formData.itemName}
 							onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
 							placeholder="Enter item name"
+							className="mt-1"
 						/>
 					</div>
 					<div>
-						<label className="text-sm font-medium">Quantity</label>
+						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Quantity</label>
 						<Input
 							type="number"
 							min="0"
-							value={formData.availableStock}
-							onChange={(e) => setFormData({ ...formData, availableStock: parseInt(e.target.value) || 0 })}
+							value={formData.quantity}
+							onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 0 })}
 							placeholder="Enter quantity"
+							className="mt-1"
 						/>
 					</div>
 					<div>
-						<label className="text-sm font-medium">Price (KShs)</label>
+						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Price (KShs)</label>
 						<Input
 							type="number"
 							min="0"
@@ -87,13 +97,89 @@ const EditInventoryModal = ({
 							value={formData.unitPrice}
 							onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
 							placeholder="Enter price"
+							className="mt-1"
 						/>
 					</div>
-					<div className="flex gap-4 justify-end">
+					<div className="flex gap-4 justify-end pt-4">
 						<Button variant="outline" onClick={() => setOpen(false)}>
 							Cancel
 						</Button>
 						<Button onClick={handleSave}>Save Changes</Button>
+					</div>
+				</CardContent>
+			</Card>
+		</div>
+	);
+};
+
+// Delete Confirmation Modal Component
+const DeleteConfirmationModal = ({
+	open,
+	setOpen,
+	item,
+	onConfirm,
+	isDeleting,
+}: {
+	open: boolean;
+	setOpen: (open: boolean) => void;
+	item: InventoryItem | null;
+	onConfirm: () => void;
+	isDeleting: boolean;
+}) => {
+	if (!open || !item) return null;
+
+	return (
+		<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+			<Card className="w-full max-w-md">
+				<CardHeader>
+					<CardTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2">
+						<Icon icon="lucide:alert-triangle" className="h-5 w-5 text-red-500" />
+						Delete Item
+					</CardTitle>
+					<CardDescription className="text-gray-600 dark:text-gray-400">
+						You are about to delete "{item.itemName}"
+					</CardDescription>
+				</CardHeader>
+				<CardContent className="space-y-4">
+					<div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+						<div className="flex items-start gap-3">
+							<Icon icon="lucide:alert-circle" className="h-5 w-5 text-red-600 dark:text-red-400 mt-0.5" />
+							<div>
+								<h4 className="font-semibold text-red-800 dark:text-red-300 mb-1">Important Warning</h4>
+								<p className="text-sm text-red-700 dark:text-red-400">
+									Are you absolutely sure you want to delete "{item.itemName}"?
+									<br />
+									<span className="font-bold">This action cannot be undone.</span>
+									<br />
+									Once deleted, this item and all its data will be permanently removed from the system and can never be
+									recovered.
+								</p>
+							</div>
+						</div>
+					</div>
+
+					<div className="flex gap-4 justify-end pt-4">
+						<Button variant="outline" onClick={() => setOpen(false)} disabled={isDeleting}>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={onConfirm}
+							disabled={isDeleting}
+							className="bg-red-600 hover:bg-red-700"
+						>
+							{isDeleting ? (
+								<>
+									<Icon icon="eos-icons:loading" className="mr-2 h-4 w-4" />
+									Deleting...
+								</>
+							) : (
+								<>
+									<Icon icon="lucide:trash-2" className="mr-2 h-4 w-4" />
+									Yes, Delete Permanently
+								</>
+							)}
+						</Button>
 					</div>
 				</CardContent>
 			</Card>
@@ -107,6 +193,9 @@ export default function StockManagementPage() {
 	const [stockToAdd, setStockToAdd] = useState<{ inventoryId: number; quantity: number } | null>(null);
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+	const [showTemplateNotification, setShowTemplateNotification] = useState(false);
+	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+	const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	// SIMPLIFIED: Use the new auth check hook
@@ -250,37 +339,67 @@ export default function StockManagementPage() {
 		},
 	});
 
-	// Edit item mutation
+	// Edit item mutation - UPDATED to use actual API
 	const editItemMutation = useMutation({
-		mutationFn: async (item: InventoryItem) => {
+		mutationFn: async ({
+			id,
+			data,
+		}: {
+			id: number;
+			data: { itemName: string; quantity: number; unitPrice: number };
+		}) => {
 			if (!canPerformActions) {
 				throw new Error("User not authenticated");
 			}
-			// Since we don't have a direct update endpoint, we'll use addStock to update quantity
-			message.info("Edit functionality requires additional API endpoints");
-			return Promise.resolve();
+
+			console.log("✏️ Edit Item Mutation Started:", { id, data });
+
+			try {
+				const result = await inventoryService.updateItem(id, {
+					itemName: data.itemName,
+					quantity: data.quantity,
+					unitPrice: data.unitPrice,
+				});
+				console.log("✅ Edit item successful:", result);
+				return result;
+			} catch (error) {
+				console.error("❌ Edit item failed:", error);
+				throw error;
+			}
 		},
-		onSuccess: () => {
-			message.success("Item updated successfully!");
+		onSuccess: (result) => {
+			message.success(result.message || "Item updated successfully!");
 			queryClient.invalidateQueries({ queryKey: ["inventory"] });
+			setEditingItem(null);
 		},
 		onError: (error: Error) => {
 			message.error(`Failed to update item: ${error.message}`);
 		},
 	});
 
-	// Delete item mutation
+	// Delete item mutation - UPDATED to use actual API
 	const deleteItemMutation = useMutation({
-		mutationFn: async (itemId: number) => {
+		mutationFn: async (id: number) => {
 			if (!canPerformActions) {
 				throw new Error("User not authenticated");
 			}
-			message.info("Delete functionality requires additional API endpoints");
-			return Promise.resolve();
+
+			console.log("🗑️ Delete Item Mutation Started:", { id });
+
+			try {
+				const result = await inventoryService.deleteItem(id);
+				console.log("✅ Delete item successful:", result);
+				return result;
+			} catch (error) {
+				console.error("❌ Delete item failed:", error);
+				throw error;
+			}
 		},
-		onSuccess: () => {
-			message.success("Item deleted successfully!");
+		onSuccess: (result) => {
+			message.success(result.message || "Item deleted successfully!");
 			queryClient.invalidateQueries({ queryKey: ["inventory"] });
+			setDeleteModalOpen(false);
+			setItemToDelete(null);
 		},
 		onError: (error: Error) => {
 			message.error(`Failed to delete item: ${error.message}`);
@@ -303,6 +422,42 @@ export default function StockManagementPage() {
 		if (quantity === 0) return { status: "out-of-stock", variant: "destructive" as const };
 		if (quantity < 10) return { status: "low-stock", variant: "warning" as const };
 		return { status: "in-stock", variant: "success" as const };
+	};
+
+	// Function to download CSV template
+	const downloadCSVTemplate = () => {
+		try {
+			// Create a Blob with CSV content
+			const blob = new Blob([CSV_TEMPLATE_CONTENT], { type: "text/csv;charset=utf-8;" });
+
+			// Create a temporary URL for the Blob
+			const url = URL.createObjectURL(blob);
+
+			// Create a temporary anchor element
+			const link = document.createElement("a");
+			link.href = url;
+			link.setAttribute("download", "inventory_template.csv");
+
+			// Append to body, click, and remove
+			document.body.appendChild(link);
+			link.click();
+			document.body.removeChild(link);
+
+			// Clean up the URL object
+			URL.revokeObjectURL(url);
+
+			// Show success message
+			message.success("CSV template downloaded successfully!");
+
+			// Show notification for editing
+			setShowTemplateNotification(true);
+
+			// Auto-hide notification after 5 seconds
+			setTimeout(() => setShowTemplateNotification(false), 5000);
+		} catch (error) {
+			console.error("Error downloading CSV template:", error);
+			message.error("Failed to download template. Please try again.");
+		}
 	};
 
 	const handleAddStock = (item: InventoryItem) => {
@@ -328,13 +483,22 @@ export default function StockManagementPage() {
 			return;
 		}
 
+		// First confirmation
 		if (window.confirm(`Are you sure you want to delete "${item.itemName}"?`)) {
-			deleteItemMutation.mutate(item.id);
+			// Set item to delete and open detailed confirmation modal
+			setItemToDelete(item);
+			setDeleteModalOpen(true);
 		}
 	};
 
-	const handleSaveEdit = (updatedItem: InventoryItem) => {
-		editItemMutation.mutate(updatedItem);
+	const handleConfirmDelete = () => {
+		if (itemToDelete) {
+			deleteItemMutation.mutate(itemToDelete.id);
+		}
+	};
+
+	const handleSaveEdit = (id: number, data: { itemName: string; quantity: number; unitPrice: number }) => {
+		editItemMutation.mutate({ id, data });
 	};
 
 	const confirmAddStock = () => {
@@ -396,14 +560,14 @@ export default function StockManagementPage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold">Stock Management</h1>
+						<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Stock Management</h1>
 						<p className="text-muted-foreground">Manage and track your inventory stock levels</p>
 					</div>
 				</div>
 				<Card>
 					<CardContent className="p-6 text-center">
 						<Icon icon="lucide:alert-circle" className="h-12 w-12 text-destructive mx-auto mb-4" />
-						<h3 className="text-lg font-semibold mb-2">Failed to load inventory</h3>
+						<h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">Failed to load inventory</h3>
 						<p className="text-muted-foreground mb-4">{(error as Error).message}</p>
 						<Button onClick={() => window.location.reload()}>Retry</Button>
 					</CardContent>
@@ -419,8 +583,8 @@ export default function StockManagementPage() {
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
 					<Card className="w-full max-w-md">
 						<CardHeader>
-							<CardTitle>Add Stock</CardTitle>
-							<CardDescription>
+							<CardTitle className="text-gray-900 dark:text-gray-100">Add Stock</CardTitle>
+							<CardDescription className="text-gray-600 dark:text-gray-400">
 								How many units do you want to add to{" "}
 								{processedInventory.find((item) => item.id === stockToAdd.inventoryId)?.itemName}?
 							</CardDescription>
@@ -450,8 +614,8 @@ export default function StockManagementPage() {
 							</div>
 
 							{!canPerformActions && (
-								<div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-									<p className="text-sm text-yellow-800">
+								<div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+									<p className="text-sm text-yellow-800 dark:text-yellow-300">
 										<Icon icon="lucide:alert-triangle" className="inline h-4 w-4 mr-1" />
 										You need to be logged in to add stock
 									</p>
@@ -465,6 +629,48 @@ export default function StockManagementPage() {
 			{/* Edit Item Modal */}
 			<EditInventoryModal open={editModalOpen} setOpen={setEditModalOpen} item={editingItem} onSave={handleSaveEdit} />
 
+			{/* Delete Confirmation Modal */}
+			<DeleteConfirmationModal
+				open={deleteModalOpen}
+				setOpen={setDeleteModalOpen}
+				item={itemToDelete}
+				onConfirm={handleConfirmDelete}
+				isDeleting={deleteItemMutation.isPending}
+			/>
+
+			{/* Template Download Notification */}
+			{showTemplateNotification && (
+				<div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top duration-300">
+					<Card className="shadow-lg border-green-200 dark:border-green-800 bg-green-50 dark:bg-green-900/20">
+						<CardContent className="p-4">
+							<div className="flex items-start gap-3">
+								<Icon icon="lucide:download" className="h-5 w-5 text-green-600 dark:text-green-400 mt-0.5" />
+								<div className="flex-1">
+									<h4 className="font-semibold text-green-800 dark:text-green-300">
+										Template Downloaded Successfully!
+									</h4>
+									<p className="text-sm text-green-700 dark:text-green-400 mt-1">
+										<strong>Download and Edit to your specifications!</strong>
+										<br />
+										Open the file in Excel or any spreadsheet editor and add your inventory items.
+										<br />
+										<strong>Required columns:</strong> ITEM, UNIT_PRICE, STARTING_STOCK
+									</p>
+								</div>
+								<Button
+									size="sm"
+									variant="ghost"
+									onClick={() => setShowTemplateNotification(false)}
+									className="h-6 w-6 p-0"
+								>
+									<Icon icon="lucide:x" className="h-4 w-4" />
+								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
 			{/* Hidden file input for CSV import */}
 			<input
 				ref={fileInputRef}
@@ -476,26 +682,36 @@ export default function StockManagementPage() {
 
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Stock Management</h1>
+					<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Stock Management</h1>
 					<p className="text-muted-foreground">Manage and track your inventory stock levels</p>
 				</div>
 
 				<div className="flex items-center gap-3">
+					<UserRoleIndicator />
 					{/* Auth Status Indicator */}
 					<div
 						className={`px-3 py-1 rounded-full text-sm font-medium ${
-							canPerformActions ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+							canPerformActions
+								? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300"
+								: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300"
 						}`}
 					>
-						{canPerformActions ? "✅ Authenticated" : "❌ Not Authenticated"}
+						{canPerformActions ? "✅ " : "❌ Not Authenticated"}
 					</div>
 
-					{/* Merchant ID Display */}
-					{merchantId && (
-						<div className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-							Merchant: {merchantId}
-						</div>
-					)}
+					{/* CSV Template Download Button */}
+					<div className="flex flex-col items-center gap-1">
+						<Button
+							onClick={downloadCSVTemplate}
+							disabled={!canPerformActions}
+							className="w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+							variant="default"
+							title="Download CSV Template"
+						>
+							<Icon icon="lucide:download" className="h-5 w-5" />
+						</Button>
+						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">TEMPLATE</span>
+					</div>
 
 					{/* Import CSV Button - Circular with text below */}
 					<div className="flex flex-col items-center gap-1">
@@ -512,7 +728,7 @@ export default function StockManagementPage() {
 								<Icon icon="lucide:upload" className="h-5 w-5" />
 							)}
 						</Button>
-						<span className="text-xs font-bold uppercase tracking-wide text-gray-700">
+						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
 							{importCSVMutation.isPending ? "IMPORTING..." : "IMPORT"}
 						</span>
 					</div>
@@ -526,7 +742,7 @@ export default function StockManagementPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-muted-foreground">Total Items</p>
-								<p className="text-2xl font-bold">{totalItems}</p>
+								<p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{totalItems}</p>
 							</div>
 							<Icon icon="lucide:package" className="h-8 w-8 text-blue-500 opacity-60" />
 						</div>
@@ -538,7 +754,7 @@ export default function StockManagementPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-muted-foreground">Low Stock</p>
-								<p className="text-2xl font-bold text-orange-600">{lowStockItems}</p>
+								<p className="text-2xl font-bold text-orange-600 dark:text-orange-500">{lowStockItems}</p>
 							</div>
 							<Icon icon="lucide:alert-triangle" className="h-8 w-8 text-orange-500 opacity-60" />
 						</div>
@@ -550,7 +766,7 @@ export default function StockManagementPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-muted-foreground">Out of Stock</p>
-								<p className="text-2xl font-bold text-red-600">{outOfStockItems}</p>
+								<p className="text-2xl font-bold text-red-600 dark:text-red-500">{outOfStockItems}</p>
 							</div>
 							<Icon icon="lucide:x-circle" className="h-8 w-8 text-red-500 opacity-60" />
 						</div>
@@ -562,7 +778,7 @@ export default function StockManagementPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-muted-foreground">Total Value</p>
-								<p className="text-2xl font-bold text-green-600">{formatCurrency(totalValue)}</p>
+								<p className="text-2xl font-bold text-green-600 dark:text-green-500">{formatCurrency(totalValue)}</p>
 							</div>
 							<Icon icon="lucide:banknote" className="h-8 w-8 text-green-500 opacity-60" />
 						</div>
@@ -573,8 +789,10 @@ export default function StockManagementPage() {
 			{/* Inventory Table */}
 			<Card>
 				<CardHeader>
-					<CardTitle>Inventory Items</CardTitle>
-					<CardDescription>Manage your inventory stock levels and items</CardDescription>
+					<CardTitle className="text-gray-900 dark:text-gray-100">Inventory Items</CardTitle>
+					<CardDescription className="text-gray-600 dark:text-gray-400">
+						Manage your inventory stock levels and items
+					</CardDescription>
 					<div className="mt-4">
 						<Input
 							placeholder="Search inventory..."
@@ -594,13 +812,13 @@ export default function StockManagementPage() {
 						<div className="overflow-x-auto">
 							<table className="w-full min-w-max table-auto">
 								<thead>
-									<tr className="border-b">
-										<th className="text-left p-4 font-semibold">Item Name</th>
-										<th className="text-left p-4 font-semibold">Stock Status</th>
-										<th className="text-left p-4 font-semibold">Quantity</th>
-										<th className="text-left p-4 font-semibold">Price</th>
-										<th className="text-left p-4 font-semibold">Total Value</th>
-										<th className="text-left p-4 font-semibold">Actions</th>
+									<tr className="border-b border-gray-200 dark:border-gray-700">
+										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Item Name</th>
+										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Stock Status</th>
+										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Quantity</th>
+										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Price</th>
+										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Total Value</th>
+										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Actions</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -609,10 +827,13 @@ export default function StockManagementPage() {
 										const totalValue = item.unitPrice * item.availableStock;
 
 										return (
-											<tr key={item.id} className="border-b hover:bg-gray-50">
+											<tr
+												key={item.id}
+												className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+											>
 												<td className="p-4">
 													<div>
-														<p className="font-medium">{item.itemName}</p>
+														<p className="font-medium text-gray-900 dark:text-gray-100">{item.itemName}</p>
 														{item.expenseNote && <p className="text-sm text-muted-foreground">{item.expenseNote}</p>}
 													</div>
 												</td>
@@ -626,41 +847,55 @@ export default function StockManagementPage() {
 													</Badge>
 												</td>
 												<td className="p-4">
-													<p className="font-medium">{item.availableStock} units</p>
+													<p className="font-medium text-gray-900 dark:text-gray-100">{item.availableStock} units</p>
 												</td>
 												<td className="p-4">
-													<p className="font-medium">{formatCurrency(item.unitPrice)}</p>
+													<p className="font-medium text-gray-900 dark:text-gray-100">
+														{formatCurrency(item.unitPrice)}
+													</p>
 												</td>
 												<td className="p-4">
-													<p className="font-medium text-green-600">{formatCurrency(totalValue)}</p>
+													<p className="font-medium text-green-600 dark:text-green-500">{formatCurrency(totalValue)}</p>
 												</td>
 												<td className="p-4">
 													<div className="flex gap-2">
 														<Button
 															size="sm"
 															onClick={() => handleAddStock(item)}
-															disabled={!canPerformActions}
+															disabled={!canPerformActions || addStockMutation.isPending}
 															title={canPerformActions ? "Add Stock" : "Please login to add stock"}
 														>
-															<Icon icon="lucide:plus" className="h-4 w-4" />
+															{addStockMutation.isPending && editingItem?.id === item.id ? (
+																<Icon icon="eos-icons:loading" className="h-4 w-4" />
+															) : (
+																<Icon icon="lucide:plus" className="h-4 w-4" />
+															)}
 														</Button>
 														<Button
 															size="sm"
 															variant="outline"
 															onClick={() => handleEditItem(item)}
-															disabled={!canPerformActions}
+															disabled={!canPerformActions || editItemMutation.isPending}
 															title={canPerformActions ? "Edit Item" : "Please login to edit items"}
 														>
-															<Icon icon="lucide:edit" className="h-4 w-4" />
+															{editItemMutation.isPending && editingItem?.id === item.id ? (
+																<Icon icon="eos-icons:loading" className="h-4 w-4" />
+															) : (
+																<Icon icon="lucide:edit" className="h-4 w-4" />
+															)}
 														</Button>
 														<Button
 															size="sm"
 															variant="destructive"
 															onClick={() => handleDeleteItem(item)}
-															disabled={!canPerformActions}
+															disabled={!canPerformActions || deleteItemMutation.isPending}
 															title={canPerformActions ? "Delete Item" : "Please login to delete items"}
 														>
-															<Icon icon="lucide:trash" className="h-4 w-4" />
+															{deleteItemMutation.isPending && itemToDelete?.id === item.id ? (
+																<Icon icon="eos-icons:loading" className="h-4 w-4" />
+															) : (
+																<Icon icon="lucide:trash" className="h-4 w-4" />
+															)}
 														</Button>
 													</div>
 												</td>
@@ -673,7 +908,7 @@ export default function StockManagementPage() {
 							{!isLoading && filteredInventory.length === 0 && (
 								<div className="text-center py-12 text-muted-foreground">
 									<Icon icon="lucide:package" className="h-16 w-16 mx-auto mb-4 opacity-50" />
-									<p className="text-lg font-medium">No inventory items found</p>
+									<p className="text-lg font-medium text-gray-900 dark:text-gray-100">No inventory items found</p>
 									<p className="text-sm">Try adjusting your search criteria</p>
 								</div>
 							)}
@@ -681,6 +916,20 @@ export default function StockManagementPage() {
 					)}
 				</CardContent>
 			</Card>
+
+			{/* Footer */}
+			<footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+				<div className="flex flex-col items-center justify-center gap-2">
+					<div className="flex items-center gap-2">
+						<Icon icon="lucide:shield" className="h-4 w-4 text-gray-400" />
+						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
+					</div>
+					<p className="text-xs text-gray-400 dark:text-gray-500">
+						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+					</p>
+					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
+				</div>
+			</footer>
 		</div>
 	);
 }

@@ -112,7 +112,6 @@ export function UserRoleIndicator() {
 						</div>
 						<div className="flex-1 min-w-0">
 							<p className="font-medium text-sm truncate">{userInfo?.username || "User"}</p>
-							<p className="text-xs text-muted-foreground truncate">{userInfo?.email || "No email"}</p>
 						</div>
 					</div>
 				</DropdownMenuLabel>
@@ -143,27 +142,53 @@ export function UserRoleIndicator() {
 				</div>
 
 				<DropdownMenuSeparator />
-
 				<DropdownMenuItem
 					className="flex items-center gap-2 cursor-pointer"
 					onClick={() => {
-						// Navigate to profile page
 						window.location.href = "/inventory/stock";
 					}}
 				>
-					<Icon icon="lucide:user" className="h-4 w-4" />
+					<Icon icon="lucide:boxes" className="h-4 w-4" />
 					<span>My Stock</span>
 				</DropdownMenuItem>
 
 				<DropdownMenuSeparator />
 
 				<DropdownMenuItem
-					className="flex items-center gap-2 cursor-pointer text-destructive focus:text-destructive"
-					onClick={handleLogout}
+					className="flex items-center gap-2 cursor-pointer"
+					onClick={() => {
+						window.location.href = "/analytics/daily-sales";
+					}}
 				>
-					<Icon icon="lucide:log-out" className="h-4 w-4" />
-					<span>Log out</span>
+					<Icon icon="lucide:trending-up" className="h-4 w-4" />
+					<span>Daily Sales</span>
 				</DropdownMenuItem>
+
+				<DropdownMenuSeparator />
+
+				<DropdownMenuItem
+					className="flex items-center gap-2 cursor-pointer"
+					onClick={() => {
+						window.location.href = "/analytics/weekly";
+					}}
+				>
+					<Icon icon="lucide:bar-chart-3" className="h-4 w-4" />
+					<span>Weekly Sales</span>
+				</DropdownMenuItem>
+
+				<DropdownMenuSeparator />
+
+				<DropdownMenuItem
+					className="flex items-center gap-2 cursor-pointer"
+					onClick={() => {
+						window.location.href = "/analytics/sold-items";
+					}}
+				>
+					<Icon icon="lucide:receipt" className="h-4 w-4" />
+					<span>Sold Items</span>
+				</DropdownMenuItem>
+
+				<DropdownMenuSeparator />
 			</DropdownMenuContent>
 		</DropdownMenu>
 	);

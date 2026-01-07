@@ -3,7 +3,6 @@ import "./theme/theme.css";
 import "./locales/i18n";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, Outlet, RouterProvider } from "react-router";
-// import { worker } from "./_mock"; // Comment out MSW import
 import App from "./App";
 import menuService from "./api/services/menuService";
 import { registerLocalIcons } from "./components/icon";
@@ -14,18 +13,6 @@ import { routesSection } from "./routes/sections";
 
 const initApp = async () => {
 	await registerLocalIcons();
-
-	// MSW disabled since we have a working backend
-	// if (import.meta.env.DEV) {
-	//   try {
-	//     await worker.start({
-	//       onUnhandledRequest: "bypass",
-	//     });
-	//     console.log("MSW started successfully");
-	//   } catch (error) {
-	//     console.warn("MSW failed to start, continuing without mocking", error);
-	//   }
-	// }
 
 	if (GLOBAL_CONFIG.routerMode === "backend") {
 		await menuService.getMenuList();

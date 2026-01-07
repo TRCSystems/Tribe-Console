@@ -35,7 +35,7 @@ export default function Header({ leftSlot }: HeaderProps) {
 			<div className="flex items-center gap-1">
 				<SearchBar />
 
-				<NoticeButton />
+				{/*<NoticeButton />*/}
 				<SettingButton />
 				<AccountDropdown />
 			</div>
