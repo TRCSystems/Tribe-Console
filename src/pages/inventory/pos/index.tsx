@@ -1,9 +1,9 @@
-// src/pages/pos/index.tsx - FINAL VERSION WITH RESEND OTP AND OPTIONAL CUSTOMER CONTACT
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useState } from "react";
 import inventoryService, {
 	type InventoryItem,
+	type MerchantDetails,
 	type ProcessSaleRequest,
 	type SaleItem,
 } from "@/api/services/inventoryService";
@@ -17,13 +17,60 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 
+const SPECIAL_USER_ID = "25";
+const SPECIAL_PRICING_RULES: Record<string, { basePrice: number; extra: number }> = {
+	pork: { basePrice: 120, extra: 10 },
+	beef: { basePrice: 120, extra: 30 },
+	matumbo: { basePrice: 100, extra: 20 },
+};
+
+const getSpecialPricingRule = (itemName: string, userId: string | null) => {
+	if (userId !== SPECIAL_USER_ID) return null;
+	const itemLower = itemName.toLowerCase().trim();
+	return SPECIAL_PRICING_RULES[itemLower] || null;
+};
+
+const calculateItemTotalPrice = (
+	itemName: string,
+	quantity: number,
+	unitPriceFromDB: number,
+	userId: string | null,
+): { total: number; isSpecial: boolean; unitPrice: number } => {
+	const rule = getSpecialPricingRule(itemName, userId);
+
+	if (!rule || quantity === 0) {
+		return {
+			total: unitPriceFromDB * quantity,
+			isSpecial: false,
+			unitPrice: unitPriceFromDB,
+		};
+	}
+
+	if (quantity === 1) {
+		return {
+			total: rule.basePrice,
+			isSpecial: true,
+			unitPrice: rule.basePrice,
+		};
+	} else {
+		const total = rule.basePrice + (rule.basePrice + rule.extra) * (quantity - 1);
+		return {
+			total,
+			isSpecial: true,
+			unitPrice: total / quantity,
+		};
+	}
+};
+
 interface OrderItem extends InventoryItem {
 	orderQuantity: number;
+	calculatedTotal?: number;
+	isSpecialPrice?: boolean;
+	displayUnitPrice?: number;
 }
 
 type PaymentMethod = "mpesa" | "cash" | null;
 
-// Toast Notification Component
 const SaleToastNotification = ({
 	isOpen,
 	onClose,
@@ -49,7 +96,6 @@ const SaleToastNotification = ({
 			const timer = setTimeout(() => {
 				onClose();
 			}, 8000);
-
 			return () => clearTimeout(timer);
 		}
 	}, [isOpen, onClose]);
@@ -102,7 +148,6 @@ const SaleToastNotification = ({
 						<Icon icon="lucide:x" className="h-4 w-4" />
 					</button>
 				</div>
-
 				{type === "success" && (
 					<div className="mt-3 flex justify-end">
 						<Button size="sm" onClick={onPrint} className="bg-blue-600 hover:bg-blue-700 text-white">
@@ -116,7 +161,6 @@ const SaleToastNotification = ({
 	);
 };
 
-// Close Day Toast Notification Component
 const CloseDayToastNotification = ({
 	isOpen,
 	onClose,
@@ -139,8 +183,7 @@ const CloseDayToastNotification = ({
 		if (isOpen) {
 			const timer = setTimeout(() => {
 				onClose();
-			}, 5000); // 5 seconds as requested
-
+			}, 5000);
 			return () => clearTimeout(timer);
 		}
 	}, [isOpen, onClose]);
@@ -188,8 +231,6 @@ const CloseDayToastNotification = ({
 				return "lucide:x-circle";
 			case "info":
 				return "lucide:info";
-			default:
-				return "lucide:info";
 		}
 	};
 
@@ -230,125 +271,351 @@ const CloseDayToastNotification = ({
 	);
 };
 
-// Print Receipt Component
-const PrintReceipt = ({
+const ThermalPrintReceipt = ({
 	isOpen,
 	onClose,
 	paymentMethod,
 	totalAmount,
 	customerContact,
+	customerName,
 	items,
 	transactionId,
 	merchantName,
+	merchantPhone,
 }: {
 	isOpen: boolean;
 	onClose: () => void;
 	paymentMethod: PaymentMethod;
 	totalAmount: number;
 	customerContact: string;
+	customerName: string;
 	items: OrderItem[];
 	transactionId: string;
 	merchantName: string;
+	merchantPhone: string;
 }) => {
 	if (!isOpen) return null;
 
 	const formatCurrency = (amount: number) => {
-		return `KShs ${amount?.toFixed(2) || "0.00"}`;
+		return `KSh ${amount?.toFixed(2) || "0.00"}`;
+	};
+
+	const formatPhoneForDisplay = (phone: string) => {
+		if (!phone || phone.trim() === "") return "";
+		const cleaned = phone.replace(/\D/g, "");
+		if (cleaned.startsWith("254") && cleaned.length === 12) {
+			return `0${cleaned.substring(3, 6)} ${cleaned.substring(6, 9)} ${cleaned.substring(9)}`;
+		}
+		return phone;
 	};
 
 	const currentDate = new Date();
 	const formattedDate = currentDate.toLocaleDateString("en-US", {
 		year: "numeric",
-		month: "long",
+		month: "short",
 		day: "numeric",
 	});
 	const formattedTime = currentDate.toLocaleTimeString("en-US", {
 		hour: "2-digit",
 		minute: "2-digit",
+		hour12: true,
 	});
 
-	// Default merchant name if not provided
-	const displayMerchantName = merchantName || "My Business";
+	const displayMerchantPhone = merchantPhone ? formatPhoneForDisplay(merchantPhone) : "";
+	const displayCustomerContact = customerContact ? formatPhoneForDisplay(customerContact) : "";
+
+	const handlePrint = () => {
+		const printContent = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            width: 80mm;
+            max-width: 80mm;
+            margin: 0 auto;
+            padding: 5px;
+            line-height: 1.2;
+        }
+        
+        @media print {
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 80mm !important;
+            }
+            
+            @page {
+                margin: 0;
+                size: 80mm auto;
+            }
+            
+            * {
+                color: black !important;
+                background: transparent !important;
+            }
+        }
+        
+        .center { text-align: center; }
+        .right { text-align: right; }
+        .left { text-align: left; }
+        .bold { font-weight: bold; }
+        
+        .line {
+            border-top: 1px solid #000;
+            margin: 3px 0;
+        }
+        
+        .double-line {
+            border-top: 3px double #000;
+            margin: 5px 0;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        td {
+            padding: 2px 0;
+            vertical-align: top;
+        }
+        
+        .item-name {
+            max-width: 45mm;
+            word-break: break-word;
+        }
+        
+        .merchant-info {
+            font-size: 10px;
+            margin-bottom: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="center">
+        <h2 class="bold">${merchantName.toUpperCase()}</h2>
+        ${
+					displayMerchantPhone
+						? `
+        <div class="merchant-info">
+            Tel: ${displayMerchantPhone}
+        </div>
+        `
+						: ""
+				}
+        <p>SALES RECEIPT</p>
+        <p>${formattedDate} ${formattedTime}</p>
+    </div>
+    
+    <div class="line"></div>
+    
+    <table>
+        <tr>
+            <td class="left bold">TXN ID:</td>
+            <td class="right">${transactionId}</td>
+        </tr>
+        <tr>
+            <td class="left bold">Payment:</td>
+            <td class="right">${paymentMethod === "mpesa" ? "M-PESA" : "CASH"}</td>
+        </tr>
+        ${
+					customerName
+						? `
+        <tr>
+            <td class="left bold">Customer:</td>
+            <td class="right">${customerName}</td>
+        </tr>
+        `
+						: ""
+				}
+        ${
+					displayCustomerContact
+						? `
+        <tr>
+            <td class="left bold">Phone:</td>
+            <td class="right">${displayCustomerContact}</td>
+        </tr>
+        `
+						: ""
+				}
+    </table>
+    
+    <div class="double-line"></div>
+    
+    <table>
+        <tr>
+            <td class="left bold">ITEM</td>
+            <td class="right bold">QTY</td>
+            <td class="right bold">AMOUNT</td>
+        </tr>
+        ${items
+					.map((item) => {
+						const itemTotal =
+							item.calculatedTotal !== undefined ? item.calculatedTotal : item.unitPrice * item.orderQuantity;
+
+						return `
+						<tr>
+							<td class="left item-name">${item.itemName}</td>
+							<td class="right">${item.orderQuantity}</td>
+							<td class="right">${formatCurrency(itemTotal)}</td>
+						</tr>
+					`;
+					})
+					.join("")}
+    </table>
+    
+    <div class="double-line"></div>
+    
+    <table>
+        <tr>
+            <td class="left bold">TOTAL:</td>
+            <td class="right bold">${formatCurrency(totalAmount)}</td>
+        </tr>
+    </table>
+    
+    <div class="line"></div>
+    
+    <div class="center">
+        <p>Thank you for your business!</p>
+        <div style="display: flex; align-items: center; justify-content: center; margin-top: 5px;">
+            <img src="/logo.png" alt="Logo" style="width: 30px; margin-right: 8px;" />
+            <span style="font-size: 12px; font-weight: bold;">Tribe<br> powered by TRC Systems</span>
+        </div>
+    </div>
+
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+                setTimeout(function() {
+                    window.close();
+                }, 500);
+            }, 100);
+        };
+    </script>
+</body>
+</html>`;
+
+		const printWindow = window.open("", "_blank");
+		if (printWindow) {
+			printWindow.document.write(printContent);
+			printWindow.document.close();
+
+			setTimeout(() => {
+				printWindow.focus();
+				printWindow.print();
+
+				setTimeout(() => {
+					printWindow.close();
+				}, 500);
+			}, 250);
+		} else {
+			const iframe = document.createElement("iframe");
+			iframe.style.position = "absolute";
+			iframe.style.width = "0";
+			iframe.style.height = "0";
+			iframe.style.border = "none";
+			document.body.appendChild(iframe);
+
+			const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+			if (iframeDoc) {
+				iframeDoc.open();
+				iframeDoc.write(printContent);
+				iframeDoc.close();
+
+				setTimeout(() => {
+					iframe.contentWindow?.focus();
+					iframe.contentWindow?.print();
+
+					setTimeout(() => {
+						document.body.removeChild(iframe);
+					}, 500);
+				}, 250);
+			}
+		}
+	};
 
 	return (
 		<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
 			<Card className="w-full max-w-md">
 				<CardHeader className="text-center">
 					<CardTitle>Print Receipt</CardTitle>
-					<CardDescription>Review receipt before printing</CardDescription>
+					<CardDescription>Review before printing</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
-					<div className="space-y-3 border-2 border-gray-300 p-4 rounded-lg bg-white">
-						{/* Receipt Header */}
-						<div className="text-center border-b-2 border-dashed border-gray-400 pb-3 mb-3">
-							<h3 className="font-bold text-xl text-gray-800">{displayMerchantName.toUpperCase()}</h3>
-							<p className="text-sm text-gray-600 mt-1">Sales Receipt</p>
-							<p className="text-xs text-gray-500 mt-1">
+					<div className="border-2 border-gray-300 p-4 rounded-lg bg-white">
+						<div className="text-center mb-3">
+							<h3 className="font-bold text-lg">{merchantName.toUpperCase()}</h3>
+							{displayMerchantPhone && <p className="text-sm text-gray-600">Tel: {displayMerchantPhone}</p>}
+							<p>SALES RECEIPT</p>
+							<p className="text-sm">
 								{formattedDate} at {formattedTime}
 							</p>
 						</div>
 
-						{/* Transaction Details */}
-						<div className="space-y-2">
-							<div className="flex justify-between text-sm">
-								<span className="text-gray-600">Transaction ID:</span>
-								<span className="font-medium text-gray-800">{transactionId}</span>
+						<div className="border-t border-dashed border-gray-400 my-2"></div>
+
+						<div className="space-y-1 text-sm mb-3">
+							<div className="flex justify-between">
+								<span className="font-semibold">TXN ID:</span>
+								<span>{transactionId}</span>
 							</div>
-							<div className="flex justify-between text-sm">
-								<span className="text-gray-600">Payment Method:</span>
-								<span className="font-medium text-gray-800">{paymentMethod === "mpesa" ? "M-Pesa" : "Cash"}</span>
+							<div className="flex justify-between">
+								<span className="font-semibold">Payment:</span>
+								<span>{paymentMethod === "mpesa" ? "M-PESA" : "CASH"}</span>
 							</div>
-							{customerContact && (
-								<div className="flex justify-between text-sm">
-									<span className="text-gray-600">Customer Phone:</span>
-									<span className="font-medium text-gray-800">{customerContact}</span>
+							{customerName && (
+								<div className="flex justify-between">
+									<span className="font-semibold">Customer:</span>
+									<span>{customerName}</span>
+								</div>
+							)}
+							{displayCustomerContact && (
+								<div className="flex justify-between">
+									<span className="font-semibold">Phone:</span>
+									<span>{displayCustomerContact}</span>
 								</div>
 							)}
 						</div>
 
-						{/* Items List */}
-						<div className="border-t border-dashed border-gray-400 pt-3">
-							<h4 className="font-semibold mb-2 text-sm text-gray-700">ITEMS PURCHASED:</h4>
-							<div className="space-y-2 max-h-48 overflow-y-auto">
-								{items.map((item) => (
-									<div key={item.id} className="flex justify-between text-xs border-b border-gray-200 pb-2">
-										<div className="flex-1">
-											<p className="font-medium text-gray-800">{item.itemName}</p>
-											<p className="text-gray-600">
-												{formatCurrency(item.unitPrice)} × {item.orderQuantity}
-											</p>
-										</div>
-										<span className="font-bold text-gray-800 ml-2">
-											{formatCurrency(item.unitPrice * item.orderQuantity)}
-										</span>
+						<div className="border-t border-double border-gray-400 my-3"></div>
+
+						<div className="mb-3">
+							<div className="flex justify-between font-semibold text-sm border-b pb-1 mb-1">
+								<span>ITEM</span>
+								<span>QTY</span>
+								<span>AMOUNT</span>
+							</div>
+							{items.map((item) => {
+								const itemTotal =
+									item.calculatedTotal !== undefined ? item.calculatedTotal : item.unitPrice * item.orderQuantity;
+
+								return (
+									<div key={item.id} className="flex justify-between text-sm py-1">
+										<span className="flex-1 truncate mr-2">{item.itemName}</span>
+										<span className="w-12 text-right">{item.orderQuantity}</span>
+										<span className="w-20 text-right">{formatCurrency(itemTotal)}</span>
 									</div>
-								))}
-							</div>
+								);
+							})}
 						</div>
 
-						{/* Totals */}
-						<div className="border-t-2 border-double border-gray-400 pt-3 space-y-2">
-							<div className="flex justify-between text-sm">
-								<span className="text-gray-600">Subtotal:</span>
-								<span className="font-medium text-gray-800">{formatCurrency(totalAmount)}</span>
-							</div>
-							<div className="flex justify-between text-sm">
-								<span className="text-gray-600">Tax (0%):</span>
-								<span className="font-medium text-gray-800">{formatCurrency(0)}</span>
-							</div>
-							<div className="flex justify-between text-lg font-bold border-t border-gray-300 pt-2">
-								<span className="text-gray-800">TOTAL:</span>
-								<span className="text-gray-800">{formatCurrency(totalAmount)}</span>
-							</div>
+						<div className="border-t border-double border-gray-400 my-3"></div>
+
+						<div className="flex justify-between font-bold text-lg">
+							<span>TOTAL:</span>
+							<span>{formatCurrency(totalAmount)}</span>
 						</div>
 
-						{/* Footer */}
-						<div className="text-center border-t border-dashed border-gray-400 pt-3">
-							<p className="text-xs text-gray-500 mb-1">Thank you for your business!</p>
-							<p className="text-xs text-gray-500">
-								For inquiries contact: @{displayMerchantName.toLowerCase().replace(/\s+/g, "")}
-							</p>
-							<p className="text-xs text-gray-500 mt-2">Powered by TRC Systems</p>
+						<div className="border-t border-dashed border-gray-400 my-3"></div>
+
+						<div className="text-center text-sm">
+							<p>Thank you for your business!</p>
 						</div>
 					</div>
 
@@ -356,13 +623,7 @@ const PrintReceipt = ({
 						<Button variant="outline" className="flex-1" onClick={onClose}>
 							Close
 						</Button>
-						<Button
-							className="flex-1"
-							onClick={() => {
-								window.print();
-								onClose();
-							}}
-						>
+						<Button className="flex-1" onClick={handlePrint}>
 							<Icon icon="lucide:printer" className="mr-2 h-4 w-4" />
 							Print Receipt
 						</Button>
@@ -373,14 +634,11 @@ const PrintReceipt = ({
 	);
 };
 
-// Validation function - UPDATED: Phone number is now optional
 const validateSaleData = (saleData: ProcessSaleRequest): string | null => {
 	if (!saleData.merchantId || saleData.merchantId.trim() === "") {
 		return "Merchant ID is required";
 	}
 
-	// Phone number is now optional, so remove the required check
-	// Only validate phone number format if it's provided
 	if (saleData.customerPhone && saleData.customerPhone.trim() !== "") {
 		const phoneRegex = /^254[17]\d{8}$/;
 		if (!phoneRegex.test(saleData.customerPhone.replace(/\s+/g, ""))) {
@@ -402,7 +660,7 @@ const validateSaleData = (saleData: ProcessSaleRequest): string | null => {
 		}
 	}
 
-	return null; // No errors
+	return null;
 };
 
 export default function PointOfSalePage() {
@@ -411,6 +669,7 @@ export default function PointOfSalePage() {
 	const [searchTerm, setSearchTerm] = useState("");
 	const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(null);
 	const [customerContact, setCustomerContact] = useState("");
+	const [customerName, setCustomerName] = useState("");
 	const [showToast, setShowToast] = useState(false);
 	const [toastConfig, setToastConfig] = useState<{
 		type: "success" | "error";
@@ -428,16 +687,15 @@ export default function PointOfSalePage() {
 		paymentMethod: PaymentMethod;
 		totalAmount: number;
 		customerContact: string;
+		customerName: string;
 		items: OrderItem[];
 		transactionId: string;
 	} | null>(null);
 
-	// Close day states
 	const [showOTPModal, setShowOTPModal] = useState(false);
 	const [closeDayStep, setCloseDayStep] = useState<"idle" | "initiated" | "verifying">("idle");
 	const [merchantPhone, setMerchantPhone] = useState<string>("");
 
-	// NEW: Close day toast state
 	const [showCloseDayToast, setShowCloseDayToast] = useState(false);
 	const [closeDayToastConfig, setCloseDayToastConfig] = useState<{
 		type: "success" | "error" | "info";
@@ -450,16 +708,46 @@ export default function PointOfSalePage() {
 		};
 	}>({ type: "info", message: "" });
 
-	// Authentication
 	const { isAuthenticated } = useAuthCheck();
 	const merchantId = useMerchantId();
 	const userInfo = useUserInfo();
 	const canPerformActions = isAuthenticated && !!merchantId;
 
-	// Get merchant name from user data
 	const merchantName = userInfo?.username || "My Business";
 
-	// Inventory query
+	// Merchant Details Query - FIXED: This will fetch merchant details including businessPhone
+	const {
+		data: merchantDetailsData,
+		isLoading: isLoadingMerchantDetails,
+		error: merchantDetailsError,
+	} = useQuery({
+		queryKey: ["merchant-details", merchantId],
+		queryFn: () => inventoryService.getMerchantDetails(),
+		enabled: !!merchantId && isAuthenticated,
+	});
+
+	// Update merchant phone when merchant details are loaded - FIXED
+	useEffect(() => {
+		if (merchantDetailsData) {
+			console.log("📱 Merchant details loaded:", merchantDetailsData);
+			console.log("📱 Business phone:", merchantDetailsData.businessPhone);
+
+			if (merchantDetailsData.businessPhone) {
+				setMerchantPhone(merchantDetailsData.businessPhone);
+				console.log("✅ Merchant phone set:", merchantDetailsData.businessPhone);
+			} else {
+				console.warn("⚠️ No business phone found in merchant details");
+				// Fallback to getMerchantPhone if businessPhone is not in the response
+				inventoryService.getMerchantPhone().then((phone) => {
+					if (phone) {
+						setMerchantPhone(phone);
+						console.log("✅ Fallback merchant phone set:", phone);
+					}
+				});
+			}
+		}
+	}, [merchantDetailsData]);
+
 	const {
 		data: inventory = [],
 		isLoading,
@@ -471,31 +759,6 @@ export default function PointOfSalePage() {
 		enabled: !!merchantId && isAuthenticated,
 	});
 
-	// Fetch merchant phone on mount
-	useEffect(() => {
-		const fetchMerchantPhone = async () => {
-			if (merchantId) {
-				try {
-					console.log("📱 Fetching merchant phone for ID:", merchantId);
-					const phone = await inventoryService.getMerchantPhone();
-					if (phone) {
-						setMerchantPhone(phone);
-						console.log("✅ Merchant phone set:", phone);
-					} else {
-						console.warn("⚠️ No merchant phone found");
-					}
-				} catch (error) {
-					console.error("❌ Failed to fetch merchant phone:", error);
-				}
-			}
-		};
-
-		if (merchantId && isAuthenticated) {
-			fetchMerchantPhone();
-		}
-	}, [merchantId, isAuthenticated]);
-
-	// NEW: Show close day toast
 	const showCloseDayNotification = (
 		type: "success" | "error" | "info",
 		message: string,
@@ -514,7 +777,6 @@ export default function PointOfSalePage() {
 		setShowCloseDayToast(true);
 	};
 
-	// Two-step close day mutations - FIXED
 	const initiateCloseDayMutation = useMutation({
 		mutationFn: () => inventoryService.initiateCloseDay(),
 		onSuccess: (data) => {
@@ -522,69 +784,58 @@ export default function PointOfSalePage() {
 			setCloseDayStep("initiated");
 			setShowOTPModal(true);
 
-			// Use the merchant phone from response or state
 			const displayPhone = data.merchantPhone || merchantPhone;
 			const phoneMessage = displayPhone
 				? `OTP sent to ${displayPhone.slice(0, 4)}****${displayPhone.slice(-3)}`
 				: "OTP sent to your registered phone";
 
-			// NEW: Show info toast for OTP sent
 			showCloseDayNotification("info", "OTP Sent Successfully", {
 				businessName: merchantName,
 				closedDate: new Date().toISOString(),
 				merchantName: merchantName,
 			});
 
-			// Keep the existing antd message for backward compatibility
 			message.success(data.message || phoneMessage);
 		},
 		onError: (error: Error) => {
 			console.error("❌ Failed to initiate close day:", error);
 			setCloseDayStep("idle");
 
-			// NEW: Show error toast
 			showCloseDayNotification("error", `Failed to initiate close day: ${error.message}`, {
 				businessName: merchantName,
 				closedDate: new Date().toISOString(),
 			});
 
-			// Keep the existing antd message for backward compatibility
 			message.error(`Failed to send OTP: ${error.message}`);
 		},
 	});
 
-	// NEW: Resend OTP mutation
 	const resendOTPMutation = useMutation({
 		mutationFn: () => inventoryService.initiateCloseDay(),
 		onSuccess: (data) => {
 			console.log("✅ OTP resent successfully:", data);
 
-			// Use the merchant phone from response or state
 			const displayPhone = data.merchantPhone || merchantPhone;
 			const phoneMessage = displayPhone
 				? `OTP resent to ${displayPhone.slice(0, 4)}****${displayPhone.slice(-3)}`
 				: "OTP resent to your registered phone";
 
-			// Show info toast for OTP resent
 			showCloseDayNotification("info", "OTP Resent Successfully", {
 				businessName: merchantName,
 				closedDate: new Date().toISOString(),
 				merchantName: merchantName,
 			});
 
-			// Keep the existing antd message for backward compatibility
 			message.success(data.message || phoneMessage);
 		},
 		onError: (error: Error) => {
 			console.error("❌ Failed to resend OTP:", error);
 
-			// Show error toast
 			showCloseDayNotification("error", `Failed to resend OTP: ${error.message}`, {
 				businessName: merchantName,
 				closedDate: new Date().toISOString(),
 			});
 
-			// Keep the existing antd message for backward compatibility
 			message.error(`Failed to resend OTP: ${error.message}`);
 		},
 	});
@@ -594,29 +845,20 @@ export default function PointOfSalePage() {
 		onSuccess: (data) => {
 			console.log("✅ Day closed successfully:", data);
 
-			// NEW: Show success toast with business name
 			showCloseDayNotification("success", data.message || "Business Day Closed Successfully!", {
 				businessName: merchantName,
 				closedDate: data.closedDate || new Date().toISOString(),
 				merchantName: merchantName,
 			});
 
-			// FIRST: Close the modal
 			setShowOTPModal(false);
-
-			// SECOND: Reset all close day states
 			setCloseDayStep("idle");
-
-			// THIRD: Show success message (kept for backward compatibility)
 			message.success(data.message || "Business day closed successfully!");
-
-			// FOURTH: Refresh inventory data
 			queryClient.invalidateQueries({ queryKey: ["inventory-pos"] });
 		},
 		onError: (error: Error) => {
 			console.error("❌ Failed to finalize close day:", error);
 
-			// Check if it's an OTP error
 			const errorMessage = error.message.toLowerCase();
 			const isOTPError =
 				errorMessage.includes("invalid") ||
@@ -628,21 +870,17 @@ export default function PointOfSalePage() {
 
 			if (isOTPError) {
 				toastMessage = "Invalid OTP. Please check and try again.";
-				// Stay in initiated state to allow retry
 				setCloseDayStep("initiated");
 			} else {
 				toastMessage = `Failed to close day: ${error.message}`;
-				// Reset if it's a different error
 				setCloseDayStep("idle");
 			}
 
-			// NEW: Show error toast
 			showCloseDayNotification("error", toastMessage, {
 				businessName: merchantName,
 				closedDate: new Date().toISOString(),
 			});
 
-			// Keep existing antd message for backward compatibility
 			if (isOTPError) {
 				message.error("Invalid OTP. Please check and try again.");
 			} else {
@@ -651,7 +889,6 @@ export default function PointOfSalePage() {
 		},
 	});
 
-	// Item data mapping
 	const getItemData = (item: any): InventoryItem => {
 		if (!item) {
 			return {
@@ -702,37 +939,32 @@ export default function PointOfSalePage() {
 		};
 	};
 
-	// Filter inventory based on search
 	const filteredInventory = inventory.filter((item: any) => {
 		const itemData = getItemData(item);
 		const name = itemData.itemName.toLowerCase();
 		return name.includes(searchTerm.toLowerCase());
 	});
 
-	// Generate transaction ID function
 	const generateTransactionId = () => {
 		return `TXN-${Date.now().toString().slice(-8)}`;
 	};
 
-	// Process sale mutation
 	const processSaleMutation = useMutation({
 		mutationFn: (saleData: ProcessSaleRequest) => inventoryService.processSale(saleData),
 		onSuccess: (data, variables) => {
 			console.log("✅ Sale processed successfully:", data);
 
-			// Generate transaction ID
 			const transactionId = generateTransactionId();
 
-			// Store transaction details for receipt
 			setLastTransaction({
 				paymentMethod: selectedPaymentMethod,
 				totalAmount: totalAmount,
 				customerContact: customerContact || "",
+				customerName: customerName || "",
 				items: [...orderItems],
 				transactionId: transactionId,
 			});
 
-			// Show success toast WITH TRANSACTION ID
 			setToastConfig({
 				type: "success",
 				message: "Sale Completed Successfully!",
@@ -745,13 +977,12 @@ export default function PointOfSalePage() {
 			});
 			setShowToast(true);
 
-			// Refresh inventory data
 			queryClient.invalidateQueries({ queryKey: ["inventory-pos"] });
 
-			// Clear order and form
 			setOrderItems([]);
 			setSelectedPaymentMethod(null);
 			setCustomerContact("");
+			setCustomerName("");
 		},
 		onError: (error: Error) => {
 			console.error("❌ Sale processing failed:", error);
@@ -770,7 +1001,6 @@ export default function PointOfSalePage() {
 				errorMessage = `Sale failed: ${error.message}`;
 			}
 
-			// Show error toast
 			setToastConfig({
 				type: "error",
 				message: errorMessage,
@@ -779,10 +1009,8 @@ export default function PointOfSalePage() {
 		},
 	});
 
-	// Two-step close day handlers
 	const handleInitiateCloseDay = () => {
 		if (!merchantId) {
-			// NEW: Show error toast
 			showCloseDayNotification("error", "Merchant ID not found. Please login again.", {
 				businessName: merchantName,
 				closedDate: new Date().toISOString(),
@@ -791,7 +1019,6 @@ export default function PointOfSalePage() {
 			return;
 		}
 
-		// Confirm before initiating close day
 		if (
 			window.confirm(
 				"Are you sure you want to close the business day? An OTP will be sent to your registered phone number.",
@@ -802,7 +1029,6 @@ export default function PointOfSalePage() {
 		}
 	};
 
-	// NEW: Handle resend OTP
 	const handleResendOTP = () => {
 		if (!merchantId) {
 			showCloseDayNotification("error", "Merchant ID not found. Please login again.", {
@@ -812,10 +1038,7 @@ export default function PointOfSalePage() {
 			return;
 		}
 
-		// Show loading state in OTP modal
 		setCloseDayStep("initiated");
-
-		// Resend OTP
 		resendOTPMutation.mutate();
 	};
 
@@ -827,7 +1050,6 @@ export default function PointOfSalePage() {
 	const handleCloseOTPModal = () => {
 		console.log("Closing OTP modal...");
 
-		// NEW: Show info toast if user cancels during initiated or verifying state
 		if (closeDayStep === "initiated" || closeDayStep === "verifying") {
 			showCloseDayNotification("info", "Close day process cancelled", {
 				businessName: merchantName,
@@ -836,28 +1058,23 @@ export default function PointOfSalePage() {
 			message.info("Close day process cancelled");
 		}
 
-		// Reset all OTP-related states
 		setShowOTPModal(false);
 		setCloseDayStep("idle");
 	};
 
-	// Close close day toast handler
 	const handleCloseDayToastClose = () => {
 		setShowCloseDayToast(false);
 	};
 
-	// Print receipt handler
 	const handlePrintReceipt = () => {
 		setShowPrintReceipt(true);
 		setShowToast(false);
 	};
 
-	// Close toast handler
 	const handleCloseToast = () => {
 		setShowToast(false);
 	};
 
-	// Add to order function
 	const addToOrder = (item: any) => {
 		const itemData = getItemData(item);
 		const availableQuantity = itemData.availableStock;
@@ -869,49 +1086,95 @@ export default function PointOfSalePage() {
 
 		setOrderItems((prevOrder) => {
 			const existingItem = prevOrder.find((orderItem) => orderItem.id === itemData.id);
+
 			if (existingItem) {
 				if (existingItem.orderQuantity >= availableQuantity) {
 					message.warning("Not enough stock available");
 					return prevOrder;
 				}
+
+				const newQuantity = existingItem.orderQuantity + 1;
+				const { total, isSpecial, unitPrice } = calculateItemTotalPrice(
+					itemData.itemName,
+					newQuantity,
+					itemData.unitPrice,
+					merchantId,
+				);
+
 				return prevOrder.map((orderItem) =>
-					orderItem.id === itemData.id ? { ...orderItem, orderQuantity: orderItem.orderQuantity + 1 } : orderItem,
+					orderItem.id === itemData.id
+						? {
+								...orderItem,
+								orderQuantity: newQuantity,
+								calculatedTotal: total,
+								isSpecialPrice: isSpecial,
+								displayUnitPrice: unitPrice,
+							}
+						: orderItem,
 				);
 			} else {
+				const { total, isSpecial, unitPrice } = calculateItemTotalPrice(
+					itemData.itemName,
+					1,
+					itemData.unitPrice,
+					merchantId,
+				);
+
 				return [
 					...prevOrder,
 					{
 						...itemData,
 						orderQuantity: 1,
+						calculatedTotal: total,
+						isSpecialPrice: isSpecial,
+						displayUnitPrice: unitPrice,
 					},
 				];
 			}
 		});
 	};
 
-	// Update order quantity function
 	const updateOrderQuantity = (itemId: number, quantity: number) => {
 		if (quantity === 0) {
 			removeFromOrder(itemId);
 		} else {
 			const item = inventory.find((i: any) => getItemData(i).id === itemId);
-			if (item && quantity > getItemData(item).availableStock) {
+			if (!item) return;
+
+			const itemData = getItemData(item);
+
+			if (quantity > itemData.availableStock) {
 				message.warning("Not enough stock available");
 				return;
 			}
 
+			const { total, isSpecial, unitPrice } = calculateItemTotalPrice(
+				itemData.itemName,
+				quantity,
+				itemData.unitPrice,
+				merchantId,
+			);
+
 			setOrderItems((prevOrder) =>
-				prevOrder.map((item) => (item.id === itemId ? { ...item, orderQuantity: quantity } : item)),
+				prevOrder.map((orderItem) =>
+					orderItem.id === itemId
+						? {
+								...orderItem,
+								orderQuantity: quantity,
+								calculatedTotal: total,
+								isSpecialPrice: isSpecial,
+								displayUnitPrice: unitPrice,
+							}
+						: orderItem,
+				),
 			);
 		}
 	};
 
-	// Remove from order function
 	const removeFromOrder = (itemId: number) => {
 		setOrderItems((prevOrder) => prevOrder.filter((item) => item.id !== itemId));
 	};
 
-	// Process sale function
 	const processSale = async (paymentMethod: PaymentMethod) => {
 		if (orderItems.length === 0) {
 			message.warning("Order is empty");
@@ -927,12 +1190,6 @@ export default function PointOfSalePage() {
 			message.error("Merchant ID not found. Please login again.");
 			return;
 		}
-
-		// REMOVED: Phone number is now optional, no warning required
-		// if (!customerContact || customerContact.trim() === "") {
-		// 	message.warning("Please enter customer phone number for the sale");
-		// 	return;
-		// }
 
 		const saleItems: SaleItem[] = orderItems.map((item) => ({
 			inventoryId: item.id,
@@ -973,7 +1230,6 @@ export default function PointOfSalePage() {
 		processSale("cash");
 	};
 
-	// Navigation handlers
 	const handleViewDailyAnalytics = () => {
 		window.location.href = "/analytics/daily-sales";
 	};
@@ -982,10 +1238,15 @@ export default function PointOfSalePage() {
 		window.location.href = "/analytics/weekly";
 	};
 
-	const totalAmount = orderItems.reduce((total, item) => total + item.unitPrice * item.orderQuantity, 0);
+	const totalAmount = orderItems.reduce((total, item) => {
+		if (item.calculatedTotal !== undefined) {
+			return total + item.calculatedTotal;
+		}
+		return total + item.unitPrice * item.orderQuantity;
+	}, 0);
+
 	const totalItems = orderItems.reduce((total, item) => total + item.orderQuantity, 0);
 
-	// Format currency to KSH
 	const formatCurrency = (amount: number) => {
 		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
@@ -1037,7 +1298,6 @@ export default function PointOfSalePage() {
 				</div>
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-					{/* Available Items */}
 					<Card className="lg:col-span-2">
 						<CardHeader>
 							<CardTitle>Menu Items</CardTitle>
@@ -1121,7 +1381,6 @@ export default function PointOfSalePage() {
 						</CardContent>
 					</Card>
 
-					{/* Order & Payment Section */}
 					<Card>
 						<CardHeader>
 							<CardTitle className="flex items-center gap-2">
@@ -1133,18 +1392,41 @@ export default function PointOfSalePage() {
 						<CardContent className="space-y-6">
 							<div className="space-y-3">
 								<div className="flex items-center justify-between">
-									<Label htmlFor="customerContact">Customer Contact Number</Label>
+									<Label htmlFor="customerName">Customer Name (Optional)</Label>
+								</div>
+								<div className="relative">
+									<Input
+										id="customerName"
+										placeholder="Enter customer name"
+										value={customerName}
+										onChange={(e) => setCustomerName(e.target.value)}
+										className="pr-10"
+									/>
+									{customerName && (
+										<button
+											type="button"
+											onClick={() => setCustomerName("")}
+											className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-red-500 transition-colors"
+											title="Clear name"
+										>
+											<Icon icon="lucide:x" className="h-4 w-4" />
+										</button>
+									)}
+								</div>
+							</div>
+
+							<div className="space-y-3">
+								<div className="flex items-center justify-between">
+									<Label htmlFor="customerContact">Customer Phone Number (Optional)</Label>
 								</div>
 								<div className="relative">
 									<Input
 										id="customerContact"
-										placeholder="Enter phone number e.g., 254712656502 (optional)"
+										placeholder="Enter phone number e.g., 254712656502"
 										value={customerContact}
 										onChange={(e) => {
-											// Auto-format to 254 format
-											let value = e.target.value.replace(/\D/g, ""); // Remove non-digits
+											let value = e.target.value.replace(/\D/g, "");
 
-											// Convert 07... or 01... to 254...
 											if (value.startsWith("0") && value.length === 10) {
 												value = "254" + value.substring(1);
 											} else if (value.startsWith("7") && value.length === 9) {
@@ -1169,7 +1451,7 @@ export default function PointOfSalePage() {
 									)}
 								</div>
 								<div className="text-xs text-muted-foreground space-y-1">
-									<p>• Format: 2547******** </p>
+									<p>• Format: 2547********</p>
 									<p>• We'll automatically convert 071... to 25471...</p>
 									<p
 										className={`${customerContact && !/^254[17]\d{8}$/.test(customerContact) ? "text-red-500 font-medium" : "text-green-500"}`}
@@ -1192,46 +1474,61 @@ export default function PointOfSalePage() {
 								</div>
 							) : (
 								<div className="space-y-3 max-h-96 overflow-y-auto">
-									{orderItems.map((item) => (
-										<div
-											key={item.id}
-											className="flex items-center justify-between p-3 border-2 border-black rounded-xl"
-										>
-											<div className="flex-1 min-w-0">
-												<p className="font-bold text-gray-800 truncate">{item.itemName}</p>
-												<p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} each</p>
-												<p className="text-xs text-muted-foreground">Stock: {item.availableStock}</p>
+									{orderItems.map((item) => {
+										const itemTotal =
+											item.calculatedTotal !== undefined ? item.calculatedTotal : item.unitPrice * item.orderQuantity;
+
+										const displayUnitPrice =
+											item.displayUnitPrice !== undefined ? item.displayUnitPrice : item.unitPrice;
+
+										return (
+											<div
+												key={item.id}
+												className="flex items-center justify-between p-3 border-2 border-black rounded-xl"
+											>
+												<div className="flex-1 min-w-0">
+													<div className="flex items-center gap-2">
+														<p className="font-bold text-gray-800 truncate">{item.itemName}</p>
+														{item.isSpecialPrice && (
+															<Badge variant="outline" className="text-xs border-green-500 text-green-600">
+																Special Price
+															</Badge>
+														)}
+													</div>
+													<p className="text-sm text-muted-foreground">{formatCurrency(displayUnitPrice)} each</p>
+													<p className="text-xs text-muted-foreground">Stock: {item.availableStock}</p>
+												</div>
+												<div className="flex items-center gap-2">
+													<Button
+														size="sm"
+														variant="outline"
+														className="border border-black"
+														onClick={() => updateOrderQuantity(item.id, item.orderQuantity - 1)}
+													>
+														<Icon icon="lucide:minus" className="h-3 w-3" />
+													</Button>
+													<span className="w-8 text-center font-bold text-lg">{item.orderQuantity}</span>
+													<Button
+														size="sm"
+														variant="outline"
+														className="border border-black"
+														onClick={() => updateOrderQuantity(item.id, item.orderQuantity + 1)}
+														disabled={item.orderQuantity >= item.availableStock}
+													>
+														<Icon icon="lucide:plus" className="h-3 w-3" />
+													</Button>
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={() => removeFromOrder(item.id)}
+														className="text-red-500 hover:text-red-700 border border-black/20"
+													>
+														<Icon icon="lucide:trash" className="h-3 w-3" />
+													</Button>
+												</div>
 											</div>
-											<div className="flex items-center gap-2">
-												<Button
-													size="sm"
-													variant="outline"
-													className="border border-black"
-													onClick={() => updateOrderQuantity(item.id, item.orderQuantity - 1)}
-												>
-													<Icon icon="lucide:minus" className="h-3 w-3" />
-												</Button>
-												<span className="w-8 text-center font-bold text-lg">{item.orderQuantity}</span>
-												<Button
-													size="sm"
-													variant="outline"
-													className="border border-black"
-													onClick={() => updateOrderQuantity(item.id, item.orderQuantity + 1)}
-													disabled={item.orderQuantity >= item.availableStock}
-												>
-													<Icon icon="lucide:plus" className="h-3 w-3" />
-												</Button>
-												<Button
-													size="sm"
-													variant="ghost"
-													onClick={() => removeFromOrder(item.id)}
-													className="text-red-500 hover:text-red-700 border border-black/20"
-												>
-													<Icon icon="lucide:trash" className="h-3 w-3" />
-												</Button>
-											</div>
-										</div>
-									))}
+										);
+									})}
 								</div>
 							)}
 
@@ -1250,10 +1547,7 @@ export default function PointOfSalePage() {
 								<Button
 									className="w-full h-14 text-lg font-bold shadow-xl hover:shadow-2xl transition-all duration-200 rounded-2xl border-2 border-black"
 									onClick={handleCashPayment}
-									disabled={
-										processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions
-										// REMOVED: Customer contact is optional, so don't disable if empty
-									}
+									disabled={processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions}
 									style={{
 										background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
 										color: "white",
@@ -1285,9 +1579,7 @@ export default function PointOfSalePage() {
 								</div>
 							)}
 
-							{/* Analytics & Close Day Buttons */}
 							<div className="flex justify-between items-center pt-4">
-								{/* Daily Analytics Button */}
 								<button
 									onClick={handleViewDailyAnalytics}
 									className={`
@@ -1301,7 +1593,6 @@ export default function PointOfSalePage() {
 									<span className="text-white text-xs font-bold text-center leading-tight">Daily</span>
 								</button>
 
-								{/* Weekly Analytics Button */}
 								<button
 									onClick={handleViewWeeklyAnalytics}
 									className={`
@@ -1315,7 +1606,6 @@ export default function PointOfSalePage() {
 									<span className="text-white text-xs font-bold text-center leading-tight">Weekly</span>
 								</button>
 
-								{/* Close Day Button with Two-Step Process */}
 								<button
 									onClick={handleInitiateCloseDay}
 									disabled={initiateCloseDayMutation.isPending || !merchantId}
@@ -1341,7 +1631,6 @@ export default function PointOfSalePage() {
 								</button>
 							</div>
 
-							{/* Close Day Status Indicator */}
 							{closeDayStep === "initiated" && (
 								<div className="text-center text-sm text-blue-600 p-3 border-2 border-blue-300 rounded-2xl bg-blue-50">
 									<Icon icon="lucide:check-circle" className="inline h-4 w-4 mr-1" />
@@ -1353,7 +1642,6 @@ export default function PointOfSalePage() {
 				</div>
 			</div>
 
-			{/* Sale Toast Notification */}
 			<SaleToastNotification
 				isOpen={showToast}
 				onClose={handleCloseToast}
@@ -1363,7 +1651,6 @@ export default function PointOfSalePage() {
 				details={toastConfig.details}
 			/>
 
-			{/* NEW: Close Day Toast Notification */}
 			<CloseDayToastNotification
 				isOpen={showCloseDayToast}
 				onClose={handleCloseDayToastClose}
@@ -1372,28 +1659,28 @@ export default function PointOfSalePage() {
 				details={closeDayToastConfig.details}
 			/>
 
-			{/* OTP Modal for Close Day Verification - FIXED */}
 			<OTPModal
 				isOpen={showOTPModal}
 				onClose={handleCloseOTPModal}
 				onVerify={handleVerifyOTP}
-				onResendOTP={handleResendOTP} // NEW: Added resend OTP handler
+				onResendOTP={handleResendOTP}
 				isLoading={finalizeCloseDayMutation.isPending}
-				isResending={resendOTPMutation.isPending} // NEW: Added resending state
+				isResending={resendOTPMutation.isPending}
 				merchantPhone={merchantPhone}
 				errorMessage={finalizeCloseDayMutation.error?.message}
 			/>
 
-			{/* Print Receipt Modal */}
-			<PrintReceipt
+			<ThermalPrintReceipt
 				isOpen={showPrintReceipt}
 				onClose={() => setShowPrintReceipt(false)}
 				paymentMethod={lastTransaction?.paymentMethod || null}
 				totalAmount={lastTransaction?.totalAmount || 0}
 				customerContact={lastTransaction?.customerContact || ""}
+				customerName={lastTransaction?.customerName || ""}
 				items={lastTransaction?.items || []}
 				transactionId={lastTransaction?.transactionId || generateTransactionId()}
 				merchantName={merchantName}
+				merchantPhone={merchantPhone}
 			/>
 
 			<footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">

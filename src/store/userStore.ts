@@ -374,7 +374,7 @@ export const useSignIn = () => {
 					username: username,
 					email: decodedToken.email || "",
 					role: userRole,
-					merchantId: merchantId, // CRITICAL: Set the merchant ID from token
+					merchantId: merchantId,
 				};
 
 				console.log("🛠️ Setting user info:", userInfo);

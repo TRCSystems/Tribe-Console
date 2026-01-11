@@ -19,7 +19,7 @@ export interface SaleItemRequest {
 
 export interface SaleRequest {
 	merchantId: string;
-	customerPhone?: string; // CHANGED: Made optional
+	customerPhone?: string;
 	items: SaleItemRequest[];
 }
 
@@ -131,7 +131,6 @@ export interface ExpenseResponse {
 	[key: string]: any;
 }
 
-// NEW: Edit and Delete interfaces
 export interface UpdateItemRequest {
 	merchantId: string;
 	itemName?: string;
@@ -155,29 +154,37 @@ export interface DeleteItemResponse {
 	deletedItemId?: number;
 }
 
-// UPDATED: Sold Items interfaces based on actual API response
 export interface SoldItem {
 	itemName: string;
 	customerPhone: string;
 	quantity: number;
+	totalPrice: number;
 	itemCode: string;
 	transactionRef: string;
+}
+
+export interface SummaryByItem {
+	timesSold: number;
+	totalAmount: number;
+	itemName: string;
+	totalQuantity: number;
+	itemCode: string;
 }
 
 export interface SoldItemsResponse {
 	totalItemsSold: number;
 	status: string;
 	items: SoldItem[];
+	summaryByItem?: SummaryByItem[];
 	totalSalesAmount: number;
 	numberOfTransactions: number;
 	merchantId: string;
 	date: string;
 }
 
-// NEW: Merchant Details interface
 export interface MerchantDetails {
 	id: number;
-	businessPhone: string; // This is the merchant's phone number
+	businessPhone: string;
 	businessName: string;
 	location: string;
 	tillNumber: string;
@@ -197,7 +204,6 @@ export interface MerchantDetails {
 	metaSyncError?: string;
 }
 
-// Helper function to get merchant ID from store
 const getMerchantId = (): string => {
 	const state = useUserStore.getState();
 	const merchantId = state.merchantId;
@@ -211,9 +217,6 @@ const getMerchantId = (): string => {
 };
 
 class InventoryService {
-	/**
-	 * Get merchant phone number from merchant details
-	 */
 	async getMerchantPhone(): Promise<string> {
 		const merchantId = getMerchantId();
 
@@ -221,7 +224,6 @@ class InventoryService {
 		console.log("Merchant ID:", merchantId);
 
 		try {
-			// Fetch merchant details
 			const merchantDetails = await loyaltyApiClient.get<MerchantDetails>({
 				url: `/merchants/${merchantId}`,
 			});
@@ -247,15 +249,55 @@ class InventoryService {
 				message: error.message,
 			});
 			console.groupEnd();
-
-			// Return empty string on error
 			return "";
 		}
 	}
 
 	/**
-	 * Add stock to inventory
+	 * Get merchant details including phone number - FIXED VERSION
 	 */
+	async getMerchantDetails(): Promise<MerchantDetails> {
+		const merchantId = getMerchantId();
+
+		console.group("🏪 Fetching Merchant Details");
+		console.log("Merchant ID:", merchantId);
+
+		try {
+			const response = await loyaltyApiClient.get<any>({
+				url: `/merchants/${merchantId}`,
+			});
+
+			console.log("✅ Merchant details API response:", response);
+
+			// Handle different response formats
+			let merchantDetails: MerchantDetails;
+
+			if (response?.data) {
+				merchantDetails = response.data;
+			} else if (response?.respObject) {
+				merchantDetails = response.respObject;
+			} else if (response && typeof response === "object") {
+				merchantDetails = response as MerchantDetails;
+			} else {
+				throw new Error("Invalid merchant details response format");
+			}
+
+			console.log("✅ Processed merchant details:", merchantDetails);
+			console.groupEnd();
+
+			return merchantDetails;
+		} catch (error: any) {
+			console.error("❌ Failed to fetch merchant details:", error);
+			console.error("❌ Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+			throw error;
+		}
+	}
+
 	async addStock(data: Omit<StockRequest, "merchantId">): Promise<StockResponse> {
 		const merchantId = getMerchantId();
 
@@ -270,16 +312,12 @@ class InventoryService {
 		});
 	}
 
-	/**
-	 * Record an expense
-	 */
 	async recordExpense(data: Omit<ExpenseData, "merchantId">): Promise<ExpenseResponse> {
 		const merchantId = getMerchantId();
 
 		console.group("💰 Record Expense API Call");
 		console.log("📦 Expense Request Data:", { merchantId, ...data });
 
-		// Enhanced validation
 		if (!data.amount || data.amount <= 0) {
 			throw new Error("Valid amount is required");
 		}
@@ -305,7 +343,6 @@ class InventoryService {
 			console.log("✅ Expense API Response:", response);
 			console.groupEnd();
 
-			// Handle different response formats
 			if (typeof response === "object") {
 				return {
 					success: true,
@@ -327,7 +364,6 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			// Provide more specific error messages
 			if (error.response?.data?.message) {
 				throw new Error(error.response.data.message);
 			} else if (error.response?.data?.error) {
@@ -337,9 +373,6 @@ class InventoryService {
 		}
 	}
 
-	/**
-	 * Record deduction for an inventory item
-	 */
 	async recordDeduction(inventoryId: number, amount: number): Promise<InventoryItem> {
 		return loyaltyApiClient.put({
 			url: `/inventory/${inventoryId}/deduction`,
@@ -347,9 +380,6 @@ class InventoryService {
 		});
 	}
 
-	/**
-	 * Import inventory from file
-	 */
 	async importInventory(file: File): Promise<{ success: boolean; imported: number }> {
 		const merchantId = getMerchantId();
 
@@ -364,9 +394,6 @@ class InventoryService {
 		});
 	}
 
-	/**
-	 * Get all inventory items for the current merchant
-	 */
 	async getAllItems(merchantId?: string): Promise<InventoryItem[]> {
 		const currentMerchantId = merchantId || getMerchantId();
 
@@ -378,7 +405,6 @@ class InventoryService {
 			.then((response) => {
 				console.log("📦 Inventory API raw response:", response);
 
-				// Handle different response formats
 				if (Array.isArray(response)) {
 					return response;
 				} else if (response?.respObject && Array.isArray(response.respObject)) {
@@ -401,21 +427,16 @@ class InventoryService {
 			});
 	}
 
-	// ALIAS for getAllItems for POS compatibility
 	async listMenu(): Promise<InventoryItem[]> {
 		return this.getAllItems();
 	}
 
-	/**
-	 * Record a sale - UPDATED: Customer phone is now optional
-	 */
 	async recordSale(data: Omit<SaleRequest, "merchantId">): Promise<SaleResponse> {
 		const merchantId = getMerchantId();
 
 		console.group("🛒 Record Sale API Call");
 		console.log("📦 Sale Request Data (Final):", JSON.stringify({ merchantId, ...data }, null, 2));
 
-		// Enhanced validation - Phone is now optional, only validate items
 		if (!data.items || data.items.length === 0) {
 			throw new Error("Sale items are required");
 		}
@@ -432,11 +453,9 @@ class InventoryService {
 		try {
 			console.log("🚀 Sending request to /inventory/sale...");
 
-			// Handle customer phone - optional field
 			let customerPhone = data.customerPhone;
 
 			if (customerPhone && customerPhone.trim() !== "") {
-				// Clean and validate if provided
 				const cleanedPhone = customerPhone.replace(/\s+/g, "");
 				const phoneRegex = /^254[17]\d{8}$/;
 
@@ -445,7 +464,6 @@ class InventoryService {
 				}
 				customerPhone = cleanedPhone;
 			} else {
-				// Use empty string if not provided (customer opted out)
 				customerPhone = "";
 			}
 
@@ -477,7 +495,6 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			// Provide more specific error messages
 			if (error.response?.data?.message) {
 				throw new Error(error.response.data.message);
 			} else if (error.response?.data?.error) {
@@ -487,14 +504,10 @@ class InventoryService {
 		}
 	}
 
-	// ALIAS for recordSale for POS compatibility
 	async processSale(data: Omit<SaleRequest, "merchantId">): Promise<SaleResponse> {
 		return this.recordSale(data);
 	}
 
-	/**
-	 * Get daily sales summary for the current merchant
-	 */
 	async getDailySalesSummary(date?: string): Promise<DailySummaryResponse> {
 		const merchantId = getMerchantId();
 
@@ -506,7 +519,6 @@ class InventoryService {
 			.then((response) => {
 				console.log("📊 Daily Sales API response:", response);
 
-				// Handle different response structures
 				if (response?.data) {
 					return response.data;
 				} else if (response?.respObject) {
@@ -516,10 +528,6 @@ class InventoryService {
 			});
 	}
 
-	/**
-	 * INITIATE close day - Step 1: Send OTP to merchant phone
-	 * FIXED: Handle "no sales recorded" case properly
-	 */
 	async initiateCloseDay(): Promise<InitiateCloseDayResponse> {
 		const merchantId = getMerchantId();
 
@@ -527,12 +535,10 @@ class InventoryService {
 		console.log("📦 Merchant ID:", merchantId);
 
 		try {
-			// Get merchant phone for display
 			const merchantPhone = await this.getMerchantPhone();
 
 			console.log("🚀 Sending request to /inventory/initiate-close-day...");
 
-			// According to OpenAPI spec: dynamic key-value pairs
 			const requestData = {
 				merchantId: merchantId,
 				action: "initiate_close_day",
@@ -549,11 +555,8 @@ class InventoryService {
 			console.log("✅ Initiate Close Day API Response:", response);
 			console.groupEnd();
 
-			// The response might be an empty object {} or contain some data
 			if (response && typeof response === "object") {
-				// Check for any error messages
 				if (response.error || response.status === "FAILED") {
-					// Handle "no sales recorded" as a warning, not an error
 					if (response.message?.toLowerCase().includes("no sales recorded today")) {
 						console.warn("⚠️ No sales recorded today, but OTP was sent:", response.message);
 
@@ -569,7 +572,6 @@ class InventoryService {
 					throw new Error(response.message || response.error || "Failed to send OTP");
 				}
 
-				// Success response
 				return {
 					success: true,
 					message: response.message || `OTP sent to ${merchantPhone || "your registered phone"}`,
@@ -579,7 +581,6 @@ class InventoryService {
 				};
 			}
 
-			// Empty response case
 			return {
 				success: true,
 				message: `OTP sent to ${merchantPhone || "your registered phone"}`,
@@ -595,11 +596,9 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			// Check for specific error messages
 			if (error.response?.status === 400) {
 				const errorData = error.response.data || {};
 
-				// Handle "no sales recorded" as a special case - OTP might still be sent
 				if (errorData.message?.toLowerCase().includes("no sales recorded")) {
 					const merchantPhone = await this.getMerchantPhone();
 					return {
@@ -621,7 +620,6 @@ class InventoryService {
 				throw new Error("Server error. Please try again later.");
 			}
 
-			// Provide more specific error messages
 			if (error.response?.data?.message) {
 				throw new Error(error.response.data.message);
 			} else if (error.response?.data?.error) {
@@ -631,10 +629,6 @@ class InventoryService {
 		}
 	}
 
-	/**
-	 * FINALIZE close day - Step 2: Verify OTP and close day
-	 * FIXED: Handle OTP field name and "no sales recorded" case
-	 */
 	async finalizeCloseDay(otp: string): Promise<CloseDayResponse> {
 		const merchantId = getMerchantId();
 
@@ -642,12 +636,10 @@ class InventoryService {
 		console.log("📦 Merchant ID:", merchantId);
 		console.log("📦 OTP:", otp);
 
-		// Validate OTP - Exactly 4 digits required
 		if (!otp || otp.trim() === "") {
 			throw new Error("OTP is required to close the day");
 		}
 
-		// Require exactly 4 digits
 		const cleanOtp = otp.trim();
 		if (!/^\d{4}$/.test(cleanOtp)) {
 			throw new Error("OTP must be exactly 4 digits (e.g., 1234)");
@@ -656,13 +648,11 @@ class InventoryService {
 		try {
 			console.log("🚀 Sending request to /inventory/close-day...");
 
-			// FIXED: Based on error "null OTP code", the backend expects "otpCode"
-			// Send multiple possible field names to cover different cases
 			const requestData = {
 				merchantId: merchantId,
-				otpCode: cleanOtp, // Primary - based on error message
-				otp: cleanOtp, // Secondary - common field name
-				code: cleanOtp, // Tertiary - alternative
+				otpCode: cleanOtp,
+				otp: cleanOtp,
+				code: cleanOtp,
 				timestamp: new Date().toISOString(),
 			};
 
@@ -676,13 +666,10 @@ class InventoryService {
 			console.log("✅ Finalize Close Day API Response:", response);
 			console.groupEnd();
 
-			// Handle response - could be empty object {} or contain data
 			if (response && typeof response === "object") {
-				// Check for errors first
 				if (response.error || response.status === "FAILED" || response.statusCode === 400) {
 					const errorMsg = response.message || response.error || "Failed to close day";
 
-					// Handle specific error messages
 					if (
 						errorMsg.toLowerCase().includes("null otp code") ||
 						errorMsg.toLowerCase().includes("invalid otp") ||
@@ -692,7 +679,6 @@ class InventoryService {
 					}
 
 					if (errorMsg.toLowerCase().includes("no sales recorded today")) {
-						// This might be a successful close with no sales
 						return {
 							success: true,
 							closedDate: new Date().toISOString(),
@@ -712,7 +698,6 @@ class InventoryService {
 					throw new Error(errorMsg);
 				}
 
-				// Success response
 				return {
 					success: true,
 					closedDate: response.closedDate || new Date().toISOString(),
@@ -721,7 +706,6 @@ class InventoryService {
 				};
 			}
 
-			// Empty response case - assume success
 			return {
 				success: true,
 				closedDate: new Date().toISOString(),
@@ -736,7 +720,6 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			// Handle specific error cases
 			if (error.response?.status === 400) {
 				const errorData = error.response.data || {};
 				const errorMsg = errorData.message || errorData.error || error.message;
@@ -746,7 +729,6 @@ class InventoryService {
 				}
 
 				if (errorMsg.toLowerCase().includes("no sales recorded today")) {
-					// Allow closing with zero sales
 					return {
 						success: true,
 						closedDate: new Date().toISOString(),
@@ -769,7 +751,6 @@ class InventoryService {
 				throw new Error("Day already closed or another closing is in progress.");
 			}
 
-			// Provide more specific error messages
 			if (error.response?.data?.message) {
 				throw new Error(error.response.data.message);
 			} else if (error.response?.data?.error) {
@@ -779,9 +760,6 @@ class InventoryService {
 		}
 	}
 
-	/**
-	 * Get weekly analytics for the current merchant - FIXED PARAMETERS
-	 */
 	async getWeeklyAnalytics(start?: string, end?: string): Promise<WeeklyAnalyticsResponse> {
 		const merchantId = getMerchantId();
 
@@ -806,13 +784,9 @@ class InventoryService {
 			});
 	}
 
-	/**
-	 * Get merchant report
-	 */
 	async getMerchantReport(): Promise<number> {
 		const merchantId = getMerchantId();
 
-		// Convert string merchantId to number if needed by the API
 		const merchantIdNum = parseInt(merchantId.replace(/\D/g, "") || "0");
 
 		return loyaltyApiClient.get({
@@ -820,23 +794,16 @@ class InventoryService {
 		});
 	}
 
-	/**
-	 * Get current merchant ID (for components that need it)
-	 */
 	getCurrentMerchantId(): string {
 		return getMerchantId();
 	}
 
-	/**
-	 * NEW: Update an inventory item
-	 */
 	async updateItem(inventoryId: number, data: Omit<UpdateItemRequest, "merchantId">): Promise<UpdateItemResponse> {
 		const merchantId = getMerchantId();
 
 		console.group("✏️ Update Item API Call");
 		console.log("📦 Update Item Request:", { inventoryId, merchantId, ...data });
 
-		// Validate required fields
 		if (!inventoryId || inventoryId <= 0) {
 			throw new Error("Valid inventory ID is required");
 		}
@@ -865,7 +832,6 @@ class InventoryService {
 			console.log("✅ Update Item API Response:", response);
 			console.groupEnd();
 
-			// Handle response
 			return {
 				success: true,
 				message: "Item updated successfully",
@@ -881,7 +847,6 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			// Provide more specific error messages
 			if (error.response?.data?.message) {
 				throw new Error(error.response.data.message);
 			} else if (error.response?.data?.error) {
@@ -891,16 +856,12 @@ class InventoryService {
 		}
 	}
 
-	/**
-	 * NEW: Delete an inventory item (hard delete)
-	 */
 	async deleteItem(inventoryId: number): Promise<DeleteItemResponse> {
 		const merchantId = getMerchantId();
 
 		console.group("🗑️ Delete Item API Call");
 		console.log("📦 Delete Item Request:", { inventoryId, merchantId });
 
-		// Validate
 		if (!inventoryId || inventoryId <= 0) {
 			throw new Error("Valid inventory ID is required");
 		}
@@ -914,13 +875,12 @@ class InventoryService {
 
 			const response = await loyaltyApiClient.delete({
 				url: `/inventory/${inventoryId}/hard`,
-				data: requestData, // Some DELETE endpoints accept body data
+				data: requestData,
 			});
 
 			console.log("✅ Delete Item API Response:", response);
 			console.groupEnd();
 
-			// Handle response
 			return {
 				success: true,
 				message: "Item deleted successfully",
@@ -936,7 +896,6 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			// Provide more specific error messages
 			if (error.response?.data?.message) {
 				throw new Error(error.response.data.message);
 			} else if (error.response?.data?.error) {
@@ -946,16 +905,12 @@ class InventoryService {
 		}
 	}
 
-	/**
-	 * UPDATED: Get sold items for a specific date
-	 */
 	async getSoldItems(date?: string, merchantIdParam?: string): Promise<SoldItemsResponse> {
 		const merchantId = merchantIdParam || getMerchantId();
 
 		console.group("🛒 Get Sold Items API Call");
 		console.log("📦 Sold Items Request:", { merchantId, date });
 
-		// Default to today if no date provided
 		if (!date) {
 			date = new Date().toISOString().split("T")[0];
 		}
@@ -974,8 +929,12 @@ class InventoryService {
 			console.log("✅ Sold Items API Response:", response);
 			console.groupEnd();
 
-			// Return the full response object
-			return response;
+			const processedResponse = {
+				...response,
+				summaryByItem: response.summaryByItem || [],
+			};
+
+			return processedResponse;
 		} catch (error: any) {
 			console.error("❌ Sold Items API Error:", error);
 			console.error("❌ Error details:", {
@@ -985,11 +944,11 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			// Return empty structure instead of throwing for better UX
 			return {
 				totalItemsSold: 0,
 				status: "ERROR",
 				items: [],
+				summaryByItem: [],
 				totalSalesAmount: 0,
 				numberOfTransactions: 0,
 				merchantId: merchantId,
