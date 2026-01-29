@@ -40,7 +40,7 @@ export const DebugAuth = () => {
 
 			console.log("🛠️ Decoded token:", decoded);
 			console.log("🛠️ Token expired:", expired);
-			console.log("🛠️ Token preview:", accessToken.substring(0, 50) + "...");
+			console.log(`🛠️ Token preview: ${accessToken.substring(0, 50)}...`);
 		} else {
 			console.log("🛠️ No access token available");
 		}

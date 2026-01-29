@@ -1,5 +1,4 @@
 // src/components/electron/DesktopNotification.tsx
-import React from "react";
 import { notification } from "antd";
 import { ElectronFileSystem } from "@/utils/electronUtils";
 
@@ -49,18 +48,18 @@ export class DesktopNotification {
 	}
 
 	static info(title: string, message: string, duration?: number) {
-		return this.show({ title, message, type: "info", duration });
+		return DesktopNotification.show({ title, message, type: "info", duration });
 	}
 
 	static success(title: string, message: string, duration?: number) {
-		return this.show({ title, message, type: "success", duration });
+		return DesktopNotification.show({ title, message, type: "success", duration });
 	}
 
 	static warning(title: string, message: string, duration?: number) {
-		return this.show({ title, message, type: "warning", duration });
+		return DesktopNotification.show({ title, message, type: "warning", duration });
 	}
 
 	static error(title: string, message: string, duration?: number) {
-		return this.show({ title, message, type: "error", duration });
+		return DesktopNotification.show({ title, message, type: "error", duration });
 	}
 }

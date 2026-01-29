@@ -19,6 +19,8 @@ export function HighlightCode({ code, options, className, withCopy = true }: Hig
 
 	return (
 		<div
+			role="region"
+			aria-label="Code snippet"
 			className={cn("w-full relative group", className)}
 			onMouseEnter={() => setHovered(true)}
 			onMouseLeave={() => setHovered(false)}

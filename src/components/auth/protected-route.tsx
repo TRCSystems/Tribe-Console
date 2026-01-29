@@ -1,9 +1,9 @@
 //[file name]: protected-route.tsx
 //[file content begin]
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { useUserToken } from "@/store/userStore";
-import { RoleRouteGuard } from "./role-route-guard"; // ADD THIS IMPORT
+import { RoleRouteGuard } from "@/routes/components/role-route-guard";
 
 interface ProtectedRouteProps {
 	children: React.ReactNode;
@@ -13,7 +13,6 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 	const { accessToken } = useUserToken();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const [isChecking, setIsChecking] = useState(true);
 
 	useEffect(() => {
 		console.log("🔐 ProtectedRoute - Token check:", {
@@ -29,7 +28,6 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 			});
 		} else {
 			console.log("✅ Access granted!");
-			setIsChecking(false);
 		}
 	}, [accessToken, navigate, location]);
 

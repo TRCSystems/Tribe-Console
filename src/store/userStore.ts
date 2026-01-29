@@ -1,4 +1,4 @@
-// src/store/userStore.ts - FIXED VERSION
+// src/store/userStore.ts - FIXED VERSION WITH PRIVACY AND PASSWORD CLEARING
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -23,7 +23,7 @@ type UserStore = {
 	merchantId: string | null; // Direct merchant ID access
 	actions: {
 		setUserInfo: (userInfo: UserInfo) => void;
-		setUserToken: (token: UserToken) => void;
+		setUserToken: (userToken: UserToken) => void;
 		clearUserInfoAndToken: () => void;
 		//  Quick auth check method
 		checkAuthState: () => boolean;
@@ -41,7 +41,15 @@ const useUserStore = create<UserStore>()(
 			merchantId: null, // Direct merchant ID
 			actions: {
 				setUserInfo: (userInfo) => {
-					console.log("🛠️ Setting user info:", userInfo);
+					// PRIVACY: Remove sensitive user info from logs
+					console.log("🛠️ Setting user info");
+					console.debug("User info fields:", {
+						has_username: !!userInfo.username,
+						has_email: !!userInfo.email,
+						has_role: !!userInfo.role,
+						has_merchantId: !!userInfo.merchantId,
+					});
+
 					// Set merchantId directly and update auth state
 					const merchantId = userInfo.merchantId || null;
 					const hasValidData = !!userInfo.username && !!userInfo.id;
@@ -50,12 +58,14 @@ const useUserStore = create<UserStore>()(
 						merchantId,
 						isAuthenticated: hasValidData,
 					});
-					console.log("✅ User info set, auth state:", hasValidData);
+					console.log("✅ User info set");
 				},
 				setUserToken: (userToken) => {
-					console.log("🛠️ Setting user token:", {
+					// PRIVACY: Remove token preview from logs
+					console.log("🛠️ Setting user token");
+					console.debug("Token details:", {
 						hasToken: !!userToken?.accessToken,
-						tokenPreview: userToken?.accessToken ? `${userToken.accessToken.substring(0, 20)}...` : "No token",
+						token_length: userToken?.accessToken ? userToken.accessToken.length : 0,
 					});
 
 					// Extract merchant ID from token immediately
@@ -64,9 +74,9 @@ const useUserStore = create<UserStore>()(
 						try {
 							const decoded = decodeToken(userToken.accessToken);
 							merchantId = decoded?.id ? decoded.id.toString() : null;
-							console.log("🛠️ Extracted merchant ID from token:", merchantId);
+							console.debug("Extracted merchant ID from token");
 						} catch (error) {
-							console.error("❌ Failed to decode token for merchant ID:", error);
+							console.error("❌ Failed to decode token for merchant ID");
 						}
 					}
 
@@ -77,16 +87,27 @@ const useUserStore = create<UserStore>()(
 						merchantId,
 						isAuthenticated: hasValidToken, // Will be updated when userInfo is set
 					});
-					console.log("✅ Token set, auth state:", hasValidToken);
+					console.log("✅ Token set");
 				},
 				clearUserInfoAndToken() {
 					console.log("🛠️ Clearing user info and token");
+
+					// IMPORTANT: Clear stock page password when user logs out
+					try {
+						localStorage.removeItem("stock_page_unlocked");
+						console.log("🔐 Cleared stock page password on logout");
+					} catch (error) {
+						console.error("Failed to clear stock page password:", error);
+					}
+
 					set({
 						userInfo: {},
 						userToken: {},
 						isAuthenticated: false,
 						merchantId: null,
 					});
+
+					console.log("✅ User info and token cleared");
 				},
 				// ADDED: Quick method to check auth state
 				checkAuthState: () => {
@@ -95,20 +116,17 @@ const useUserStore = create<UserStore>()(
 					const hasUserInfo = !!state.userInfo?.username;
 					const isAuth = hasToken && hasUserInfo;
 
-					console.log("🔐 Auth State Check:", {
+					// PRIVACY: Remove sensitive info from auth check logs
+					console.debug("🔐 Auth State Check:", {
 						hasToken,
 						hasUserInfo,
 						isAuth,
-						username: state.userInfo?.username,
-						merchantId: state.merchantId,
-						tokenPreview: state.userToken?.accessToken
-							? `${state.userToken.accessToken.substring(0, 20)}...`
-							: "No token",
+						merchantId: state.merchantId ? "[REDACTED]" : null,
 					});
 
 					// FIXED: Sync the state if there's a mismatch
 					if (isAuth !== state.isAuthenticated) {
-						console.log("🔄 Fixing auth state mismatch:", { was: state.isAuthenticated, shouldBe: isAuth });
+						console.debug("🔄 Fixing auth state mismatch");
 						set({ isAuthenticated: isAuth });
 					}
 
@@ -127,17 +145,16 @@ const useUserStore = create<UserStore>()(
 						try {
 							const decoded = decodeToken(state.userToken.accessToken!);
 							merchantId = decoded?.id ? decoded.id.toString() : null;
-							console.log("🔄 Synced merchant ID from token:", merchantId);
+							console.debug("🔄 Synced merchant ID from token");
 						} catch (error) {
-							console.error("❌ Failed to sync merchant ID:", error);
+							console.error("❌ Failed to sync merchant ID");
 						}
 					}
 
-					console.log("🔄 Syncing auth state:", {
+					console.debug("🔄 Syncing auth state:", {
 						was: state.isAuthenticated,
 						shouldBe: isAuth,
-						merchantId: state.merchantId,
-						newMerchantId: merchantId,
+						hasMerchantId: !!merchantId,
 					});
 
 					set({
@@ -158,7 +175,7 @@ const useUserStore = create<UserStore>()(
 			}),
 			version: 3, // INCREMENT VERSION since we added new fields
 			onRehydrateStorage: () => (state) => {
-				console.log("🔄 Storage rehydrated, syncing auth state...");
+				console.log("🔄 Storage rehydrated");
 				if (state) {
 					// Sync authentication state after rehydration
 					setTimeout(() => {
@@ -191,10 +208,10 @@ export const useMerchantId = (): string | null => {
 
 	try {
 		const merchantId = getMerchantIdFromToken(token.accessToken);
-		console.log("🔄 useMerchantId: Extracted from token:", merchantId);
+		console.debug("🔄 useMerchantId: Extracted from token");
 		return merchantId;
 	} catch (error) {
-		console.error("Failed to get merchant ID from token:", error);
+		console.error("Failed to get merchant ID from token");
 		return null;
 	}
 };
@@ -212,7 +229,7 @@ export const useUserRole = (): UserRole | null => {
 		const role = getRoleFromToken(accessToken);
 		return role;
 	} catch (error) {
-		console.error("Failed to get role from token:", error);
+		console.error("Failed to get role from token");
 		return null;
 	}
 };
@@ -226,7 +243,7 @@ export const useUserId = (): string | null => {
 		const userId = getUserIdFromToken(accessToken);
 		return userId;
 	} catch (error) {
-		console.error("Failed to get user ID from token:", error);
+		console.error("Failed to get user ID from token");
 		return null;
 	}
 };
@@ -259,12 +276,13 @@ export const useTokenDebug = () => {
 	const isAuthenticated = useIsAuthenticated();
 	const merchantId = useMerchantId();
 
+	// PRIVACY: Never expose actual token in debug
 	return {
-		token,
-		userInfo,
+		token: token?.accessToken ? "[REDACTED]" : null,
+		userInfo: userInfo ? "[REDACTED]" : null,
 		actions,
 		isAuthenticated,
-		merchantId,
+		merchantId: merchantId ? "[REDACTED]" : null,
 		checkAuth: actions.checkAuthState,
 		syncAuth: actions.syncAuthState,
 	};
@@ -293,7 +311,13 @@ export const useAuthCheck = () => {
 			const storeAuth = isAuthenticated;
 			const manualCheck = checkAuthState();
 			const result = storeAuth && manualCheck;
-			console.log("🔐 isReallyAuthenticated:", { storeAuth, manualCheck, result, merchantId });
+
+			// PRIVACY: Remove sensitive details from auth check
+			console.debug("🔐 Authentication check:", {
+				isAuthenticated: result,
+				hasMerchantId: !!merchantId,
+			});
+
 			return result;
 		},
 	};
@@ -315,7 +339,8 @@ export const useSignIn = () => {
 		toast.promise(signInPromise, {
 			loading: "Logging in...",
 			success: (res) => {
-				console.log("🛠️ Login response:", res);
+				// PRIVACY: Remove full response logging
+				console.log("🛠️ Login response received");
 
 				// FIXED: Proper token extraction - ONLY extract the JWT token
 				let token: string | null = null;
@@ -323,32 +348,30 @@ export const useSignIn = () => {
 				if (res?.respObject?.value && typeof res.respObject.value === "string") {
 					// This is the correct path - extract just the JWT token
 					token = res.respObject.value;
-					console.log("🛠️ Token found in respObject.value:", token.substring(0, 50) + "...");
+					console.debug("Token length:", token.length);
 				} else if (res?.accessToken) {
 					token = res.accessToken;
-					console.log("🛠️ Token found in accessToken");
+					console.debug("Token found in accessToken");
 				} else if (res?.token) {
 					token = res.token;
-					console.log("🛠️ Token found in token");
+					console.debug("Token found in token");
 				}
 
 				if (!token) {
-					console.error("🛠️ No token found in response. Full response:", res);
+					console.error("🛠️ No token found in response");
 					throw new Error("No authentication token received from server");
 				}
 
 				// FIXED: Validate that we actually have a JWT token, not the whole response
 				if (token.includes('{"status":"200"') || token.includes('"respObject"')) {
 					console.error("🛠️ ERROR: Storing entire response as token instead of JWT!");
-					console.error("🛠️ Token content:", token);
 					throw new Error("Invalid token format received from server");
 				}
 
-				console.log("🛠️ Received valid JWT token:", token.substring(0, 50) + "...");
+				console.log("🛠️ Received valid JWT token");
 
 				// Decode token to get user information
 				const decodedToken = decodeToken(token);
-				console.log("🛠️ Decoded token:", decodedToken);
 
 				if (!decodedToken) {
 					console.error("🛠️ Failed to decode token");
@@ -357,7 +380,7 @@ export const useSignIn = () => {
 
 				// FIXED: Extract merchant ID from the 'id' field in token
 				const merchantId = decodedToken.id ? decodedToken.id.toString() : "";
-				console.log("🛠️ Extracted merchant ID from token 'id' field:", merchantId);
+				console.debug("Extracted merchant ID from token");
 
 				// Extract user information from token
 				const username = getUsernameFromToken(token) || data.username;
@@ -377,8 +400,7 @@ export const useSignIn = () => {
 					merchantId: merchantId,
 				};
 
-				console.log("🛠️ Setting user info:", userInfo);
-				console.log("🛠️ Setting JWT token...");
+				console.log("🛠️ Setting user info");
 
 				// FIXED: Set token first, then user info to ensure proper state
 				setUserToken({ accessToken: token });
@@ -388,20 +410,22 @@ export const useSignIn = () => {
 				setTimeout(() => {
 					syncAuthState();
 					const currentState = useUserStore.getState();
-					console.log("✅ Login complete - Final store state:", {
+
+					// PRIVACY: Remove sensitive final state logging
+					console.log("✅ Login complete");
+					console.debug("Final store state:", {
 						hasToken: !!currentState.userToken?.accessToken,
 						hasUserInfo: !!currentState.userInfo?.username,
-						username: currentState.userInfo?.username,
-						merchantId: currentState.merchantId,
 						isAuthenticated: currentState.isAuthenticated,
 					});
 				}, 100);
 
-				return `Login successful! Welcome ${userInfo.username} (${userInfo.role}) - Merchant ID: ${merchantId}`;
+				return `Login successful! Welcome ${userInfo.username} (${userInfo.role})`;
 			},
 			error: (err) => {
-				console.error("🛠️ Login error:", err);
-				return err?.message || "Login failed. Please try again.";
+				// PRIVACY: Don't expose error details
+				console.error("🛠️ Login error");
+				return "Login failed. Please try again.";
 			},
 		});
 

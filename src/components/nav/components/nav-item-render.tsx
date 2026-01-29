@@ -21,7 +21,17 @@ export const NavItemRenderer: React.FC<NavItemRendererProps> = ({ item, classNam
 	if (hasChild) {
 		// Vertical nav items with children are clickable containers
 		return (
-			<div className={className} onClick={onClick}>
+			<div
+				role="button"
+				tabIndex={0}
+				className={className}
+				onClick={onClick}
+				onKeyDown={(e) => {
+					if (e.key === "Enter" || e.key === " ") {
+						onClick?.(e as any);
+					}
+				}}
+			>
 				{children}
 			</div>
 		);

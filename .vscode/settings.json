@@ -35,5 +35,8 @@
   "[jsonc]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "svg.preview.background": "dark-transparent"
+  "svg.preview.background": "dark-transparent",
+  "chat.tools.terminal.autoApprove": {
+    "pnpm": true
+  }
 }

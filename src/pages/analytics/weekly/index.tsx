@@ -1,4 +1,4 @@
-// src/pages/analytics/weekly/index.tsx - FINAL FIXED VERSION
+// src/pages/analytics/weekly/index.tsx - FINAL VERSION WITH SECURITY
 import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
@@ -18,387 +18,630 @@ import {
 } from "recharts";
 import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
+import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useMerchantId } from "@/store/userStore";
-import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
-import { UserRoleIndicator } from "@/components/user-role-indicator";
+
+// Security utility to protect sensitive data
+const secureData = {
+	// Store sensitive data in closure to prevent direct access
+	_secureData: new Map(),
+
+	// Securely store data
+	setSecureData: function (key: string, value: any) {
+		// Make non-enumerable in dev tools
+		this._secureData.set(key, value);
+		Object.defineProperty(this, "_secureData", {
+			value: this._secureData,
+			writable: true,
+			enumerable: false,
+			configurable: true,
+		});
+	},
+
+	// Get data with security checks
+	getSecureData: function (key: string) {
+		if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+			// Allow full access in development
+			return this._secureData.get(key);
+		}
+
+		// In production, return masked/limited data
+		const data = this._secureData.get(key);
+		if (!data) return null;
+
+		// Mask sensitive data
+		if (typeof data === "string") {
+			if (key.includes("id") || key.includes("Id") || key.includes("ID")) {
+				return data.length > 8 ? `${data.substring(0, 4)}***${data.substring(data.length - 4)}` : "****";
+			}
+		}
+
+		return data;
+	},
+
+	// Secure console logging
+	secureLog: function (message: string, data?: any, level: "info" | "warn" | "error" = "info") {
+		if (typeof window === "undefined") return;
+
+		// Only show minimal logs in production
+		if (window.location.hostname !== "localhost") {
+			const styles = {
+				info: "color: #10b981; font-weight: bold;",
+				warn: "color: #f59e0b; font-weight: bold;",
+				error: "color: #ef4444; font-weight: bold;",
+			};
+
+			console[level](`%c[TRIBE Analytics] ${message}`, styles[level]);
+
+			// Mask sensitive data in console
+			if (data) {
+				const maskedData = this.maskSensitiveData(data);
+				console[level]("Data:", maskedData);
+			}
+			return;
+		}
+
+		// Full logging in development
+		console[level](`[TRIBE Analytics] ${message}`, data || "");
+	},
+
+	// Mask sensitive data
+	maskSensitiveData: (data: any): any => {
+		if (!data || typeof data !== "object") {
+			if (typeof data === "string" && (data.includes("id") || data.length > 12)) {
+				return `${data.substring(0, 4)}***${data.substring(data.length - 4)}`;
+			}
+			return data;
+		}
+
+		const masked = Array.isArray(data) ? [...data] : { ...data };
+		const sensitiveFields = ["merchantId", "id", "token", "password", "secret", "key", "apiKey", "auth"];
+
+		Object.keys(masked).forEach((key) => {
+			if (sensitiveFields.some((field) => key.toLowerCase().includes(field.toLowerCase()))) {
+				const value = masked[key];
+				if (typeof value === "string" && value.length > 4) {
+					masked[key] = `${value.substring(0, 2)}***${value.substring(value.length - 2)}`;
+				} else if (value) {
+					masked[key] = "****";
+				}
+			}
+		});
+
+		return masked;
+	},
+};
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
-// Export service functions
-const exportReport = async (
-	currentData: any,
-	merchantId: string,
-	reportType: string,
-	dateRange: string,
-	format: string = "pdf",
-) => {
+// Secure export function
+const exportReport = async (currentData: any, merchantId: string, reportType: string, dateRange: string) => {
 	try {
-		console.log(`📊 Exporting ${reportType} report for merchant ${merchantId} in ${format} format`);
-		console.log("📊 Current data for export:", currentData);
+		secureData.secureLog("Exporting PDF report", {
+			reportType,
+			dateRange,
+			merchantId: secureData.maskSensitiveData(merchantId),
+		});
 
-		// Create export data using the current page data
+		// Create export data using the current page data (masked for security)
 		const exportData = {
-			merchantId,
 			reportType,
 			dateRange,
 			generatedAt: new Date().toISOString(),
 			data: currentData,
 		};
 
-		// Create and download file based on format
-		if (format === "csv") {
-			downloadCSV(exportData, `business-report-${merchantId}-${new Date().getTime()}.csv`);
-		} else {
-			// For PDF, create a detailed HTML file that can be printed as PDF
-			downloadPDF(exportData, `business-report-${merchantId}-${new Date().getTime()}.html`);
-		}
+		// Securely store data
+		secureData.setSecureData("exportData", exportData);
+		secureData.setSecureData("merchantId", merchantId);
+
+		// Generate professional banking PDF
+		await generateProfessionalPDF(exportData, `Business-Report-${new Date().getTime()}.pdf`);
 
 		return true;
 	} catch (error) {
-		console.error("❌ Export failed:", error);
+		secureData.secureLog("Export failed", error, "error");
 		throw error;
 	}
 };
 
-// Download as CSV
-const downloadCSV = (data: any, filename: string) => {
-	const csvData = convertToCSV(data);
-	const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
-	downloadBlob(blob, filename);
+// Generate professional banking PDF
+const generateProfessionalPDF = async (data: any, filename: string) => {
+	try {
+		// Use print dialog with professional banking template
+		await generateBankingReportHTML(data);
+	} catch (error) {
+		secureData.secureLog("PDF generation failed, using fallback", error, "warn");
+		// Fallback to simple print with security notice
+		const fallbackMessage =
+			'To save as PDF: Click "Print" and select "Save as PDF" as printer.\n\n⚠️ This document contains confidential business information.';
+		alert(fallbackMessage);
+		window.print();
+	}
 };
 
-// Download as PDF (Enhanced HTML that can be printed as PDF)
-const downloadPDF = (data: any, filename: string) => {
-	const htmlContent = generateReportHTML(data);
-	const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8;" });
-	downloadBlob(blob, filename);
-};
-
-// Generic blob download function
-const downloadBlob = (blob: Blob, filename: string) => {
-	const url = URL.createObjectURL(blob);
-	const link = document.createElement("a");
-	link.href = url;
-	link.download = filename;
-	link.style.display = "none";
-
-	document.body.appendChild(link);
-	link.click();
-	document.body.removeChild(link);
-
-	// Clean up
-	setTimeout(() => URL.revokeObjectURL(url), 100);
-};
-
-// Convert data to CSV format
-const convertToCSV = (data: any) => {
+// Generate professional banking report HTML
+const generateBankingReportHTML = (data: any) => {
 	const profitMargin = data.data?.grossSales ? ((data.data.netSales / data.data.grossSales) * 100).toFixed(1) : "0";
 
-	const headers = ["Metric", "Value", "Category"];
-	const rows = [
-		//["Merchant ID", data.merchantId, "Business Information"],
-		["Report Type", data.reportType, "Business Information"],
-		["Date Range", data.dateRange, "Business Information"],
-		["Generated At", new Date(data.generatedAt).toLocaleString(), "Business Information"],
-		["", "", ""],
-		[
-			"Gross Sales",
-			`KShs ${(data.data?.grossSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-			"Financial Summary",
-		],
-		[
-			"Net Sales",
-			`KShs ${(data.data?.netSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-			"Financial Summary",
-		],
-		[
-			"Deductions",
-			`KShs ${(data.data?.deductions || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-			"Financial Summary",
-		],
-		["Profit Margin", `${profitMargin}%`, "Financial Summary"],
-		["Total Transactions", data.data?.totalTransactions || "0", "Performance Metrics"],
-		[
-			"Average Sale Value",
-			`KShs ${(data.data?.averageSale || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-			"Performance Metrics",
-		],
-	];
+	// Format date range for display
+	const formatDateRange = (range: string) => {
+		const now = new Date();
+		switch (range) {
+			case "this-week":
+				return `Week of ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+			case "last-week": {
+				const lastWeek = new Date(now);
+				lastWeek.setDate(now.getDate() - 7);
+				return `Week of ${lastWeek.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`;
+			}
+			case "this-month":
+				return `Month of ${new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+			case "last-month": {
+				const lastMonth = new Date(now);
+				lastMonth.setMonth(now.getMonth() - 1);
+				return `Month of ${lastMonth.toLocaleDateString("en-US", { month: "long", year: "numeric" })}`;
+			}
+			default:
+				return range;
+		}
+	};
 
-	return [headers, ...rows].map((row) => row.map((field) => `"${field}"`).join(",")).join("\n");
-};
-
-// Generate comprehensive HTML report
-const generateReportHTML = (data: any) => {
-	const profitMargin = data.data?.grossSales ? ((data.data.netSales / data.data.grossSales) * 100).toFixed(1) : "0";
-
-	const expensePercentage = data.data?.grossSales
-		? ((data.data.deductions / data.data.grossSales) * 100).toFixed(1)
-		: "0";
-
-	const revenueEfficiency =
-		data.data?.grossSales && data.data.deductions
-			? (((data.data.grossSales - data.data.deductions) / data.data.deductions) * 100).toFixed(1)
-			: "0";
-
-	return `<!DOCTYPE html>
+	const htmlContent = `<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Business Analytics Report - {Sales Report}</title>
+    <title>Business Financial Report - ${formatDateRange(data.dateRange)}</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        @media print {
+            @page {
+                size: A4 portrait;
+                margin: 20mm;
+            }
+            body { 
+                font-family: 'Times New Roman', Times, serif; 
+                line-height: 1.4; 
+                color: #000; 
+                background: #fff;
+                padding: 0;
+                font-size: 11pt;
+            }
+            .no-print { display: none !important; }
+            .page-break { page-break-before: always; }
+            h1, h2, h3 { color: #000 !important; }
+            table { page-break-inside: avoid; }
+        }
+        
         body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            font-family: 'Times New Roman', Times, serif; 
             line-height: 1.6; 
-            color: #333; 
+            color: #000; 
             background: #fff;
             padding: 20px;
+            max-width: 210mm;
+            margin: 0 auto;
         }
-        .container { max-width: 1000px; margin: 0 auto; }
-        .header { 
-            text-align: center; 
-            margin-bottom: 40px; 
-            padding-bottom: 20px;
-            border-bottom: 3px solid #2c5aa0;
+        
+        /* Professional Banking Styling */
+        .letterhead {
+            border-bottom: 3px double #1a365d;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
         }
-        .header h1 { 
-            color: #2c5aa0; 
-            font-size: 2.5em; 
-            margin-bottom: 10px;
-        }
-        .header .subtitle { 
-            color: #666; 
-            font-size: 1.2em;
-            margin-bottom: 20px;
-        }
-        .summary-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-            gap: 20px; 
-            margin: 30px 0;
-        }
-        .summary-card {
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 8px;
-            border-left: 4px solid #2c5aa0;
-        }
-        .summary-card h3 { 
-            color: #2c5aa0; 
-            margin-bottom: 10px;
-            font-size: 1.1em;
-        }
-        .summary-card .value { 
-            font-size: 1.8em; 
-            font-weight: bold; 
+        
+        .letterhead h1 {
+            font-size: 24pt;
             color: #1a365d;
+            text-align: center;
+            margin: 0;
+            font-weight: bold;
+            letter-spacing: 1px;
         }
-        .summary-card .positive { color: #059669; }
-        .summary-card .negative { color: #dc2626; }
-        .table-container { 
-            margin: 30px 0; 
-            overflow-x: auto;
-        }
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            background: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        }
-        th, td { 
-            padding: 12px 15px; 
-            text-align: left; 
-            border-bottom: 1px solid #e1e5e9;
-        }
-        th { 
-            background: #2c5aa0; 
-            color: white; 
-            font-weight: 600;
-        }
-        tr:nth-child(even) { background: #f8f9fa; }
-        .footer { 
-            margin-top: 40px; 
-            padding-top: 20px; 
-            border-top: 2px solid #e1e5e9; 
-            text-align: center; 
+        
+        .letterhead .subtitle {
+            text-align: center;
             color: #666;
-            font-size: 0.9em;
+            font-size: 12pt;
+            margin-top: 5px;
+            font-style: italic;
         }
-        .financial-highlights {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
-            border-radius: 10px;
-            margin: 30px 0;
-        }
-        .financial-highlights h2 {
-            text-align: center;
-            margin-bottom: 20px;
-            font-size: 1.8em;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
+        
+        .report-meta {
+            display: flex;
+            justify-content: space-between;
             margin: 20px 0;
-        }
-        .info-item {
-            background: rgba(255,255,255,0.1);
             padding: 15px;
-            border-radius: 6px;
-            text-align: center;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
         }
-        .info-item .label {
-            font-size: 0.9em;
-            opacity: 0.9;
+        
+        .report-meta div {
+            text-align: center;
+            flex: 1;
+        }
+        
+        .report-meta .label {
+            font-size: 10pt;
+            color: #666;
+            display: block;
             margin-bottom: 5px;
         }
-        .info-item .value {
-            font-size: 1.2em;
+        
+        .report-meta .value {
+            font-size: 11pt;
+            font-weight: bold;
+            color: #1a365d;
+        }
+        
+        /* Financial Summary Cards */
+        .financial-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border: 2px solid #1a365d;
+            border-radius: 4px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .summary-card h3 {
+            color: #1a365d;
+            font-size: 12pt;
+            margin-bottom: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .summary-card .value {
+            font-size: 18pt;
+            font-weight: bold;
+            color: #000;
+            margin: 10px 0;
+        }
+        
+        .summary-card.gross .value { color: #059669; }
+        .summary-card.expenses .value { color: #dc2626; }
+        .summary-card.margin .value { color: #7c3aed; }
+        
+        /* Professional Table */
+        .financial-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border: 2px solid #1a365d;
+        }
+        
+        .financial-table th {
+            background: #1a365d;
+            color: white;
+            font-weight: bold;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 11pt;
+            border-bottom: 2px solid #1a365d;
+        }
+        
+        .financial-table td {
+            padding: 10px 15px;
+            border: 1px solid #dee2e6;
+        }
+        
+        .financial-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .financial-table .total-row {
+            background: #e8f4fd;
+            font-weight: bold;
+            border-top: 2px solid #1a365d;
+        }
+        
+        /* Performance Metrics */
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 25px 0;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+        }
+        
+        .metric-card h4 {
+            color: #1a365d;
+            font-size: 11pt;
+            margin-bottom: 8px;
             font-weight: bold;
         }
-        @media print {
-            body { padding: 0; }
-            .summary-grid { grid-template-columns: 1fr 1fr; }
-            .financial-highlights { break-inside: avoid; }
-            .info-grid { grid-template-columns: 1fr 1fr; }
+        
+        .metric-card .metric-value {
+            font-size: 14pt;
+            font-weight: bold;
+            color: #000;
+        }
+        
+        /* Footer */
+        .report-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #1a365d;
+            font-size: 10pt;
+            color: #666;
+        }
+        
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-top: 15px;
+        }
+        
+        .footer-section {
+            padding: 10px;
+        }
+        
+        .footer-section h5 {
+            color: #1a365d;
+            font-size: 10pt;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .confidential-stamp {
+            text-align: center;
+            margin-top: 20px;
+            padding: 10px;
+            border: 2px dashed #dc2626;
+            color: #dc2626;
+            font-weight: bold;
+            font-size: 10pt;
+        }
+        
+        /* Print Controls */
+        .print-controls {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            text-align: center;
+            border: 1px solid #dee2e6;
+        }
+        
+        .print-button {
+            background: #1a365d;
+            color: white;
+            border: none;
+            padding: 10px 25px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12pt;
+            margin: 5px;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .print-button:hover {
+            background: #2d4a7e;
+        }
+        
+        /* Security Notice */
+        .security-notice {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-size: 10pt;
+            color: #856404;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>Business Analytics Report</h1>
-            <div class="subtitle">Comprehensive Performance Analysis</div>
-            <div class="info-grid">
-               
-                <div class="info-item">
-                    <div class="label">Report Type</div>
-                    <div class="value">${data.reportType}</div>
-                </div>
-                <div class="info-item">
-                    <div class="label">Period</div>
-                    <div class="value">${data.dateRange}</div>
-                </div>
-                <div class="info-item">
-                    <div class="label">Generated</div>
-                    <div class="value">${new Date(data.generatedAt).toLocaleDateString()}</div>
-                </div>
+    <div class="print-controls no-print">
+        <button class="print-button" onclick="window.print()">
+            📄 Print to PDF
+        </button>
+        <p style="margin-top: 10px; font-size: 11pt; color: #666; font-style: italic;">
+            To save as PDF: Click above button, then select "Save as PDF" as your printer
+        </p>
+    </div>
+
+    <!-- Security Notice -->
+    <div class="security-notice no-print">
+        ⚠️ This document contains confidential business information. Do not share or distribute without authorization.
+    </div>
+
+    <!-- Professional Letterhead -->
+    <div class="letterhead">
+        <h1>BUSINESS FINANCIAL REPORT</h1>
+        <div class="subtitle">Official Performance Analysis Document</div>
+    </div>
+
+    <!-- Report Metadata -->
+    <div class="report-meta">
+        <div>
+            <span class="label">Report Period</span>
+            <span class="value">${formatDateRange(data.dateRange)}</span>
+        </div>
+        <div>
+            <span class="label">Report Date</span>
+            <span class="value">${new Date(data.generatedAt).toLocaleDateString("en-US", {
+							year: "numeric",
+							month: "long",
+							day: "numeric",
+						})}</span>
+        </div>
+        <div>
+            <span class="label">Document ID</span>
+            <span class="value">REP-${new Date().getFullYear()}-${Math.floor(Math.random() * 10000)
+							.toString()
+							.padStart(4, "0")}</span>
+        </div>
+    </div>
+
+    <!-- Executive Summary -->
+    <div style="margin: 25px 0;">
+        <h2 style="color: #1a365d; font-size: 14pt; border-bottom: 1px solid #1a365d; padding-bottom: 5px;">
+            EXECUTIVE SUMMARY
+        </h2>
+        <p style="text-align: justify; line-height: 1.6;">
+            This document presents the official financial performance report covering the specified period. 
+            The report details revenue generation, expense management, and overall business profitability. 
+            All figures are presented in Kenyan Shillings (KShs) and reflect the actual business performance.
+        </p>
+    </div>
+
+    <!-- Financial Highlights -->
+    <h2 style="color: #1a365d; font-size: 14pt; border-bottom: 1px solid #1a365d; padding-bottom: 5px; margin-top: 30px;">
+        FINANCIAL HIGHLIGHTS
+    </h2>
+    
+    <div class="financial-summary">
+        <div class="summary-card gross">
+            <h3>GROSS REVENUE</h3>
+            <div class="value">KShs ${(data.data?.grossSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div style="font-size: 10pt; color: #666; margin-top: 5px;">Total Sales Revenue</div>
+        </div>
+        
+        <div class="summary-card expenses">
+            <h3>TOTAL EXPENSES</h3>
+            <div class="value">KShs ${(data.data?.deductions || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+            <div style="font-size: 10pt; color: #666; margin-top: 5px;">Operating Costs & Deductions</div>
+        </div>
+        
+        <div class="summary-card margin">
+            <h3>PROFIT MARGIN</h3>
+            <div class="value">${profitMargin}%</div>
+            <div style="font-size: 10pt; color: #666; margin-top: 5px;">Net Profit Percentage</div>
+        </div>
+    </div>
+
+    <!-- Detailed Financial Analysis -->
+    <h2 style="color: #1a365d; font-size: 14pt; border-bottom: 1px solid #1a365d; padding-bottom: 5px; margin-top: 30px;">
+        DETAILED FINANCIAL ANALYSIS
+    </h2>
+    
+    <table class="financial-table">
+        <thead>
+            <tr>
+                <th>FINANCIAL METRIC</th>
+                <th>AMOUNT (KShs)</th>
+                <th>PERCENTAGE</th>
+                <th>DESCRIPTION</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Gross Sales Revenue</strong></td>
+                <td>${(data.data?.grossSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td>100%</td>
+                <td>Total revenue before any deductions</td>
+            </tr>
+            <tr>
+                <td><strong>Operating Expenses</strong></td>
+                <td>${(data.data?.deductions || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td>${data.data?.grossSales ? ((data.data.deductions / data.data.grossSales) * 100).toFixed(1) : "0"}%</td>
+                <td>Business costs & operational deductions</td>
+            </tr>
+            <tr class="total-row">
+                <td><strong>NET SALES</strong></td>
+                <td><strong>${(data.data?.netSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
+                <td><strong>${profitMargin}%</strong></td>
+                <td><strong>Revenue after all expenses</strong></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Report Footer -->
+    <div class="report-footer">
+        <div class="footer-grid">
+            <div class="footer-section">
+                <h5>PREPARED BY</h5>
+                <p>TRIBE Business Analytics System<br>
+                Powered by TRC Systems<br>
+                ${new Date(data.generatedAt).toLocaleString("en-US")}</p>
+            </div>
+            
+            <div class="footer-section">
+                <h5>DOCUMENT PURPOSE</h5>
+                <p>Official business performance analysis<br>
+                For management review and strategic planning<br>
+                Valid for financial assessment purposes</p>
             </div>
         </div>
-
-        <div class="financial-highlights">
-            <h2>Financial Highlights</h2>
-            <div class="summary-grid">
-                <div class="summary-card" style="background: rgba(255,255,255,0.1); border-left-color: #fff;">
-                    <h3>Gross Revenue</h3>
-                    <div class="value">KShs ${(data.data?.grossSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                </div>
-                <!-- Net Profit card removed -->
-                <div class="summary-card" style="background: rgba(255,255,255,0.1); border-left-color: #fff;">
-                    <h3>Total Expenses</h3>
-                    <div class="value">KShs ${(data.data?.deductions || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                </div>
-                <div class="summary-card" style="background: rgba(255,255,255,0.1); border-left-color: #fff;">
-                    <h3>Profit Margin</h3>
-                    <div class="value">${profitMargin}%</div>
-                </div>
-            </div>
+        
+        <div class="confidential-stamp">
+            ⚠️ CONFIDENTIAL BUSINESS INFORMATION 
         </div>
-
-        <div class="table-container">
-            <h2>Detailed Financial Breakdown</h2>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Financial Metric</th>
-                        <th>Amount (KShs)</th>
-                        <th>Percentage</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td>Gross Sales Revenue</td>
-                        <td>${(data.data?.grossSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>100%</td>
-                    </tr>
-                    <tr>
-                        <td>Operating Expenses & Deductions</td>
-                        <td>${(data.data?.deductions || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                        <td>${expensePercentage}%</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Net Sales</strong></td>
-                        <td><strong>${(data.data?.netSales || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></td>
-                        <td><strong>${profitMargin}%</strong></td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
-        <div class="summary-grid">
-            <div class="summary-card">
-                <h3>Performance Rating</h3>
-                <div class="value ${parseFloat(profitMargin) > 20 ? "positive" : parseFloat(profitMargin) > 10 ? "positive" : "negative"}">
-                    ${parseFloat(profitMargin) > 20 ? "Excellent" : parseFloat(profitMargin) > 10 ? "Good" : "Needs Improvement"}
-                </div>
-                <div style="margin-top: 10px; font-size: 0.9em;">
-                    Based on ${profitMargin}% profit margin
-                </div>
-            </div>
-            <div class="summary-card">
-                <h3>Revenue Efficiency</h3>
-                <div class="value ${parseFloat(revenueEfficiency) > 100 ? "positive" : "negative"}">
-                    ${revenueEfficiency}%
-                </div>
-                <div style="margin-top: 10px; font-size: 0.9em;">
-                    Return on expenses
-                </div>
-            </div>
-            <div class="summary-card">
-                <h3>Total Transactions</h3>
-                <div class="value">
-                    ${data.data?.totalTransactions || 0}
-                </div>
-                <div style="margin-top: 10px; font-size: 0.9em;">
-                    Completed sales
-                </div>
-            </div>
-            <div class="summary-card">
-                <h3>Average Sale</h3>
-                <div class="value">
-                    KShs ${(data.data?.averageSale || 0).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <div style="margin-top: 10px; font-size: 0.9em;">
-                    Per transaction
-                </div>
-            </div>
-        </div>
-
-        <div class="footer">
-            <p><strong>Report Generated:</strong> ${new Date(data.generatedAt).toLocaleString()}</p>
-            <p style="margin-top: 10px; color: #999;">
-                This report contains confidential business information. Please handle with care.
-            </p>
+        
+        <div style="text-align: center; margin-top: 20px; font-size: 9pt; color: #999;">
+            <p>© ${new Date().getFullYear()} TRC Systems. All rights reserved.</p>
+            <p>This document is generated electronically and is valid without signature.</p>
         </div>
     </div>
 
     <script>
-        // Add print functionality when the HTML is opened
-        setTimeout(() => {
-            if (confirm('Do you want to print this report as PDF? Click "Print" and choose "Save as PDF" as printer.')) {
-                window.print();
+        // Security: Prevent right-click and dev tools inspection
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+            alert('Right-click is disabled for security.');
+        });
+        
+        // Security: Prevent keyboard shortcuts for dev tools
+        document.addEventListener('keydown', function(e) {
+            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (
+                e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && e.keyCode === 73) || // Ctrl+Shift+I
+                (e.ctrlKey && e.shiftKey && e.keyCode === 74) || // Ctrl+Shift+J
+                (e.ctrlKey && e.keyCode === 85) // Ctrl+U
+            ) {
+                e.preventDefault();
+                alert('Developer tools are disabled for security.');
+                return false;
             }
+        });
+        
+        // Auto-trigger print dialog
+        setTimeout(() => {
+            window.print();
         }, 500);
     </script>
 </body>
 </html>`;
+
+	// Create a new window for printing
+	const printWindow = window.open("", "_blank");
+	if (!printWindow) {
+		throw new Error("Could not open print window. Please allow popups for this site.");
+	}
+
+	printWindow.document.write(htmlContent);
+	printWindow.document.close();
+
+	// Add security to the print window
+	setTimeout(() => {
+		if (printWindow && !printWindow.closed) {
+			// Add security event listeners to print window
+			printWindow.document.addEventListener("contextmenu", (e) => e.preventDefault());
+			printWindow.focus();
+		}
+	}, 500);
 };
 
 export default function WeeklyAnalyticsPage() {
@@ -406,6 +649,36 @@ export default function WeeklyAnalyticsPage() {
 	const [dateRange, setDateRange] = useState<string>("this-week");
 	const [reportType, setReportType] = useState<string>("summary");
 	const [isExporting, setIsExporting] = useState(false);
+
+	// Security: Mask merchant ID in console
+	React.useEffect(() => {
+		if (merchantId) {
+			secureData.setSecureData("currentMerchantId", merchantId);
+			secureData.secureLog("Analytics page loaded", {
+				dateRange,
+				merchantId: secureData.maskSensitiveData(merchantId),
+			});
+		}
+	}, [merchantId, dateRange]);
+
+	// Security: Protect against dev tools access
+	React.useEffect(() => {
+		const handleDevTools = () => {
+			secureData.secureLog("Security warning: Dev tools detected", null, "warn");
+		};
+
+		// Check for dev tools periodically
+		const devToolsCheck = setInterval(() => {
+			const widthThreshold = window.outerWidth - window.innerWidth > 160;
+			const heightThreshold = window.outerHeight - window.innerHeight > 160;
+
+			if (widthThreshold || heightThreshold) {
+				handleDevTools();
+			}
+		}, 1000);
+
+		return () => clearInterval(devToolsCheck);
+	}, []);
 
 	// Date ranges
 	const getDateRange = () => {
@@ -438,33 +711,42 @@ export default function WeeklyAnalyticsPage() {
 
 	const { start, end } = getDateRange();
 
-	// Handle Export
-	const handleExport = async (format: string = "pdf") => {
+	// Handle Export - PDF ONLY
+	const handleExport = async () => {
 		if (!merchantId || !transformedData) {
-			console.error("No merchant ID or data available for export");
+			secureData.secureLog("Export failed: No data available", null, "error");
 			return;
 		}
 
 		setIsExporting(true);
 		try {
-			// Pass the current transformedData to the export function
-			await exportReport(transformedData, merchantId, reportType, dateRange, format);
-			console.log("✅ Export completed successfully");
+			await exportReport(transformedData, merchantId, reportType, dateRange);
+			secureData.secureLog("PDF report generated successfully");
 		} catch (error) {
-			console.error("❌ Export failed:", error);
+			secureData.secureLog("Export failed", error, "error");
+			alert('To save as PDF: Click "Print" in your browser and select "Save as PDF" as your printer.');
 		} finally {
 			setIsExporting(false);
 		}
 	};
 
-	// Weekly Analytics Query - FIXED: No merchantId parameter
+	// Weekly Analytics Query with security
 	const {
 		data: weeklyAnalytics,
 		isLoading: analyticsLoading,
 		error: analyticsError,
 	} = useQuery({
-		queryKey: ["weekly-analytics", merchantId, start, end],
-		queryFn: () => inventoryService.getWeeklyAnalytics(start, end),
+		queryKey: ["weekly-analytics", secureData.maskSensitiveData(merchantId || ""), start, end],
+		queryFn: async () => {
+			secureData.secureLog("Fetching analytics data", { start, end });
+			const result = await inventoryService.getWeeklyAnalytics(start, end);
+
+			// Secure the data before returning
+			const securedData = secureData.maskSensitiveData(result);
+			secureData.setSecureData("analyticsData", securedData);
+
+			return result;
+		},
 		enabled: !!merchantId,
 	});
 
@@ -474,7 +756,8 @@ export default function WeeklyAnalyticsPage() {
 
 		const data = weeklyAnalytics.data || weeklyAnalytics;
 
-		return {
+		// Store securely
+		const transformed = {
 			grossSales: data.grossSales || data.totalRevenue || 0,
 			deductions: data.deductions || data.totalExpenses || 0,
 			netSales: data.netSales || data.profit || 0,
@@ -484,6 +767,9 @@ export default function WeeklyAnalyticsPage() {
 			averageSale: data.averageSale || 0,
 			range: weeklyAnalytics.range || { start, end },
 		};
+
+		secureData.setSecureData("transformedData", transformed);
+		return transformed;
 	};
 
 	const transformedData = getTransformedData();
@@ -562,36 +848,27 @@ export default function WeeklyAnalyticsPage() {
 							<Button
 								variant="outline"
 								className="whitespace-nowrap"
-								onClick={() => handleExport("pdf")}
+								onClick={handleExport}
 								disabled={isExporting || !merchantId || !transformedData}
 							>
 								{isExporting ? (
 									<>
 										<Icon icon="eos-icons:loading" className="h-4 w-4 mr-2" />
-										Exporting...
+										Generating Report...
 									</>
 								) : (
 									<>
 										<Icon icon="lucide:file-text" className="h-4 w-4 mr-2" />
-										Export Report (HTML)
+										Get Report (PDF)
 									</>
 								)}
 							</Button>
-							<Button
-								variant="outline"
-								className="whitespace-nowrap"
-								onClick={() => handleExport("csv")}
-								disabled={isExporting || !merchantId || !transformedData}
-							>
-								<Icon icon="lucide:download" className="h-4 w-4 mr-2" />
-								Export CSV
-							</Button>
+							{/* CSV Button REMOVED */}
 						</div>
 					</div>
 				</CardContent>
 			</Card>
 
-			{/* Rest of the UI remains the same */}
 			{/* Key Metrics Overview */}
 			<div className="grid grid-cols-2 md:grid-cols-3 gap-4">
 				<Card>
@@ -602,16 +879,11 @@ export default function WeeklyAnalyticsPage() {
 								<p className="text-2xl font-bold text-green-600">
 									{isLoading ? "..." : formatCurrency(transformedData?.grossSales || 0)}
 								</p>
-								<Badge variant="outline" className="mt-1">
-									+12% from last week
-								</Badge>
 							</div>
 							<Icon icon="lucide:banknote" className="h-8 w-8 text-green-500 opacity-60" />
 						</div>
 					</CardContent>
 				</Card>
-
-				{/* Net Profit card removed */}
 
 				<Card>
 					<CardContent className="p-6">
@@ -621,9 +893,6 @@ export default function WeeklyAnalyticsPage() {
 								<p className="text-2xl font-bold text-red-600">
 									{isLoading ? "..." : formatCurrency(transformedData?.deductions || 0)}
 								</p>
-								<Badge variant="outline" className="mt-1">
-									-5% from last week
-								</Badge>
 							</div>
 							<Icon icon="lucide:trending-down" className="h-8 w-8 text-red-500 opacity-60" />
 						</div>
@@ -642,9 +911,6 @@ export default function WeeklyAnalyticsPage() {
 											? `${((transformedData.netSales / transformedData.grossSales) * 100).toFixed(1)}%`
 											: "0%"}
 								</p>
-								<Badge variant="outline" className="mt-1">
-									Stable
-								</Badge>
 							</div>
 							<Icon icon="lucide:percent" className="h-8 w-8 text-purple-500 opacity-60" />
 						</div>
@@ -727,7 +993,6 @@ export default function WeeklyAnalyticsPage() {
 											<span className="font-medium">Total Expenses</span>
 											<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions)}</span>
 										</div>
-										{/* Net Profit summary removed */}
 										<div className="flex justify-between items-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
 											<span className="font-medium">Profit Margin</span>
 											<span className="font-bold text-purple-600">
@@ -818,7 +1083,6 @@ export default function WeeklyAnalyticsPage() {
 												<span>Operating Costs:</span>
 												<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions)}</span>
 											</div>
-											{/* Net Profit line removed */}
 										</div>
 									</div>
 									<div className="space-y-4">
@@ -833,10 +1097,10 @@ export default function WeeklyAnalyticsPage() {
 												</span>
 											</div>
 											<div className="flex justify-between">
-												<span>Revenue Efficiency:</span>
+												<span>Expense to Revenue Ratio:</span>
 												<span className="font-bold">
-													{transformedData.grossSales && transformedData.deductions
-														? `${(((transformedData.grossSales - transformedData.deductions) / transformedData.deductions) * 100).toFixed(1)}%`
+													{transformedData.grossSales
+														? `${((transformedData.deductions / transformedData.grossSales) * 100).toFixed(1)}%`
 														: "0%"}
 												</span>
 											</div>

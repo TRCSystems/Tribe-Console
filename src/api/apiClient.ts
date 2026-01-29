@@ -133,7 +133,7 @@ const responseInterceptor = {
 		// Handle specific HTTP status codes
 		if (status === 401) {
 			console.log("🔐 Unauthorized - clearing user store");
-			useUserStore.getState().clearUser();
+			useUserStore.getState().actions.clearUserInfoAndToken();
 
 			// Only redirect if not already on login page
 			if (!window.location.pathname.includes("/login")) {

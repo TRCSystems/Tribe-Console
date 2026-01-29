@@ -3,16 +3,16 @@ import { useEffect } from "react";
 import { useUserStore } from "@/store/userStore";
 
 export const useAuth = () => {
-	const { isAuthenticated, merchantId, checkAuth } = useUserStore();
+	const { isAuthenticated, merchantId, actions } = useUserStore();
 
 	useEffect(() => {
 		// Check authentication on mount and when dependencies change
-		checkAuth();
-	}, [checkAuth]);
+		actions.checkAuthState();
+	}, [actions]);
 
 	return {
 		isAuthenticated,
 		merchantId,
-		checkAuth,
+		checkAuthState: actions.checkAuthState,
 	};
 };

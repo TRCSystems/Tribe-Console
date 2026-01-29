@@ -54,12 +54,12 @@ export class ElectronFileSystem {
 	private static api = getElectronAPI();
 
 	static async importCSV(filePath?: string): Promise<string> {
-		if (!this.api) {
+		if (!ElectronFileSystem.api) {
 			throw new Error("Not running in Electron");
 		}
 
 		if (!filePath) {
-			const result = await this.api.openFileDialog({
+			const result = await ElectronFileSystem.api.openFileDialog({
 				title: "Import CSV File",
 				filters: [
 					{ name: "CSV Files", extensions: ["csv", "txt"] },
@@ -75,20 +75,20 @@ export class ElectronFileSystem {
 			filePath = result.filePaths[0];
 		}
 
-		const readResult = await this.api.readFile(filePath);
+		const readResult = await ElectronFileSystem.api.readFile(filePath);
 		if (!readResult.success) {
 			throw new Error(`Failed to read file: ${readResult.error}`);
 		}
 
-		return readResult.content!;
+		return readResult.content || "";
 	}
 
 	static async exportCSV(content: string, defaultName: string = "export.csv"): Promise<string> {
-		if (!this.api) {
+		if (!ElectronFileSystem.api) {
 			throw new Error("Not running in Electron");
 		}
 
-		const result = await this.api.saveFileDialog({
+		const result = await ElectronFileSystem.api.saveFileDialog({
 			title: "Export CSV File",
 			defaultPath: defaultName,
 			filters: [
@@ -101,7 +101,7 @@ export class ElectronFileSystem {
 			throw new Error("Export cancelled");
 		}
 
-		const writeResult = await this.api.writeFile(result.filePath, content);
+		const writeResult = await ElectronFileSystem.api.writeFile(result.filePath, content);
 		if (!writeResult.success) {
 			throw new Error(`Failed to write file: ${writeResult.error}`);
 		}
@@ -110,14 +110,14 @@ export class ElectronFileSystem {
 	}
 
 	static async showNotification(title: string, body: string) {
-		if (!this.api) {
+		if (!ElectronFileSystem.api) {
 			if ("Notification" in window && Notification.permission === "granted") {
 				new Notification(title, { body });
 			}
 			return;
 		}
 
-		await this.api.showNotification({
+		await ElectronFileSystem.api.showNotification({
 			title,
 			body,
 		});

@@ -4,14 +4,13 @@ import { useState } from "react";
 import { useNavigate } from "react-router";
 import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
+import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useMerchantId } from "@/store/userStore";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import { Input } from "@/ui/input";
-import { UserRoleIndicator } from "@/components/user-role-indicator";
 
 export default function DailySalesPage() {
-	const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+	const [selectedDate, _setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
 	const merchantId = useMerchantId();
 	const navigate = useNavigate(); // ADD NAVIGATION HOOK
 
@@ -243,10 +242,7 @@ export default function DailySalesPage() {
 									<p className="text-sm text-muted-foreground">Selected Date</p>
 									<p className="text-xl font-bold">{new Date(selectedDate).toLocaleDateString()}</p>
 								</div>
-								<div className="text-center p-6 bg-slate-50 dark:bg-slate-800 rounded-lg">
-									<p className="text-sm text-muted-foreground">Merchant ID</p>
-									<p className="text-xl font-bold">{merchantId}</p>
-								</div>
+
 								{transformedData.grossSales > 0 && (
 									<div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
 										<p className="text-sm text-muted-foreground">Profit Margin</p>

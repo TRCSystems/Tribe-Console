@@ -353,7 +353,7 @@ export const OTPModal = ({
 							<div className="flex justify-center gap-3 md:gap-4">
 								{otp.map((digit, index) => (
 									<Input
-										key={index}
+										key={`otp-${index}`}
 										ref={(el) => {
 											inputsRef.current[index] = el;
 											if (el && isElectron) {

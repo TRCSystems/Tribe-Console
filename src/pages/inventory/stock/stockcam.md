@@ -15,6 +15,7 @@ import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
+import { capturePhotoFromCamera, isMobileDevice } from "@/utils/camera-utils";
 import { getMerchantNameFromToken } from "@/utils/jwt";
 
 // CSV Template Content
@@ -488,9 +489,11 @@ export default function StockManagementPage() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
-	const [stockToAdd, setStockToAdd] = useState<{ inventoryId: number; quantity: number; currentStock?: number } | null>(
-		null,
-	);
+	const [stockToAdd, setStockToAdd] = useState<{
+		inventoryId: number;
+		quantity: number;
+		currentStock?: number;
+	} | null>(null);
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 	const [showTemplateNotification, setShowTemplateNotification] = useState(false);
@@ -818,7 +821,10 @@ export default function StockManagementPage() {
 				const startingStock = parseFloat(columns[2].trim());
 
 				if (!itemName || itemName === "") {
-					return { isValid: false, error: `Row ${i + 1}: Item name cannot be empty.` };
+					return {
+						isValid: false,
+						error: `Row ${i + 1}: Item name cannot be empty.`,
+					};
 				}
 				if (isNaN(unitPrice) || unitPrice < 0) {
 					return {
@@ -846,6 +852,228 @@ export default function StockManagementPage() {
 		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
 
+	// Helper function to show upload options
+	const showUploadOptions = (): Promise<"camera" | "file" | "cancel"> => {
+		return new Promise((resolve) => {
+			const modal = document.createElement("div");
+			modal.className = "upload-options-modal";
+			modal.innerHTML = `
+        <style>
+          .upload-options-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0,0,0,0.8);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          }
+          
+          .upload-options-content {
+            background: white;
+            border-radius: 16px;
+            width: 90%;
+            max-width: 400px;
+            overflow: hidden;
+            animation: slideUp 0.3s ease;
+          }
+          
+          @keyframes slideUp {
+            from { transform: translateY(50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+          }
+          
+          .upload-options-header {
+            padding: 24px 20px 16px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+          }
+          
+          .upload-options-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+          }
+          
+          .upload-options-subtitle {
+            font-size: 14px;
+            color: #666;
+          }
+          
+          .upload-options-buttons {
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            gap: 12px;
+          }
+          
+          .upload-option-btn {
+            padding: 16px;
+            border-radius: 12px;
+            border: 2px solid #007aff;
+            background: white;
+            color: #007aff;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            transition: all 0.2s;
+          }
+          
+          .upload-option-btn:hover {
+            background: #007aff;
+            color: white;
+          }
+          
+          .upload-option-btn.cancel {
+            border-color: #ddd;
+            color: #666;
+            margin-top: 8px;
+          }
+          
+          .upload-option-btn.cancel:hover {
+            background: #f5f5f5;
+            color: #333;
+          }
+          
+          .upload-icon {
+            width: 24px;
+            height: 24px;
+          }
+        </style>
+        
+        <div class="upload-options-content">
+          <div class="upload-options-header">
+            <div class="upload-options-title">Upload Invoice</div>
+            <div class="upload-options-subtitle">Choose how you want to upload</div>
+          </div>
+          
+          <div class="upload-options-buttons">
+            <button class="upload-option-btn" data-choice="camera">
+              <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
+              </svg>
+              Take Photo
+            </button>
+            
+            <button class="upload-option-btn" data-choice="file">
+              <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Choose File
+            </button>
+            
+            <button class="upload-option-btn cancel" data-choice="cancel">
+              Cancel
+            </button>
+          </div>
+        </div>
+      `;
+
+			document.body.appendChild(modal);
+
+			// Add event listeners
+			modal.querySelectorAll(".upload-option-btn").forEach((btn) => {
+				btn.addEventListener("click", (e) => {
+					const choice = (e.currentTarget as HTMLButtonElement).dataset.choice as "camera" | "file" | "cancel";
+					document.body.removeChild(modal);
+					resolve(choice);
+				});
+			});
+
+			// Close on backdrop click
+			modal.addEventListener("click", (e) => {
+				if (e.target === modal) {
+					document.body.removeChild(modal);
+					resolve("cancel");
+				}
+			});
+		});
+	};
+
+	// Helper function to capture and upload
+	const captureAndUpload = async () => {
+		try {
+			message.info({
+				content: "Preparing camera...",
+				duration: 2,
+			});
+
+			const capturedFile = await capturePhotoFromCamera({
+				facingMode: "environment", // Use rear camera
+				quality: 0.9,
+				maxWidth: 1200,
+			});
+
+			if (capturedFile) {
+				uploadInvoiceMutation.mutate(capturedFile);
+			}
+		} catch (error: any) {
+			console.error("Camera capture error:", error);
+
+			if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+				message.error({
+					content: "Camera access denied. Please allow camera access or use file upload.",
+					duration: 4,
+				});
+			} else if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+				message.error({
+					content: "No camera found on this device. Please use file upload.",
+					duration: 4,
+				});
+			} else if (error.message.includes("not supported")) {
+				message.error({
+					content: "Camera not supported. Please use file upload.",
+					duration: 3,
+				});
+			} else {
+				message.error({
+					content: "Failed to access camera. Please try file upload instead.",
+					duration: 3,
+				});
+			}
+
+			// Fallback to file selection
+			invoiceFileInputRef.current?.click();
+		}
+	};
+
+	const handleUploadInvoice = async () => {
+		if (!canPerformActions) {
+			message.error("Please login to upload invoices");
+			return;
+		}
+
+		// Check if device is mobile
+		const isMobile = isMobileDevice();
+
+		if (isMobile) {
+			// Offer camera or file upload option
+			const selection = await showUploadOptions();
+
+			if (selection === "camera") {
+				await captureAndUpload();
+			} else if (selection === "file") {
+				invoiceFileInputRef.current?.click();
+			}
+			// If 'cancel', do nothing
+		} else {
+			// Desktop - just use file upload
+			invoiceFileInputRef.current?.click();
+		}
+	};
+
 	const processedInventory = inventory.map(getItemData);
 	const filteredInventory = processedInventory.filter((item: InventoryItem) => {
 		return item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
@@ -859,7 +1087,9 @@ export default function StockManagementPage() {
 
 	const downloadCSVTemplate = () => {
 		try {
-			const blob = new Blob([CSV_TEMPLATE_CONTENT], { type: "text/csv;charset=utf-8;" });
+			const blob = new Blob([CSV_TEMPLATE_CONTENT], {
+				type: "text/csv;charset=utf-8;",
+			});
 			const url = URL.createObjectURL(blob);
 			const link = document.createElement("a");
 			link.href = url;
@@ -874,14 +1104,6 @@ export default function StockManagementPage() {
 		} catch (error) {
 			message.error("Failed to download template. Please try again.");
 		}
-	};
-
-	const handleUploadInvoice = () => {
-		if (!canPerformActions) {
-			message.error("Please login to upload invoices");
-			return;
-		}
-		invoiceFileInputRef.current?.click();
 	};
 
 	const handleInvoiceFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1195,21 +1417,28 @@ export default function StockManagementPage() {
 						</span>
 					</div>
 
-					{/* Upload Invoice Button */}
-					<div className="flex flex-col items-center gap-1">
+					{/* Upload Invoice Button with Camera Option */}
+					<div className="flex flex-col items-center gap-1 relative group">
 						<Button
 							onClick={handleUploadInvoice}
 							disabled={uploadInvoiceMutation.isPending || approveInvoiceMutation.isPending || !canPerformActions}
-							className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-green-500 hover:from-green-600 hover:to-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+							className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
 							variant="default"
-							title="Upload Invoice PDF"
+							title="Upload Invoice PDF or Capture Photo"
 						>
 							{uploadInvoiceMutation.isPending || approveInvoiceMutation.isPending ? (
 								<Icon icon="eos-icons:loading" className="h-5 w-5" />
 							) : (
-								<Icon icon="lucide:file-text" className="h-5 w-5" />
+								<Icon icon="lucide:camera" className="h-5 w-5" />
 							)}
 						</Button>
+
+						{/* Tooltip for desktop */}
+						<div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-50">
+							Upload PDF or capture photo
+							{isMobileDevice() && " (mobile: choose option)"}
+						</div>
+
 						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
 							{uploadInvoiceMutation.isPending
 								? "UPLOADING..."

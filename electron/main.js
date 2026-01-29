@@ -1,11 +1,11 @@
 // electron/main.js - FINAL PRODUCTION VERSION
 import { app, BrowserWindow, Menu, shell, ipcMain, dialog, Notification, nativeTheme, Tray } from "electron";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
+import path from "node:path";
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
 
 // ✅ FIX: Use require() for electron-updater with ES modules
-import { createRequire } from "module";
+import { createRequire } from "node:module";
 const require = createRequire(import.meta.url);
 const { autoUpdater } = require("electron-updater");
 

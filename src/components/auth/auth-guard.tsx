@@ -74,5 +74,5 @@ export const AuthGuard = ({
 				? checkFn.checkAll(checkAll)
 				: true;
 
-	return hasAccess ? <>{children}</> : <>{fallback}</>;
+	return hasAccess ? children : fallback;
 };

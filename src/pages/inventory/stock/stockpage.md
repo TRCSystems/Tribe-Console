@@ -2,11 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
-import inventoryService, {
-	type InventoryItem,
-	type InvoiceUploadResponse,
-	type StockItem,
-} from "@/api/services/inventoryService";
+import inventoryService, { type InventoryItem, type StockItem } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { LockModal } from "@/components/lock-modal";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
@@ -24,261 +20,7 @@ Product 2,1500,20
 Product 3,1200,40
 Product 4,30,200`;
 
-// SIMPLIFIED Invoice Upload Modal - Shows only extracted items
-const InvoiceUploadModal = ({
-	open,
-	setOpen,
-	invoiceData,
-	onApprove,
-	isLoading = false,
-}: {
-	open: boolean;
-	setOpen: (open: boolean) => void;
-	invoiceData: InvoiceUploadResponse | null;
-	onApprove: () => void;
-	isLoading: boolean;
-}) => {
-	if (!open) return null;
-
-	// Early return if no invoice data
-	if (!invoiceData || !invoiceData.success) {
-		return (
-			<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-				<Card className="w-full max-w-md">
-					<CardHeader>
-						<CardTitle className="text-gray-900 dark:text-gray-100">Invoice Processing</CardTitle>
-						<CardDescription className="text-gray-600 dark:text-gray-400">
-							{invoiceData?.message || "Processing invoice..."}
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="text-center py-8">
-							<Icon icon="lucide:file-x" className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-							<p className="text-gray-600 dark:text-gray-400">
-								{invoiceData?.message || "Unable to process invoice data"}
-							</p>
-						</div>
-						<div className="flex justify-end">
-							<Button variant="outline" onClick={() => setOpen(false)}>
-								Close
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
-
-	// Extract items from data
-	const items = Array.isArray(invoiceData.data?.items) ? invoiceData.data.items : [];
-	const messageText = invoiceData.message || "Items extracted successfully";
-
-	if (items.length === 0) {
-		return (
-			<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-				<Card className="w-full max-w-md">
-					<CardHeader>
-						<CardTitle className="text-gray-900 dark:text-gray-100">No Items Found</CardTitle>
-						<CardDescription className="text-gray-600 dark:text-gray-400">{messageText}</CardDescription>
-					</CardHeader>
-					<CardContent className="space-y-4">
-						<div className="text-center py-8">
-							<Icon icon="lucide:package-x" className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-							<p className="text-gray-600 dark:text-gray-400">No items were extracted from this invoice.</p>
-						</div>
-						<div className="flex justify-end">
-							<Button variant="outline" onClick={() => setOpen(false)}>
-								Close
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-			</div>
-		);
-	}
-
-	return (
-		<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-			<Card className="w-full max-w-4xl max-h-[90vh] overflow-hidden">
-				<CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
-					<div className="flex items-center justify-between">
-						<div>
-							<CardTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2">
-								<Icon icon="lucide:check-circle" className="h-5 w-5 text-green-600" />
-								Invoice Items ({items.length} items)
-							</CardTitle>
-							<CardDescription className="text-gray-600 dark:text-gray-400">
-								Review extracted items before adding to inventory
-							</CardDescription>
-						</div>
-						<Button variant="ghost" size="sm" onClick={() => setOpen(false)} className="h-8 w-8 p-0">
-							<Icon icon="lucide:x" className="h-4 w-4" />
-						</Button>
-					</div>
-				</CardHeader>
-
-				<CardContent className="overflow-y-auto p-6 space-y-6">
-					{/* Items Table Only */}
-					<div className="space-y-4">
-						<h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-							<Icon icon="lucide:package" className="h-5 w-5" />
-							Extracted Items
-						</h3>
-						<div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-							<table className="w-full min-w-max">
-								<thead className="bg-gray-50 dark:bg-gray-800">
-									<tr>
-										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">#</th>
-										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Item Name</th>
-										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Quantity</th>
-										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Unit Cost</th>
-										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Line Total</th>
-									</tr>
-								</thead>
-								<tbody>
-									{items.map((item, index) => (
-										<tr
-											key={index}
-											className={`border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
-												index % 2 === 0 ? "bg-gray-50/50 dark:bg-gray-800/30" : ""
-											}`}
-										>
-											<td className="p-4 text-center">
-												<span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300 text-xs font-semibold">
-													{index + 1}
-												</span>
-											</td>
-											<td className="p-4">
-												<div>
-													<p className="font-medium text-gray-900 dark:text-gray-100">
-														{item.rawName || "Unnamed Item"}
-													</p>
-													{item.normalizedName && item.normalizedName !== item.rawName && (
-														<p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
-															Normalized: <span className="font-medium">{item.normalizedName}</span>
-														</p>
-													)}
-												</div>
-											</td>
-											<td className="p-4">
-												<div className="flex items-center gap-2">
-													<span className="inline-flex items-center justify-center w-8 h-8 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-300 font-semibold">
-														{item.quantity || 0}
-													</span>
-													<span className="text-sm text-gray-600 dark:text-gray-400">units</span>
-												</div>
-											</td>
-											<td className="p-4">
-												<div className="flex items-center gap-2">
-													<p className="font-medium text-gray-900 dark:text-gray-100">
-														KShs{" "}
-														{(item.unitCost || 0).toLocaleString(undefined, {
-															minimumFractionDigits: 2,
-															maximumFractionDigits: 2,
-														})}
-													</p>
-												</div>
-											</td>
-											<td className="p-4">
-												<div className="flex items-center gap-2">
-													<p className="font-bold text-green-600 dark:text-green-400">
-														KShs{" "}
-														{(item.lineTotal || 0).toLocaleString(undefined, {
-															minimumFractionDigits: 2,
-															maximumFractionDigits: 2,
-														})}
-													</p>
-												</div>
-											</td>
-										</tr>
-									))}
-								</tbody>
-								<tfoot className="bg-gray-50 dark:bg-gray-800 border-t-2 border-gray-300 dark:border-gray-600">
-									<tr>
-										<td colSpan={4} className="p-4 text-right font-bold text-gray-900 dark:text-gray-100">
-											TOTAL VALUE:
-										</td>
-										<td className="p-4">
-											<div className="flex items-center justify-between">
-												<Icon icon="lucide:calculator" className="h-5 w-5 text-green-600" />
-												<p className="font-bold text-xl text-green-700 dark:text-green-300">
-													KShs{" "}
-													{items
-														.reduce((sum, item) => sum + (item.lineTotal || 0), 0)
-														.toLocaleString(undefined, {
-															minimumFractionDigits: 2,
-															maximumFractionDigits: 2,
-														})}
-												</p>
-											</div>
-										</td>
-									</tr>
-								</tfoot>
-							</table>
-						</div>
-					</div>
-
-					{/* Simple summary */}
-					<div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-						<div className="flex flex-col sm:flex-row justify-between items-center gap-4">
-							<div className="text-sm text-gray-600 dark:text-gray-400">
-								<p>
-									<span className="font-semibold">{items.length} items</span> extracted from invoice
-								</p>
-								<p className="text-xs mt-1">{messageText}</p>
-							</div>
-							<div className="text-right">
-								<p className="text-lg font-bold text-green-700 dark:text-green-300">
-									Total: KShs{" "}
-									{items
-										.reduce((sum, item) => sum + (item.lineTotal || 0), 0)
-										.toLocaleString(undefined, {
-											minimumFractionDigits: 2,
-											maximumFractionDigits: 2,
-										})}
-								</p>
-							</div>
-						</div>
-					</div>
-
-					{/* Action Buttons */}
-					<div className="flex flex-col sm:flex-row gap-4 justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
-						<div className="text-sm text-gray-600 dark:text-gray-400">
-							<h1>TRIBE</h1>
-							<p>Powered by TRC Systems</p>
-						</div>
-						<div className="flex gap-4">
-							<Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
-								<Icon icon="lucide:x" className="mr-2 h-4 w-4" />
-								Cancel
-							</Button>
-							<Button
-								onClick={onApprove}
-								disabled={isLoading}
-								className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
-								size="lg"
-							>
-								{isLoading ? (
-									<>
-										<Icon icon="eos-icons:loading" className="mr-2 h-5 w-5" />
-										Processing...
-									</>
-								) : (
-									<>
-										<Icon icon="lucide:check-circle" className="mr-2 h-5 w-5" />
-										Approve & Add to Inventory
-									</>
-								)}
-							</Button>
-						</div>
-					</div>
-				</CardContent>
-			</Card>
-		</div>
-	);
-};
-
-// Edit Modal Component (keep as is)
+// Edit Modal Component
 const EditInventoryModal = ({
 	open,
 	setOpen,
@@ -405,7 +147,7 @@ const EditInventoryModal = ({
 	);
 };
 
-// Delete Confirmation Modal Component (keep as is)
+// Delete Confirmation Modal Component
 const DeleteConfirmationModal = ({
 	open,
 	setOpen,
@@ -496,13 +238,7 @@ export default function StockManagementPage() {
 	const [showTemplateNotification, setShowTemplateNotification] = useState(false);
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
-
-	// Invoice upload states
-	const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
-	const [invoicePreviewData, setInvoicePreviewData] = useState<InvoiceUploadResponse | null>(null);
-
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const invoiceFileInputRef = useRef<HTMLInputElement>(null);
 
 	// Security states
 	const [isLocked, setIsLocked] = useState(true);
@@ -525,7 +261,7 @@ export default function StockManagementPage() {
 
 	const canPerformActions = isAuthenticated && !!merchantId;
 
-	// handleUnlock BEFORE return
+	//  handleUnlock BEFORE return
 	const handleUnlock = (password: string) => {
 		const correctPassword = merchantName ? `${merchantName}@tribeadmin` : null;
 
@@ -575,13 +311,23 @@ export default function StockManagementPage() {
 		enabled: !!merchantId && isAuthenticated && !isLocked,
 	});
 
-	// 6. All useMutation hooks
+	// 6. All useMutation hooks (NOW they can use canPerformActions)
 	const addStockMutation = useMutation({
 		mutationFn: async (data: { merchantId: string; items: StockItem[] }) => {
+			console.log("🔄 Add Stock Mutation Started:", data);
+
 			if (!canPerformActions) {
 				throw new Error("User not authenticated or missing merchant ID");
 			}
-			return inventoryService.addStock(data);
+
+			try {
+				const result = await inventoryService.addStock(data);
+				console.log("✅ Add stock successful:", result);
+				return result;
+			} catch (error) {
+				console.error("❌ Add stock failed:", error);
+				throw error;
+			}
 		},
 		onSuccess: () => {
 			message.success("Stock added successfully!");
@@ -589,6 +335,7 @@ export default function StockManagementPage() {
 			setStockToAdd(null);
 		},
 		onError: (error: Error) => {
+			console.error("❌ Mutation onError:", error);
 			if (error.message.includes("Authentication failed") || error.message.includes("401")) {
 				message.error("Authentication failed. Please login again.");
 			} else {
@@ -599,24 +346,38 @@ export default function StockManagementPage() {
 
 	const importCSVMutation = useMutation({
 		mutationFn: async (file: File) => {
+			console.group("🔄 CSV Import Started");
+			console.log("📁 File:", file.name, file.size);
+
 			if (!canPerformActions) {
 				throw new Error("User not authenticated or missing merchant ID");
 			}
 
-			const fileContent = await readCSVFile(file);
-			const validationResult = validateCSVData(fileContent);
+			try {
+				// Read and validate CSV file before sending to server
+				const fileContent = await readCSVFile(file);
+				const validationResult = validateCSVData(fileContent);
 
-			if (!validationResult.isValid) {
-				throw new Error(`CSV validation failed: ${validationResult.error}`);
+				if (!validationResult.isValid) {
+					throw new Error(`CSV validation failed: ${validationResult.error}`);
+				}
+
+				const result = await inventoryService.importInventory(file, merchantId!);
+				console.log("✅ Import successful:", result);
+				return result;
+			} catch (error) {
+				console.error("❌ Import failed:", error);
+				throw error;
+			} finally {
+				console.groupEnd();
 			}
-
-			return inventoryService.importInventory(file);
 		},
 		onSuccess: (result) => {
 			message.success(`Successfully imported ${result.imported} items!`);
 			queryClient.invalidateQueries({ queryKey: ["inventory"] });
 		},
 		onError: (error: Error) => {
+			console.error("❌ Import onError:", error);
 			message.error(`Import failed: ${error.message}`);
 		},
 	});
@@ -632,7 +393,21 @@ export default function StockManagementPage() {
 			if (!canPerformActions) {
 				throw new Error("User not authenticated");
 			}
-			return inventoryService.updateItem(id, data);
+
+			console.log("✏️ Edit Item Mutation Started:", { id, data });
+
+			try {
+				const result = await inventoryService.updateItem(id, {
+					itemName: data.itemName,
+					quantity: data.quantity,
+					unitPrice: data.unitPrice,
+				});
+				console.log("✅ Edit item successful:", result);
+				return result;
+			} catch (error) {
+				console.error("❌ Edit item failed:", error);
+				throw error;
+			}
 		},
 		onSuccess: (result) => {
 			message.success(result.message || "Item updated successfully!");
@@ -649,7 +424,17 @@ export default function StockManagementPage() {
 			if (!canPerformActions) {
 				throw new Error("User not authenticated");
 			}
-			return inventoryService.deleteItem(id);
+
+			console.log("🗑️ Delete Item Mutation Started:", { id });
+
+			try {
+				const result = await inventoryService.deleteItem(id);
+				console.log("✅ Delete item successful:", result);
+				return result;
+			} catch (error) {
+				console.error("❌ Delete item failed:", error);
+				throw error;
+			}
 		},
 		onSuccess: (result) => {
 			message.success(result.message || "Item deleted successfully!");
@@ -662,51 +447,16 @@ export default function StockManagementPage() {
 		},
 	});
 
-	// Invoice Upload Mutation - USING INVENTORY SERVICE
-	const uploadInvoiceMutation = useMutation({
-		mutationFn: async (file: File) => {
-			if (!canPerformActions) {
-				throw new Error("User not authenticated or missing merchant ID");
-			}
-			return inventoryService.uploadInvoice(file);
-		},
-		onSuccess: (response) => {
-			if (response.success) {
-				setInvoicePreviewData(response);
-				setInvoiceModalOpen(true);
-				message.success("Invoice uploaded successfully!");
-			} else {
-				message.error(`Invoice extraction failed: ${response.message}`);
-			}
-		},
-		onError: (error: Error) => {
-			message.error(`Invoice upload failed: ${error.message}`);
-		},
-	});
-
-	// Approve Invoice Mutation - USING INVENTORY SERVICE
-	const approveInvoiceMutation = useMutation({
-		mutationFn: async () => {
-			if (!invoicePreviewData?.invoiceSubmissionId || !invoicePreviewData.data?.items) {
-				throw new Error("Missing required data for approval");
-			}
-			return inventoryService.approveInvoice(invoicePreviewData.invoiceSubmissionId!, invoicePreviewData.data.items);
-		},
-		onSuccess: (result) => {
-			message.success(result.message);
-			setInvoiceModalOpen(false);
-			setInvoicePreviewData(null);
-			queryClient.invalidateQueries({ queryKey: ["inventory"] });
-			if (invoiceFileInputRef.current) {
-				invoiceFileInputRef.current.value = "";
-			}
-		},
-		onError: (error: Error) => {
-			message.error(`Invoice approval failed: ${error.message}`);
-		},
-	});
-
 	// 7. All useEffect hooks
+	useEffect(() => {
+		console.log("🔄 Stock Management - Auth Status:", {
+			isAuthenticated,
+			merchantId,
+			canPerformActions,
+			isLocked,
+		});
+	}, [isAuthenticated, merchantId, canPerformActions, isLocked]);
+
 	useEffect(() => {
 		const unlockData = localStorage.getItem("stock_page_unlocked");
 		if (unlockData) {
@@ -716,11 +466,20 @@ export default function StockManagementPage() {
 
 				if (!isExpired && data.unlocked) {
 					setIsLocked(false);
+					console.log(
+						"🔓 Page already unlocked (valid until:",
+						new Date(data.timestamp + data.expiresIn).toLocaleTimeString(),
+						")",
+					);
 				} else {
+					// Clear expired data
 					localStorage.removeItem("stock_page_unlocked");
+					console.log("🔐 Clearing expired unlock data");
 				}
 			} catch (error) {
+				// Invalid data, clear it
 				localStorage.removeItem("stock_page_unlocked");
+				console.log("🔐 Clearing invalid unlock data");
 			}
 		}
 	}, []);
@@ -739,6 +498,7 @@ export default function StockManagementPage() {
 
 	// ========== HELPER FUNCTIONS (NO HOOKS) ==========
 
+	// CORRECT: Field mapping based on actual API response
 	const getItemData = (item: any): InventoryItem => {
 		if (!item) {
 			return {
@@ -789,50 +549,78 @@ export default function StockManagementPage() {
 		};
 	};
 
+	// Helper function to read CSV file
 	const readCSVFile = (file: File): Promise<string> => {
 		return new Promise((resolve, reject) => {
 			const reader = new FileReader();
 			reader.onload = (event) => {
 				resolve(event.target?.result as string);
 			};
-			reader.onerror = () => {
+			reader.onerror = (error) => {
 				reject(new Error("Failed to read CSV file"));
 			};
 			reader.readAsText(file);
 		});
 	};
 
+	// Helper function to validate CSV data
 	const validateCSVData = (csvContent: string): { isValid: boolean; error?: string } => {
 		try {
 			const lines = csvContent.split("\n").filter((line) => line.trim() !== "");
+
+			// Skip header row
 			for (let i = 1; i < lines.length; i++) {
 				const columns = lines[i].split(",");
+
+				// Check if there are enough columns
 				if (columns.length < 3) {
 					return {
 						isValid: false,
 						error: `Row ${i + 1}: Incorrect number of columns. Expected 3 columns.`,
 					};
 				}
+
 				const itemName = columns[0].trim();
 				const unitPrice = parseFloat(columns[1].trim());
 				const startingStock = parseFloat(columns[2].trim());
 
+				// Validate item name
 				if (!itemName || itemName === "") {
 					return { isValid: false, error: `Row ${i + 1}: Item name cannot be empty.` };
 				}
+
+				// Validate unit price (must be non-negative)
 				if (isNaN(unitPrice) || unitPrice < 0) {
 					return {
 						isValid: false,
 						error: `Row ${i + 1}: Unit price must be a non-negative number.`,
 					};
 				}
+
+				// Validate starting stock (must be non-negative)
 				if (isNaN(startingStock) || startingStock < 0) {
 					return {
 						isValid: false,
 						error: `Row ${i + 1}: Starting stock must be a non-negative number.`,
 					};
 				}
+
+				// Check for negative values
+				if (startingStock < 0) {
+					return {
+						isValid: false,
+						error: `Row ${i + 1}: Starting stock cannot be negative. Please use 0 or a positive number.`,
+					};
+				}
+
+				if (unitPrice < 0) {
+					return {
+						isValid: false,
+						error: `Row ${i + 1}: Unit price cannot be negative. Please use 0 or a positive number.`,
+					};
+				}
 			}
+
 			return { isValid: true };
 		} catch (error) {
 			return {
@@ -842,11 +630,14 @@ export default function StockManagementPage() {
 		}
 	};
 
+	// Format currency to KShs
 	const formatCurrency = (amount: number) => {
 		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
 
+	// Process inventory data with correct field mapping
 	const processedInventory = inventory.map(getItemData);
+
 	const filteredInventory = processedInventory.filter((item: InventoryItem) => {
 		return item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
 	});
@@ -857,48 +648,40 @@ export default function StockManagementPage() {
 		return { status: "in-stock", variant: "success" as const };
 	};
 
+	// Function to download CSV template
 	const downloadCSVTemplate = () => {
 		try {
+			// Create a Blob with CSV content
 			const blob = new Blob([CSV_TEMPLATE_CONTENT], { type: "text/csv;charset=utf-8;" });
+
+			// Create a temporary URL for the Blob
 			const url = URL.createObjectURL(blob);
+
+			// Create a temporary anchor element
 			const link = document.createElement("a");
 			link.href = url;
 			link.setAttribute("download", "inventory_template.csv");
+
+			// Append to body, click, and remove
 			document.body.appendChild(link);
 			link.click();
 			document.body.removeChild(link);
+
+			// Clean up the URL object
 			URL.revokeObjectURL(url);
+
+			// Show success message
 			message.success("CSV template downloaded successfully!");
+
+			// Show notification for editing
 			setShowTemplateNotification(true);
+
+			// Auto-hide notification after 5 seconds
 			setTimeout(() => setShowTemplateNotification(false), 5000);
 		} catch (error) {
+			console.error("Error downloading CSV template:", error);
 			message.error("Failed to download template. Please try again.");
 		}
-	};
-
-	const handleUploadInvoice = () => {
-		if (!canPerformActions) {
-			message.error("Please login to upload invoices");
-			return;
-		}
-		invoiceFileInputRef.current?.click();
-	};
-
-	const handleInvoiceFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (!file) return;
-
-		if (!file.type.includes("pdf") && !file.name.toLowerCase().endsWith(".pdf")) {
-			message.error("Please select a valid PDF invoice file");
-			return;
-		}
-
-		uploadInvoiceMutation.mutate(file);
-	};
-
-	const handleApproveInvoice = () => {
-		if (!invoicePreviewData) return;
-		approveInvoiceMutation.mutate();
 	};
 
 	const handleAddStock = (item: InventoryItem) => {
@@ -906,12 +689,14 @@ export default function StockManagementPage() {
 			message.error("Please login to add stock");
 			return;
 		}
+
+		// Initialize with current quantity from database
 		const currentItem = processedInventory.find((inv) => inv.id === item.id);
 		if (currentItem) {
 			setStockToAdd({
 				inventoryId: item.id,
-				quantity: 0,
-				currentStock: currentItem.availableStock,
+				quantity: 0, // Start with 0 for user to add to
+				currentStock: currentItem.availableStock, // Store current stock for display
 			});
 		}
 	};
@@ -930,7 +715,10 @@ export default function StockManagementPage() {
 			message.error("Please login to delete items");
 			return;
 		}
+
+		// First confirmation
 		if (window.confirm(`Are you sure you want to delete "${item.itemName}"?`)) {
+			// Set item to delete and open detailed confirmation modal
 			setItemToDelete(item);
 			setDeleteModalOpen(true);
 		}
@@ -948,10 +736,14 @@ export default function StockManagementPage() {
 
 	const confirmAddStock = () => {
 		if (stockToAdd && merchantId) {
+			console.log("🔄 Confirming add stock:", stockToAdd);
+
+			// Quantity should already be validated, but double-check
 			if (stockToAdd.quantity < 0) {
 				message.error("Cannot add negative stock quantity");
 				return;
 			}
+
 			addStockMutation.mutate({
 				merchantId: merchantId,
 				items: [stockToAdd],
@@ -959,6 +751,7 @@ export default function StockManagementPage() {
 		}
 	};
 
+	// Handle Import CSV functionality
 	const handleImportCSV = () => {
 		if (!canPerformActions) {
 			message.error("Please login to import CSV");
@@ -971,6 +764,7 @@ export default function StockManagementPage() {
 		const file = event.target.files?.[0];
 		if (!file) return;
 
+		// Check if it's a CSV or Excel file
 		const validTypes = [
 			".csv",
 			".xls",
@@ -987,17 +781,22 @@ export default function StockManagementPage() {
 			return;
 		}
 
+		console.log("📁 Selected file:", file.name, file.size);
 		importCSVMutation.mutate(file);
+
+		// Reset file input
 		if (fileInputRef.current) {
 			fileInputRef.current.value = "";
 		}
 	};
 
+	// Calculate overview statistics
 	const totalItems = processedInventory.length;
 	const lowStockItems = processedInventory.filter((item) => item.availableStock < 10 && item.availableStock > 0).length;
 	const outOfStockItems = processedInventory.filter((item) => item.availableStock === 0).length;
 	const totalValue = processedInventory.reduce((total, item) => total + item.unitPrice * item.availableStock, 0);
 
+	// Function to manually re-lock the page
 	const handleReLock = () => {
 		localStorage.removeItem("stock_page_unlocked");
 		setIsLocked(true);
@@ -1037,18 +836,37 @@ export default function StockManagementPage() {
 							<CardDescription className="text-gray-600 dark:text-gray-400">
 								How many units do you want to add to{" "}
 								{processedInventory.find((item) => item.id === stockToAdd.inventoryId)?.itemName}?
+								<br />
+								<span className="text-sm font-medium mt-1 block">
+									Current stock: {stockToAdd.currentStock || 0} units
+								</span>
+								<span className="text-sm text-green-600 dark:text-green-400">
+									New total after adding: {stockToAdd.currentStock + stockToAdd.quantity} units
+								</span>
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
 							<div>
+								<label className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2 block">
+									Quantity to Add
+								</label>
 								<Input
 									type="number"
 									value={stockToAdd.quantity}
 									onChange={(e) => {
 										const value = parseInt(e.target.value);
+										// Only update if it's a valid positive number or empty (allowing user to clear the field)
 										if (!isNaN(value) && value >= 0) {
 											setStockToAdd({ ...stockToAdd, quantity: value });
 										} else if (e.target.value === "" || e.target.value === "-") {
+											// Allow empty or just minus sign (will be caught by validation)
+											setStockToAdd({ ...stockToAdd, quantity: 0 });
+										}
+									}}
+									onBlur={(e) => {
+										// On blur, if the value is less than 0, set it to 0
+										const value = parseInt(e.target.value);
+										if (isNaN(value) || value < 0) {
 											setStockToAdd({ ...stockToAdd, quantity: 0 });
 										}
 									}}
@@ -1056,6 +874,11 @@ export default function StockManagementPage() {
 									className="w-full"
 									min="0"
 								/>
+								{stockToAdd.quantity < 0 && (
+									<p className="text-sm text-red-600 dark:text-red-400 mt-1">
+										Quantity cannot be negative. Please enter 0 or more.
+									</p>
+								)}
 							</div>
 							<div className="flex gap-4 justify-end">
 								<Button variant="outline" onClick={() => setStockToAdd(null)} disabled={addStockMutation.isPending}>
@@ -1065,9 +888,25 @@ export default function StockManagementPage() {
 									onClick={confirmAddStock}
 									disabled={addStockMutation.isPending || !canPerformActions || stockToAdd.quantity < 0}
 								>
-									{addStockMutation.isPending ? "Adding..." : "Add Stock"}
+									{addStockMutation.isPending ? (
+										<>
+											<Icon icon="eos-icons:loading" className="mr-2" />
+											Adding...
+										</>
+									) : (
+										"Add Stock"
+									)}
 								</Button>
 							</div>
+
+							{!canPerformActions && (
+								<div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+									<p className="text-sm text-yellow-800 dark:text-yellow-300">
+										<Icon icon="lucide:alert-triangle" className="inline h-4 w-4 mr-1" />
+										You need to be logged in to add stock
+									</p>
+								</div>
+							)}
 						</CardContent>
 					</Card>
 				</div>
@@ -1085,15 +924,6 @@ export default function StockManagementPage() {
 				isDeleting={deleteItemMutation.isPending}
 			/>
 
-			{/* SIMPLIFIED Invoice Upload Modal */}
-			<InvoiceUploadModal
-				open={invoiceModalOpen}
-				setOpen={setInvoiceModalOpen}
-				invoiceData={invoicePreviewData}
-				onApprove={handleApproveInvoice}
-				isLoading={approveInvoiceMutation.isPending}
-			/>
-
 			{/* Template Download Notification */}
 			{showTemplateNotification && (
 				<div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top duration-300">
@@ -1106,7 +936,13 @@ export default function StockManagementPage() {
 										Template Downloaded Successfully!
 									</h4>
 									<p className="text-sm text-green-700 dark:text-green-400 mt-1">
-										Open the file in Excel and add your inventory items.
+										<strong>Download and Edit to your specifications!</strong>
+										<br />
+										Open the file in Excel or any spreadsheet editor and add your inventory items.
+										<br />
+										<strong>Required columns:</strong> ITEM, UNIT_PRICE, STARTING_STOCK
+										<br />
+										<strong>Important:</strong> Do not use negative numbers for quantities or prices!
 									</p>
 								</div>
 								<Button
@@ -1123,20 +959,12 @@ export default function StockManagementPage() {
 				</div>
 			)}
 
-			{/* Hidden file inputs */}
+			{/* Hidden file input for CSV import */}
 			<input
 				ref={fileInputRef}
 				type="file"
 				accept=".csv,.xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
 				onChange={handleFileChange}
-				className="hidden"
-			/>
-
-			<input
-				ref={invoiceFileInputRef}
-				type="file"
-				accept=".pdf,application/pdf"
-				onChange={handleInvoiceFileChange}
 				className="hidden"
 			/>
 
@@ -1161,6 +989,17 @@ export default function StockManagementPage() {
 						<span className="text-xs font-bold">Re-lock</span>
 					</Button>
 
+					{/* Auth Status Indicator */}
+					<div
+						className={`px-3 py-1 rounded-full text-sm font-medium ${
+							canPerformActions
+								? "bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-300"
+								: "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-300"
+						}`}
+					>
+						{canPerformActions ? "✅ Authenticated" : "❌ Not Authenticated"}
+					</div>
+
 					{/* CSV Template Download Button */}
 					<div className="flex flex-col items-center gap-1">
 						<Button
@@ -1175,7 +1014,7 @@ export default function StockManagementPage() {
 						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">TEMPLATE</span>
 					</div>
 
-					{/* Import CSV Button */}
+					{/* Import CSV Button - Circular with text below */}
 					<div className="flex flex-col items-center gap-1">
 						<Button
 							onClick={handleImportCSV}
@@ -1192,30 +1031,6 @@ export default function StockManagementPage() {
 						</Button>
 						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
 							{importCSVMutation.isPending ? "IMPORTING..." : "IMPORT"}
-						</span>
-					</div>
-
-					{/* Upload Invoice Button */}
-					<div className="flex flex-col items-center gap-1">
-						<Button
-							onClick={handleUploadInvoice}
-							disabled={uploadInvoiceMutation.isPending || approveInvoiceMutation.isPending || !canPerformActions}
-							className="w-12 h-12 rounded-full bg-gradient-to-r from-green-500 to-green-500 hover:from-green-600 hover:to-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
-							variant="default"
-							title="Upload Invoice PDF"
-						>
-							{uploadInvoiceMutation.isPending || approveInvoiceMutation.isPending ? (
-								<Icon icon="eos-icons:loading" className="h-5 w-5" />
-							) : (
-								<Icon icon="lucide:file-text" className="h-5 w-5" />
-							)}
-						</Button>
-						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-							{uploadInvoiceMutation.isPending
-								? "UPLOADING..."
-								: approveInvoiceMutation.isPending
-									? "APPROVING..."
-									: "INVOICE"}
 						</span>
 					</div>
 				</div>
@@ -1349,27 +1164,39 @@ export default function StockManagementPage() {
 															size="sm"
 															onClick={() => handleAddStock(item)}
 															disabled={!canPerformActions || addStockMutation.isPending}
-															title="Add Stock"
+															title={canPerformActions ? "Add Stock" : "Please login to add stock"}
 														>
-															<Icon icon="lucide:plus" className="h-4 w-4" />
+															{addStockMutation.isPending && editingItem?.id === item.id ? (
+																<Icon icon="eos-icons:loading" className="h-4 w-4" />
+															) : (
+																<Icon icon="lucide:plus" className="h-4 w-4" />
+															)}
 														</Button>
 														<Button
 															size="sm"
 															variant="outline"
 															onClick={() => handleEditItem(item)}
 															disabled={!canPerformActions || editItemMutation.isPending}
-															title="Edit Item"
+															title={canPerformActions ? "Edit Item" : "Please login to edit items"}
 														>
-															<Icon icon="lucide:edit" className="h-4 w-4" />
+															{editItemMutation.isPending && editingItem?.id === item.id ? (
+																<Icon icon="eos-icons:loading" className="h-4 w-4" />
+															) : (
+																<Icon icon="lucide:edit" className="h-4 w-4" />
+															)}
 														</Button>
 														<Button
 															size="sm"
 															variant="destructive"
 															onClick={() => handleDeleteItem(item)}
 															disabled={!canPerformActions || deleteItemMutation.isPending}
-															title="Delete Item"
+															title={canPerformActions ? "Delete Item" : "Please login to delete items"}
 														>
-															<Icon icon="lucide:trash" className="h-4 w-4" />
+															{deleteItemMutation.isPending && itemToDelete?.id === item.id ? (
+																<Icon icon="eos-icons:loading" className="h-4 w-4" />
+															) : (
+																<Icon icon="lucide:trash" className="h-4 w-4" />
+															)}
 														</Button>
 													</div>
 												</td>

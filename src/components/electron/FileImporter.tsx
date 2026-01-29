@@ -1,5 +1,6 @@
 // src/components/electron/FileImporter.tsx
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
 import { Button, message, Modal, Progress, Space } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
 import { ElectronFileSystem, useElectron } from "@/utils/electronUtils";

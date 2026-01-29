@@ -1,5 +1,5 @@
 import { mainApiClient } from "@/api/apiClient";
-import type { ConfirmPaymentRequest, MpesaPaymentRequest, MpesaPaymentResponse, POSOrder } from "@/types/pos";
+import type { MpesaPaymentRequest, MpesaPaymentResponse, POSOrder } from "@/types/pos";
 
 export const posService = {
 	// Initiate M-Pesa STK Push - USING YOUR ACTUAL ENDPOINT

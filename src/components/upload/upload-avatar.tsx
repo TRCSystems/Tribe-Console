@@ -48,9 +48,16 @@ export function UploadAvatar({ helperText, defaultAvatar = "", ...other }: Props
 
 	const renderContent = (
 		<div
-			className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full"
+			role="button"
+			tabIndex={0}
+			className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full cursor-pointer"
 			onMouseEnter={() => handelHover(true)}
 			onMouseLeave={() => handelHover(false)}
+			onKeyDown={(e) => {
+				if (e.key === "Enter" || e.key === " ") {
+					e.currentTarget.click();
+				}
+			}}
 		>
 			{imageUrl ? renderPreview : null}
 			{!imageUrl || isHover ? renderPlaceholder : null}

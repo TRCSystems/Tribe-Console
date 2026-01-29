@@ -11,15 +11,23 @@ export const useLoyaltyLogin = () => {
 
 	const loginMutation = useMutation({
 		mutationFn: authService.loyaltyLogin,
-		onSuccess: (data) => {
-			const { user, accessToken, refreshToken } = data;
+		onSuccess: (data: any) => {
+			const accessToken = data?.accessToken || data?.token;
+			const refreshToken = data?.refreshToken;
+			const userInfo = data?.user || data;
 
-			setUserToken({ accessToken, refreshToken });
-			setUserInfo({
-				id: user.id,
-				username: user.username,
-				roles: [user.role],
-			});
+			if (accessToken) {
+				setUserToken({ accessToken, refreshToken });
+			}
+
+			if (userInfo?.id && userInfo?.username) {
+				setUserInfo({
+					id: userInfo.id,
+					username: userInfo.username,
+					email: userInfo.email || "",
+					role: userInfo.role || "USER",
+				});
+			}
 
 			toast.success("Login successful!");
 			navigate("/workbench");

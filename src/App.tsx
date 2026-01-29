@@ -31,13 +31,12 @@ function App({ children }: { children: React.ReactNode }) {
 
 						<TokenRecovery />
 
-						{import.meta.env.DEV && (
-							<>
-								{/*	<DebugAuth />
-								<MerchantDebug />
-								<TokenDebug />  */}
-							</>
-						)}
+						{import.meta.env.DEV &&
+							null
+							/*	<DebugAuth />
+							<MerchantDebug />
+							<TokenDebug /> */
+						}
 						<MotionLazy>{children}</MotionLazy>
 					</MerchantProvider>
 				</ThemeProvider>

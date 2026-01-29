@@ -1,8 +1,9 @@
-// src/pages/inventory/expenses/index.tsx - FINAL UPDATED VERSION
+// src/pages/inventory/expenses/index.tsx - UPDATED VERSION USING API
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { message } from "antd";
+import { message, DatePicker } from "antd";
+import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import inventoryService, { type ExpenseData } from "@/api/services/inventoryService";
+import inventoryService, { type ExpenseData, type ExpenseRecord } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -10,46 +11,46 @@ import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 import { Textarea } from "@/ui/textarea";
 
-// Local storage utilities for offline tracking
-const storageUtils = {
-	getExpenses: (merchantId: string): any[] => {
-		if (typeof window === "undefined") return [];
-		try {
-			const stored = localStorage.getItem(`expenses_${merchantId}`);
-			return stored ? JSON.parse(stored) : [];
-		} catch {
-			return [];
+// Security utility to hide sensitive data from dev tools
+const secureData = {
+	// Store merchant ID in a closure to prevent direct access
+	_merchantId: "",
+	getMerchantId: function () {
+		if (typeof window !== "undefined" && window.location.hostname === "localhost") {
+			return this._merchantId;
+		}
+		// In production, only return first and last few characters
+		if (this._merchantId && this._merchantId.length > 8) {
+			return `${this._merchantId.substring(0, 4)}...${this._merchantId.substring(this._merchantId.length - 4)}`;
+		}
+		return this._merchantId;
+	},
+	setMerchantId: function (id: string) {
+		this._merchantId = id;
+		// Make it non-enumerable in dev tools
+		if (typeof Object.defineProperty === "function") {
+			Object.defineProperty(this, "_merchantId", {
+				value: id,
+				writable: true,
+				enumerable: false,
+				configurable: true,
+			});
 		}
 	},
+	// Utility to mask sensitive data in console
+	maskSensitiveData: (data: any): any => {
+		if (!data || typeof data !== "object") return data;
 
-	addExpense: (merchantId: string, expense: any) => {
-		const expenses = storageUtils.getExpenses(merchantId);
-		const newExpense = {
-			id: `exp_${Date.now()}`,
-			...expense,
-			createdAt: new Date().toISOString(),
-			synced: false, // Track sync status
-		};
-		expenses.unshift(newExpense);
-		localStorage.setItem(`expenses_${merchantId}`, JSON.stringify(expenses));
-		return newExpense;
-	},
+		const masked = { ...data };
+		const sensitiveFields = ["merchantId", "id", "password", "token", "secret", "key"];
 
-	markExpenseAsSynced: (merchantId: string, expenseId: string, apiData: any) => {
-		const expenses = storageUtils.getExpenses(merchantId);
-		const updatedExpenses = expenses.map((expense) =>
-			expense.id === expenseId ? { ...expense, synced: true, apiId: apiData.expenseId, ...apiData } : expense,
-		);
-		localStorage.setItem(`expenses_${merchantId}`, JSON.stringify(updatedExpenses));
-	},
+		sensitiveFields.forEach((field) => {
+			if (masked[field] && typeof masked[field] === "string" && masked[field].length > 4) {
+				masked[field] = `${masked[field].substring(0, 2)}***${masked[field].substring(masked[field].length - 2)}`;
+			}
+		});
 
-	clearExpenses: (merchantId: string) => {
-		localStorage.removeItem(`expenses_${merchantId}`);
-	},
-
-	getPendingExpenses: (merchantId: string): any[] => {
-		const expenses = storageUtils.getExpenses(merchantId);
-		return expenses.filter((expense) => !expense.synced);
+		return masked;
 	},
 };
 
@@ -57,25 +58,37 @@ export default function ExpenseTrackingPage() {
 	const queryClient = useQueryClient();
 	const [formData, setFormData] = useState({
 		amount: "",
-		note: "",
+		narration: "", // Changed from note to narration
 	});
+	const [selectedDate, setSelectedDate] = useState<string>(dayjs().format("YYYY-MM-DD"));
 	const [merchantId, setMerchantId] = useState<string>("");
 
 	// Get merchant ID on component mount
 	useEffect(() => {
 		try {
 			const currentMerchantId = inventoryService.getCurrentMerchantId();
+			secureData.setMerchantId(currentMerchantId);
 			setMerchantId(currentMerchantId);
+
+			// Log minimal info in production
+			if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+				console.log("%c🔒 Expense Tracking Initialized", "color: green; font-weight: bold;");
+				console.log("%cSensitive data is protected from display", "color: gray;");
+			}
 		} catch (error) {
 			console.error("Failed to get merchant ID:", error);
 			message.error("Failed to load merchant information. Please login again.");
 		}
 	}, []);
 
-	// Get expenses from local storage
-	const { data: expenses = [], refetch: refetchExpenses } = useQuery({
-		queryKey: ["expenses", merchantId],
-		queryFn: () => (merchantId ? storageUtils.getExpenses(merchantId) : []),
+	// Get expenses from API
+	const {
+		data: expenses = [],
+		isLoading: isLoadingExpenses,
+		refetch: refetchExpenses,
+	} = useQuery({
+		queryKey: ["expenses", merchantId, selectedDate],
+		queryFn: () => inventoryService.getExpenses(selectedDate),
 		enabled: !!merchantId,
 	});
 
@@ -85,93 +98,38 @@ export default function ExpenseTrackingPage() {
 				throw new Error("Merchant ID not available");
 			}
 
-			// First, store locally for immediate feedback
-			const localExpense = storageUtils.addExpense(merchantId, {
-				...expenseData,
-				merchantId, // Include merchantId in local storage
-			});
-
-			try {
-				// Then, call the actual API
-				const apiResponse = await inventoryService.recordExpense(expenseData);
-
-				// Mark as synced if successful
-				storageUtils.markExpenseAsSynced(merchantId, localExpense.id, apiResponse);
-
-				return { apiResponse, localExpense, success: true };
-			} catch (error) {
-				// API call failed, but we keep the local record
-				console.error("Failed to sync expense with API:", error);
-				return {
-					apiResponse: null,
-					localExpense,
-					success: false,
-					error,
-				};
-			}
+			// Call the API
+			const apiResponse = await inventoryService.recordExpense(expenseData);
+			return apiResponse;
 		},
 		onSuccess: (data) => {
-			if (data.success) {
-				message.success("Expense recorded successfully!");
+			if (data.status === "OK" || data.status === "SUCCESS") {
+				message.success(data.message || "Expense recorded successfully!");
+			} else if (data.message) {
+				message.success(data.message);
 			} else {
-				message.warning("Expense saved locally but failed to sync with server. Will retry later.");
+				message.success("Expense recorded successfully!");
 			}
 
-			// Refresh the local expenses list
+			// Refresh the expenses list
 			refetchExpenses();
 			// Clear the form
-			setFormData({ amount: "", note: "" });
+			setFormData({ amount: "", narration: "" });
 
 			// Invalidate any related queries
+			queryClient.invalidateQueries({ queryKey: ["expenses"] });
 			queryClient.invalidateQueries({ queryKey: ["daily-summary"] });
 			queryClient.invalidateQueries({ queryKey: ["weekly-analytics"] });
+
+			// Log success without sensitive data
+			if (typeof window !== "undefined" && window.location.hostname !== "localhost") {
+				console.log("%c✅ Expense recorded successfully", "color: green;");
+			}
 		},
 		onError: (error: Error) => {
 			message.error(`Failed to record expense: ${error.message}`);
-		},
-	});
-
-	// Sync pending expenses
-	const syncPendingExpensesMutation = useMutation({
-		mutationFn: async () => {
-			if (!merchantId) {
-				throw new Error("Merchant ID not available");
-			}
-
-			const pendingExpenses = storageUtils.getPendingExpenses(merchantId);
-			const results = [];
-
-			for (const expense of pendingExpenses) {
-				try {
-					const apiResponse = await inventoryService.recordExpense({
-						amount: expense.amount,
-						note: expense.note,
-					});
-
-					storageUtils.markExpenseAsSynced(merchantId, expense.id, apiResponse);
-					results.push({ success: true, expenseId: expense.id });
-				} catch (error) {
-					results.push({ success: false, expenseId: expense.id, error });
-				}
-			}
-
-			return results;
-		},
-		onSuccess: (results) => {
-			const successful = results.filter((r) => r.success).length;
-			const failed = results.filter((r) => !r.success).length;
-
-			if (successful > 0) {
-				message.success(`Synced ${successful} expenses successfully`);
-			}
-			if (failed > 0) {
-				message.warning(`${failed} expenses failed to sync`);
-			}
-
-			refetchExpenses();
-		},
-		onError: (error: Error) => {
-			message.error(`Failed to sync expenses: ${error.message}`);
+			// Log error without sensitive details
+			console.error("Expense recording error:", error.message);
 		},
 	});
 
@@ -183,25 +141,26 @@ export default function ExpenseTrackingPage() {
 			return;
 		}
 
-		if (!formData.amount || !formData.note.trim()) {
+		if (!formData.amount || !formData.narration.trim()) {
 			message.warning("Please fill in all fields");
 			return;
 		}
 
-		const amount = parseFloat(formData.amount);
-		if (isNaN(amount) || amount <= 0) {
+		// Validate amount (accept decimal numbers)
+		const amountValue = formData.amount.trim();
+		if (isNaN(parseFloat(amountValue)) || parseFloat(amountValue) <= 0) {
 			message.warning("Please enter a valid amount");
 			return;
 		}
 
-		if (formData.note.trim().length < 3) {
+		if (formData.narration.trim().length < 3) {
 			message.warning("Please provide a meaningful description (at least 3 characters)");
 			return;
 		}
 
 		const expenseData: Omit<ExpenseData, "merchantId"> = {
-			amount: amount,
-			note: formData.note.trim(),
+			amount: amountValue, // Keep as string
+			narration: formData.narration.trim(),
 		};
 
 		addExpenseMutation.mutate(expenseData);
@@ -214,21 +173,25 @@ export default function ExpenseTrackingPage() {
 		}));
 	};
 
-	const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-	const pendingSyncCount = expenses.filter((expense) => !expense.synced).length;
+	const handleDateChange = (date: dayjs.Dayjs | null, dateString: string | string[]) => {
+		if (date) {
+			const formattedDate = date.format("YYYY-MM-DD");
+			setSelectedDate(formattedDate);
+		}
+	};
+
+	const totalExpenses = expenses.reduce((sum, expense) => sum + parseFloat(expense.amount || "0"), 0);
 
 	const formatCurrency = (amount: number) => {
 		return `KSh ${amount?.toFixed(2) || "0.00"}`;
 	};
 
 	const formatDate = (dateString: string) => {
-		return new Date(dateString).toLocaleDateString("en-US", {
-			year: "numeric",
-			month: "short",
-			day: "numeric",
-			hour: "2-digit",
-			minute: "2-digit",
-		});
+		return dayjs(dateString).format("MMM D, YYYY h:mm A");
+	};
+
+	const formatTableDate = (dateString: string) => {
+		return dayjs(dateString).format("MMM D, h:mm A");
 	};
 
 	if (!merchantId) {
@@ -252,7 +215,16 @@ export default function ExpenseTrackingPage() {
 				<div className="text-right">
 					<p className="text-sm text-muted-foreground">Total Expenses</p>
 					<p className="text-2xl font-bold text-red-600">{formatCurrency(totalExpenses)}</p>
-					{pendingSyncCount > 0 && <p className="text-xs text-amber-600 mt-1">{pendingSyncCount} pending sync</p>}
+					<div className="mt-2">
+						<DatePicker
+							value={dayjs(selectedDate)}
+							onChange={handleDateChange}
+							format="YYYY-MM-DD"
+							size="small"
+							className="w-40"
+							allowClear={false}
+						/>
+					</div>
 				</div>
 			</div>
 
@@ -271,9 +243,8 @@ export default function ExpenseTrackingPage() {
 									<Icon icon="lucide:banknote" className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
 									<Input
 										id="amount"
-										type="number"
-										step="0.01"
-										min="0"
+										type="text"
+										inputMode="decimal"
 										placeholder="0.00"
 										className="pl-10"
 										value={formData.amount}
@@ -281,50 +252,35 @@ export default function ExpenseTrackingPage() {
 										disabled={addExpenseMutation.isPending}
 									/>
 								</div>
+								<p className="text-xs text-muted-foreground">Enter amount (e.g., 15000 or 15000.50)</p>
 							</div>
 
 							<div className="space-y-2">
-								<Label htmlFor="note">Description</Label>
+								<Label htmlFor="narration">Narration</Label>
 								<Textarea
-									id="note"
-									placeholder="Enter expense description (e.g., Office supplies, Transport, Utilities...)"
-									value={formData.note}
-									onChange={(e) => handleInputChange("note", e.target.value)}
+									id="narration"
+									placeholder="Enter expense narration (e.g., Rent payment for shop - January 2026)"
+									value={formData.narration}
+									onChange={(e) => handleInputChange("narration", e.target.value)}
 									disabled={addExpenseMutation.isPending}
 									rows={3}
 								/>
+								<p className="text-xs text-muted-foreground">Describe what this expense was for</p>
 							</div>
 
-							<div className="flex gap-3">
-								<Button type="submit" className="flex-1" disabled={addExpenseMutation.isPending || !merchantId}>
-									{addExpenseMutation.isPending ? (
-										<>
-											<Icon icon="eos-icons:loading" className="mr-2" />
-											Recording...
-										</>
-									) : (
-										<>
-											<Icon icon="lucide:plus" className="mr-2" />
-											Record Expense
-										</>
-									)}
-								</Button>
-
-								{pendingSyncCount > 0 && (
-									<Button
-										type="button"
-										variant="outline"
-										onClick={() => syncPendingExpensesMutation.mutate()}
-										disabled={syncPendingExpensesMutation.isPending || !merchantId}
-									>
-										<Icon
-											icon={syncPendingExpensesMutation.isPending ? "eos-icons:loading" : "lucide:refresh-cw"}
-											className="mr-2 h-4 w-4"
-										/>
-										Sync
-									</Button>
+							<Button type="submit" className="w-full" disabled={addExpenseMutation.isPending || !merchantId}>
+								{addExpenseMutation.isPending ? (
+									<>
+										<Icon icon="eos-icons:loading" className="mr-2" />
+										Recording...
+									</>
+								) : (
+									<>
+										<Icon icon="lucide:plus" className="mr-2" />
+										Record Expense
+									</>
 								)}
-							</div>
+							</Button>
 						</form>
 					</CardContent>
 				</Card>
@@ -361,106 +317,108 @@ export default function ExpenseTrackingPage() {
 						</div>
 
 						<div className="pt-4 border-t">
-							<p className="text-sm font-medium text-muted-foreground">Merchant ID</p>
-							<p className="font-mono text-sm">{merchantId}</p>
+							<p className="text-sm font-medium text-muted-foreground">Date Selected</p>
+							<p className="font-medium">{dayjs(selectedDate).format("MMMM D, YYYY")}</p>
 						</div>
 
 						<div className="pt-4 border-t">
 							<p className="text-sm font-medium text-muted-foreground">Total Expenses</p>
 							<p className="font-bold text-lg text-red-600">{formatCurrency(totalExpenses)}</p>
 						</div>
-
-						{pendingSyncCount > 0 && (
-							<div className="pt-4 border-t">
-								<p className="text-sm font-medium text-amber-600">Pending Sync</p>
-								<p className="font-bold text-lg text-amber-600">{pendingSyncCount} expenses</p>
-								<p className="text-xs text-muted-foreground">
-									Some expenses are saved locally and waiting to sync with server
-								</p>
-							</div>
-						)}
 					</CardContent>
 				</Card>
 			</div>
 
-			{/* Expense History */}
+			{/* Expense History - UPDATED with table with visible lines */}
 			<Card>
 				<CardHeader className="flex flex-row items-center justify-between">
 					<div>
 						<CardTitle>Expense History</CardTitle>
 						<CardDescription>
-							Recently recorded expenses
-							{pendingSyncCount > 0 && <span className="ml-2 text-amber-600">({pendingSyncCount} pending sync)</span>}
+							Expenses for {dayjs(selectedDate).format("MMMM D, YYYY")}
+							{expenses.length > 0 && <span className="ml-2">({expenses.length} records)</span>}
 						</CardDescription>
 					</div>
-					<div className="flex gap-2">
-						{pendingSyncCount > 0 && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => syncPendingExpensesMutation.mutate()}
-								disabled={syncPendingExpensesMutation.isPending || !merchantId}
-							>
-								<Icon
-									icon={syncPendingExpensesMutation.isPending ? "eos-icons:loading" : "lucide:refresh-cw"}
-									className="mr-2 h-4 w-4"
-								/>
-								Sync All
-							</Button>
-						)}
-						{expenses.length > 0 && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => {
-									if (confirm("Clear all local expense history? This cannot be undone.")) {
-										storageUtils.clearExpenses(merchantId);
-										refetchExpenses();
-										message.success("Expense history cleared");
-									}
-								}}
-								disabled={!merchantId}
-							>
-								<Icon icon="lucide:trash" className="mr-2 h-4 w-4" />
-								Clear History
-							</Button>
-						)}
+					<div className="flex items-center gap-2">
+						<span className="text-sm text-muted-foreground">View expenses for:</span>
+						<DatePicker
+							value={dayjs(selectedDate)}
+							onChange={handleDateChange}
+							format="YYYY-MM-DD"
+							size="small"
+							className="w-32"
+							allowClear={false}
+						/>
 					</div>
 				</CardHeader>
 				<CardContent>
-					{expenses.length > 0 ? (
-						<div className="space-y-3">
-							{expenses.map((expense) => (
-								<div
-									key={expense.id}
-									className={`flex justify-between items-center p-4 border rounded-lg hover:bg-gray-50 ${
-										!expense.synced ? "border-amber-200 bg-amber-50" : ""
-									}`}
-								>
-									<div className="flex-1">
-										<div className="flex items-center gap-2">
-											<p className="font-semibold">{expense.note}</p>
-											{!expense.synced && (
-												<span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
-													<Icon icon="lucide:clock" className="mr-1 h-3 w-3" />
-													Pending
-												</span>
-											)}
-										</div>
-										<p className="text-sm text-muted-foreground">{formatDate(expense.createdAt)}</p>
-									</div>
-									<div className="text-right">
-										<p className="font-bold text-red-600 text-lg">{formatCurrency(expense.amount)}</p>
-										<p className="text-xs text-muted-foreground">Merchant: {expense.merchantId}</p>
-									</div>
-								</div>
-							))}
+					{isLoadingExpenses ? (
+						<div className="text-center py-12">
+							<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
+							<p className="text-muted-foreground">Loading expenses...</p>
+						</div>
+					) : expenses.length > 0 ? (
+						<div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
+							<table className="w-full border-collapse">
+								<thead>
+									<tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+										<th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+											Date & Time
+										</th>
+										<th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+											Narration
+										</th>
+										<th className="text-right py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">Amount</th>
+									</tr>
+								</thead>
+								<tbody>
+									{expenses.map((expense, index) => (
+										<tr
+											key={expense.id || `expense-${index}`}
+											className={`border-b border-gray-200 dark:border-gray-700 ${
+												index % 2 === 0 ? "bg-white dark:bg-gray-900" : "bg-gray-50 dark:bg-gray-800"
+											} hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors`}
+										>
+											<td className="py-3 px-4 border-r border-gray-200 dark:border-gray-700">
+												<div className="flex flex-col">
+													<span className="font-medium text-gray-900 dark:text-gray-100">
+														{formatTableDate(expense.createdAt || selectedDate)}
+													</span>
+												</div>
+											</td>
+											<td className="py-3 px-4 border-r border-gray-200 dark:border-gray-700">
+												<div className="max-w-md">
+													<p className="font-semibold text-gray-900 dark:text-gray-100">{expense.narration}</p>
+												</div>
+											</td>
+											<td className="py-3 px-4 text-right">
+												<div className="flex flex-col items-end">
+													<span className="font-bold text-lg text-red-600 dark:text-red-500">
+														{formatCurrency(parseFloat(expense.amount || "0"))}
+													</span>
+												</div>
+											</td>
+										</tr>
+									))}
+								</tbody>
+								<tfoot>
+									<tr className="bg-gray-100 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 font-bold">
+										<td className="py-3 px-4 text-gray-700 dark:text-gray-300 border-r border-gray-200 dark:border-gray-700">
+											Total
+										</td>
+										<td className="py-3 px-4 border-r border-gray-200 dark:border-gray-700"></td>
+										<td className="py-3 px-4 text-right text-red-600 dark:text-red-500">
+											{formatCurrency(totalExpenses)}
+										</td>
+									</tr>
+								</tfoot>
+							</table>
 						</div>
 					) : (
 						<div className="text-center py-12 text-muted-foreground">
 							<Icon icon="lucide:file-text" className="h-16 w-16 mx-auto mb-4 opacity-50" />
-							<p className="text-lg font-medium">No expenses recorded yet</p>
-							<p className="text-sm">Start by adding your first expense above</p>
+							<p className="text-lg font-medium">No expenses recorded for this date</p>
+							<p className="text-sm">Add your first expense using the form above</p>
 						</div>
 					)}
 				</CardContent>

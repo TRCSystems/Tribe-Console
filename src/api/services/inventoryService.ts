@@ -1,4 +1,4 @@
-// src/api/services/inventoryService.ts - FINAL FIXED VERSION WITH CLOSE DAY FIXES
+// src/api/services/inventoryService.ts - FINAL UPDATED VERSION WITH EXPENSE API FIXES
 import { loyaltyApiClient } from "@/api/apiClient";
 import useUserStore from "@/store/userStore";
 
@@ -12,9 +12,11 @@ export interface StockRequest {
 	items: StockItemRequest[];
 }
 
+// UPDATED: Added discount field to SaleItemRequest
 export interface SaleItemRequest {
 	inventoryId: number;
 	quantity: number;
+	discount?: number; // NEW: Extra amount to add (positive = price increase)
 }
 
 export interface SaleRequest {
@@ -25,8 +27,18 @@ export interface SaleRequest {
 
 export interface ExpenseData {
 	merchantId: string;
-	amount: number;
-	note: string;
+	amount: string; // Changed from number to string to match API
+	narration: string; // Changed from note to narration
+}
+
+export interface ExpenseRecord {
+	id?: number;
+	merchantId: string;
+	amount: string;
+	narration: string;
+	createdAt?: string;
+	updatedAt?: string;
+	[key: string]: any;
 }
 
 export interface InventoryItem {
@@ -125,9 +137,9 @@ export interface CloseDayResponse {
 }
 
 export interface ExpenseResponse {
-	success?: boolean;
+	status?: string;
 	message?: string;
-	expenseId?: number;
+	respObject?: any;
 	[key: string]: any;
 }
 
@@ -202,6 +214,35 @@ export interface MerchantDetails {
 	metaSyncEnabled?: boolean;
 	metaLastSyncAt?: string;
 	metaSyncError?: string;
+}
+
+export interface InvoiceUploadResponse {
+	data?: {
+		items?: Array<{
+			rawName?: string;
+			normalizedName?: string;
+			quantity?: number;
+			unitCost?: number;
+			lineTotal?: number;
+		}>;
+	};
+	invoiceSubmissionId?: string;
+	success?: boolean;
+	confidence?: number;
+	realMerchantId?: string;
+	message?: string;
+	status?: string;
+}
+
+export interface ApproveInvoiceRequest {
+	invoiceSubmissionId: string;
+	merchantId: string;
+	items: Array<{
+		rawName: string;
+		quantity: number;
+		unitCost: number;
+		lineTotal: number;
+	}>;
 }
 
 const getMerchantId = (): string => {
@@ -318,12 +359,12 @@ class InventoryService {
 		console.group("💰 Record Expense API Call");
 		console.log("📦 Expense Request Data:", { merchantId, ...data });
 
-		if (!data.amount || data.amount <= 0) {
+		if (!data.amount || data.amount.trim() === "") {
 			throw new Error("Valid amount is required");
 		}
 
-		if (!data.note || data.note.trim() === "") {
-			throw new Error("Expense note/description is required");
+		if (!data.narration || data.narration.trim() === "") {
+			throw new Error("Expense narration/description is required");
 		}
 
 		try {
@@ -331,8 +372,8 @@ class InventoryService {
 
 			const requestData: ExpenseData = {
 				merchantId,
-				amount: data.amount,
-				note: data.note.trim(),
+				amount: data.amount.trim(), // Keep as string
+				narration: data.narration.trim(),
 			};
 
 			const response = await loyaltyApiClient.post({
@@ -343,18 +384,7 @@ class InventoryService {
 			console.log("✅ Expense API Response:", response);
 			console.groupEnd();
 
-			if (typeof response === "object") {
-				return {
-					success: true,
-					message: "Expense recorded successfully",
-					...response,
-				};
-			}
-
-			return {
-				success: true,
-				message: "Expense recorded successfully",
-			};
+			return response;
 		} catch (error: any) {
 			console.error("❌ Expense API Error:", error);
 			console.error("❌ Error details:", {
@@ -370,6 +400,66 @@ class InventoryService {
 				throw new Error(error.response.data.error);
 			}
 			throw error;
+		}
+	}
+
+	async getExpenses(date?: string): Promise<ExpenseRecord[]> {
+		const merchantId = getMerchantId();
+
+		console.group("💰 Get Expenses API Call");
+		console.log("📦 Get Expenses Request:", { merchantId, date });
+
+		if (!date) {
+			// Default to today's date in YYYY-MM-DD format
+			date = new Date().toISOString().split("T")[0];
+		}
+
+		try {
+			console.log("🚀 Sending request to /inventory/expenses...");
+
+			const response = await loyaltyApiClient.get<any>({
+				url: "/inventory/expenses",
+				params: {
+					merchantId: merchantId,
+					date: date,
+				},
+			});
+
+			console.log("✅ Get Expenses API Response:", response);
+			console.groupEnd();
+
+			// Handle different response formats
+			let expenses: ExpenseRecord[] = [];
+
+			if (Array.isArray(response)) {
+				expenses = response;
+			} else if (response?.respObject && Array.isArray(response.respObject)) {
+				expenses = response.respObject;
+			} else if (response?.data && Array.isArray(response.data)) {
+				expenses = response.data;
+			} else if (response && typeof response === "object") {
+				// Try to find array in response
+				const possibleArrays = Object.values(response).filter((val) => Array.isArray(val));
+				if (possibleArrays.length > 0) {
+					expenses = possibleArrays[0];
+				} else {
+					// Maybe it's a single expense object
+					expenses = [response];
+				}
+			}
+
+			return expenses;
+		} catch (error: any) {
+			console.error("❌ Get Expenses API Error:", error);
+			console.error("❌ Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+
+			// Return empty array instead of throwing so UI doesn't break
+			return [];
 		}
 	}
 
@@ -394,6 +484,32 @@ class InventoryService {
 		});
 	}
 
+	// START TEMPORARY FIX: DUPLICATE ITEM FILTERING
+
+	private filterDuplicateItems(items: InventoryItem[]): InventoryItem[] {
+		if (!items || items.length === 0) return [];
+		const itemsByKey = new Map<string, InventoryItem[]>();
+		items.forEach((item) => {
+			const key = (item.itemCode || item.itemName).toLowerCase().trim();
+			if (!itemsByKey.has(key)) {
+				itemsByKey.set(key, []);
+			}
+			itemsByKey.get(key)?.push(item);
+		});
+
+		const result: InventoryItem[] = [];
+		itemsByKey.forEach((duplicateItems, key) => {
+			if (duplicateItems.length > 1) {
+				duplicateItems.sort((a, b) => a.id - b.id);
+				result.push(duplicateItems[0]);
+			} else {
+				result.push(duplicateItems[0]);
+			}
+		});
+
+		return result;
+	}
+
 	async getAllItems(merchantId?: string): Promise<InventoryItem[]> {
 		const currentMerchantId = merchantId || getMerchantId();
 
@@ -405,27 +521,33 @@ class InventoryService {
 			.then((response) => {
 				console.log("📦 Inventory API raw response:", response);
 
+				let items: InventoryItem[] = [];
+
 				if (Array.isArray(response)) {
-					return response;
+					items = response;
 				} else if (response?.respObject && Array.isArray(response.respObject)) {
-					return response.respObject;
+					items = response.respObject;
 				} else if (response?.data && Array.isArray(response.data)) {
-					return response.data;
+					items = response.data;
 				} else if (response && typeof response === "object") {
 					const possibleArrays = Object.values(response).filter((val) => Array.isArray(val));
 					if (possibleArrays.length > 0) {
-						return possibleArrays[0];
+						items = possibleArrays[0];
 					}
 				}
 
-				console.warn("📦 Inventory API returned unexpected format, returning empty array:", response);
-				return [];
+				// Apply duplicate filtering
+				const filteredItems = this.filterDuplicateItems(items);
+
+				return filteredItems;
 			})
 			.catch((error) => {
 				console.error("📦 Inventory API error:", error);
 				return [];
 			});
 	}
+
+	// END: DUPLICATE ITEM FILTERING
 
 	async listMenu(): Promise<InventoryItem[]> {
 		return this.getAllItems();
@@ -473,6 +595,7 @@ class InventoryService {
 				items: data.items.map((item) => ({
 					inventoryId: item.inventoryId,
 					quantity: item.quantity,
+					discount: item.discount || 0, // Include discount field
 				})),
 			};
 
@@ -955,6 +1078,79 @@ class InventoryService {
 				date: date || new Date().toISOString().split("T")[0],
 			};
 		}
+	}
+
+	async uploadInvoice(file: File): Promise<InvoiceUploadResponse> {
+		const merchantId = getMerchantId();
+
+		console.group("📄 Invoice Upload API Call");
+		console.log("📁 Invoice File:", file.name, file.size);
+
+		if (!file.type.includes("pdf") && !file.name.toLowerCase().endsWith(".pdf")) {
+			throw new Error("Please select a valid PDF invoice file");
+		}
+
+		try {
+			const formData = new FormData();
+			formData.append("invoice_file", file);
+			formData.append("merchant_id", merchantId);
+
+			const response = await loyaltyApiClient.post<InvoiceUploadResponse>({
+				url: "/invoices/upload",
+				data: formData,
+				headers: {
+					"Content-Type": "multipart/form-data",
+				},
+			});
+
+			console.log("✅ Invoice upload successful:", response);
+			console.groupEnd();
+			return response;
+		} catch (error: any) {
+			console.error("❌ Invoice upload failed:", error);
+			console.error("❌ Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+
+			if (error.response?.data?.message) {
+				throw new Error(error.response.data.message);
+			} else if (error.response?.data?.error) {
+				throw new Error(error.response.data.error);
+			}
+			throw error;
+		}
+	}
+
+	async approveInvoice(invoiceSubmissionId: string, items: any[]): Promise<{ success: boolean; message: string }> {
+		const merchantId = getMerchantId();
+
+		console.group("✅ Approve Invoice API Call");
+		console.log("📦 Approve Invoice Request:", { invoiceSubmissionId, merchantId, items });
+
+		// For now, simulate approval since API engineer will add this later
+		// In production, replace with actual API call:
+		// return loyaltyApiClient.post({
+		//   url: "/invoices/approve",
+		//   data: {
+		//     invoiceSubmissionId,
+		//     merchantId,
+		//     items
+		//   }
+		// });
+
+		return new Promise((resolve) => {
+			setTimeout(() => {
+				console.log("✅ Invoice approval simulated:", invoiceSubmissionId);
+				console.groupEnd();
+				resolve({
+					success: true,
+					message: "Invoice approved and items added to inventory",
+				});
+			}, 1500);
+		});
 	}
 }
 

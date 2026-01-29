@@ -97,8 +97,8 @@ Thank you for your business!
 				{/* Items List */}
 				<div className="border-y border-gray-200 py-4 my-4">
 					<div className="space-y-3">
-						{data.items.map((item, index) => (
-							<div key={index} className="flex justify-between items-start">
+						{data.items.map((item) => (
+							<div key={`item-${item.name}`} className="flex justify-between items-start">
 								<div className="flex-1">
 									<Text variant="body2" className="font-medium">
 										{item.name}

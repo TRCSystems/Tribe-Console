@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 
-const SPECIAL_USER_ID = "25";
+const SPECIAL_USER_IDS = ["25", "30"]; // Both user 25 and 30 get special pricing
 const SPECIAL_PRICING_RULES: Record<string, { basePrice: number; extra: number }> = {
 	pork: { basePrice: 120, extra: 10 },
 	beef: { basePrice: 120, extra: 30 },
@@ -25,48 +25,66 @@ const SPECIAL_PRICING_RULES: Record<string, { basePrice: number; extra: number }
 };
 
 const getSpecialPricingRule = (itemName: string, userId: string | null) => {
-	if (userId !== SPECIAL_USER_ID) return null;
+	if (!userId || !SPECIAL_USER_IDS.includes(userId)) return null;
 	const itemLower = itemName.toLowerCase().trim();
 	return SPECIAL_PRICING_RULES[itemLower] || null;
 };
 
-const calculateItemTotalPrice = (
+// FIXED: Calculate extra amount to send as positive discount
+const calculateSpecialPriceInfo = (
 	itemName: string,
 	quantity: number,
 	unitPriceFromDB: number,
 	userId: string | null,
-): { total: number; isSpecial: boolean; unitPrice: number } => {
+): {
+	isSpecial: boolean;
+	extraAmount: number; // POSITIVE extra to send as discount
+	totalPrice: number; // Special price total
+	displayPrice: number; // Price per unit for display
+} => {
 	const rule = getSpecialPricingRule(itemName, userId);
 
 	if (!rule || quantity === 0) {
 		return {
-			total: unitPriceFromDB * quantity,
 			isSpecial: false,
-			unitPrice: unitPriceFromDB,
+			extraAmount: 0,
+			totalPrice: unitPriceFromDB * quantity,
+			displayPrice: unitPriceFromDB,
 		};
 	}
 
+	// Calculate special price according to rules
+	let specialTotalPrice = 0;
 	if (quantity === 1) {
-		return {
-			total: rule.basePrice,
-			isSpecial: true,
-			unitPrice: rule.basePrice,
-		};
+		specialTotalPrice = rule.basePrice;
 	} else {
-		const total = rule.basePrice + (rule.basePrice + rule.extra) * (quantity - 1);
-		return {
-			total,
-			isSpecial: true,
-			unitPrice: total / quantity,
-		};
+		specialTotalPrice = rule.basePrice + (rule.basePrice + rule.extra) * (quantity - 1);
 	}
+
+	// Calculate what normal price would be
+	const normalTotalPrice = unitPriceFromDB * quantity;
+
+	// The EXTRA amount (positive) to send as discount
+	// Example: Pork normal: 120×2=240, special: 250, extra=10
+	const extraAmount = specialTotalPrice - normalTotalPrice;
+
+	// Price per unit for display
+	const displayPrice = specialTotalPrice / quantity;
+
+	return {
+		isSpecial: true,
+		extraAmount: extraAmount, // POSITIVE (10, 20, 30)
+		totalPrice: specialTotalPrice,
+		displayPrice: displayPrice,
+	};
 };
 
 interface OrderItem extends InventoryItem {
 	orderQuantity: number;
-	calculatedTotal?: number;
+	totalPrice?: number;
 	isSpecialPrice?: boolean;
-	displayUnitPrice?: number;
+	extraAmount?: number; // POSITIVE extra to send as discount
+	displayPrice?: number; // Price per unit to display
 }
 
 type PaymentMethod = "mpesa" | "cash" | null;
@@ -455,8 +473,7 @@ const ThermalPrintReceipt = ({
         </tr>
         ${items
 					.map((item) => {
-						const itemTotal =
-							item.calculatedTotal !== undefined ? item.calculatedTotal : item.unitPrice * item.orderQuantity;
+						const itemTotal = item.totalPrice !== undefined ? item.totalPrice : item.unitPrice * item.orderQuantity;
 
 						return `
 						<tr>
@@ -592,8 +609,7 @@ const ThermalPrintReceipt = ({
 								<span>AMOUNT</span>
 							</div>
 							{items.map((item) => {
-								const itemTotal =
-									item.calculatedTotal !== undefined ? item.calculatedTotal : item.unitPrice * item.orderQuantity;
+								const itemTotal = item.totalPrice !== undefined ? item.totalPrice : item.unitPrice * item.orderQuantity;
 
 								return (
 									<div key={item.id} className="flex justify-between text-sm py-1">
@@ -1075,6 +1091,7 @@ export default function PointOfSalePage() {
 		setShowToast(false);
 	};
 
+	// FIXED: Calculate and store extra amount as POSITIVE discount
 	const addToOrder = (item: any) => {
 		const itemData = getItemData(item);
 		const availableQuantity = itemData.availableStock;
@@ -1094,7 +1111,8 @@ export default function PointOfSalePage() {
 				}
 
 				const newQuantity = existingItem.orderQuantity + 1;
-				const { total, isSpecial, unitPrice } = calculateItemTotalPrice(
+				// Calculate special price info
+				const { isSpecial, extraAmount, totalPrice, displayPrice } = calculateSpecialPriceInfo(
 					itemData.itemName,
 					newQuantity,
 					itemData.unitPrice,
@@ -1106,14 +1124,16 @@ export default function PointOfSalePage() {
 						? {
 								...orderItem,
 								orderQuantity: newQuantity,
-								calculatedTotal: total,
+								totalPrice: totalPrice,
 								isSpecialPrice: isSpecial,
-								displayUnitPrice: unitPrice,
+								extraAmount: extraAmount, // POSITIVE extra (10, 20, 30)
+								displayPrice: displayPrice,
 							}
 						: orderItem,
 				);
 			} else {
-				const { total, isSpecial, unitPrice } = calculateItemTotalPrice(
+				// Calculate special price info for new item
+				const { isSpecial, extraAmount, totalPrice, displayPrice } = calculateSpecialPriceInfo(
 					itemData.itemName,
 					1,
 					itemData.unitPrice,
@@ -1125,15 +1145,17 @@ export default function PointOfSalePage() {
 					{
 						...itemData,
 						orderQuantity: 1,
-						calculatedTotal: total,
+						totalPrice: totalPrice,
 						isSpecialPrice: isSpecial,
-						displayUnitPrice: unitPrice,
+						extraAmount: extraAmount, // POSITIVE extra (10, 20, 30)
+						displayPrice: displayPrice,
 					},
 				];
 			}
 		});
 	};
 
+	// FIXED: Calculate and store extra amount as POSITIVE discount
 	const updateOrderQuantity = (itemId: number, quantity: number) => {
 		if (quantity === 0) {
 			removeFromOrder(itemId);
@@ -1148,7 +1170,8 @@ export default function PointOfSalePage() {
 				return;
 			}
 
-			const { total, isSpecial, unitPrice } = calculateItemTotalPrice(
+			// Calculate special price info
+			const { isSpecial, extraAmount, totalPrice, displayPrice } = calculateSpecialPriceInfo(
 				itemData.itemName,
 				quantity,
 				itemData.unitPrice,
@@ -1161,9 +1184,10 @@ export default function PointOfSalePage() {
 						? {
 								...orderItem,
 								orderQuantity: quantity,
-								calculatedTotal: total,
+								totalPrice: totalPrice,
 								isSpecialPrice: isSpecial,
-								displayUnitPrice: unitPrice,
+								extraAmount: extraAmount, // POSITIVE extra (10, 20, 30)
+								displayPrice: displayPrice,
 							}
 						: orderItem,
 				),
@@ -1175,6 +1199,7 @@ export default function PointOfSalePage() {
 		setOrderItems((prevOrder) => prevOrder.filter((item) => item.id !== itemId));
 	};
 
+	// FIXED: Send POSITIVE extra amount as discount
 	const processSale = async (paymentMethod: PaymentMethod) => {
 		if (orderItems.length === 0) {
 			message.warning("Order is empty");
@@ -1191,15 +1216,18 @@ export default function PointOfSalePage() {
 			return;
 		}
 
+		// Send extra amount as POSITIVE discount
 		const saleItems: SaleItem[] = orderItems.map((item) => ({
 			inventoryId: item.id,
 			quantity: item.orderQuantity,
+			discount: item.extraAmount || 0, // Send POSITIVE extra as discount
 		}));
 
-		console.log("🛒 Sale Request Data (API Format):", {
+		console.log("🛒 Sale Request Data (Extra as Discount):", {
 			merchantId: merchantId,
 			customerPhone: customerContact || "Not provided (optional)",
 			items: saleItems,
+			totalExtra: orderItems.reduce((sum, item) => sum + (item.extraAmount || 0), 0),
 		});
 
 		const validationError = validateSaleData({
@@ -1238,12 +1266,16 @@ export default function PointOfSalePage() {
 		window.location.href = "/analytics/weekly";
 	};
 
+	// Calculate total amount (including extras)
 	const totalAmount = orderItems.reduce((total, item) => {
-		if (item.calculatedTotal !== undefined) {
-			return total + item.calculatedTotal;
+		if (item.totalPrice !== undefined) {
+			return total + item.totalPrice;
 		}
 		return total + item.unitPrice * item.orderQuantity;
 	}, 0);
+
+	// Calculate total extra amount (positive)
+	const totalExtra = orderItems.reduce((total, item) => total + (item.extraAmount || 0), 0);
 
 	const totalItems = orderItems.reduce((total, item) => total + item.orderQuantity, 0);
 
@@ -1286,6 +1318,11 @@ export default function PointOfSalePage() {
 						<Badge variant="secondary" className="text-lg">
 							Total: {formatCurrency(totalAmount)}
 						</Badge>
+						{totalExtra > 0 && (
+							<Badge variant="outline" className="text-lg text-green-600 border-green-500">
+								Extra: +{formatCurrency(totalExtra)}
+							</Badge>
+						)}
 						<Badge variant="outline" className="text-lg">
 							Items: {totalItems}
 						</Badge>
@@ -1476,10 +1513,9 @@ export default function PointOfSalePage() {
 								<div className="space-y-3 max-h-96 overflow-y-auto">
 									{orderItems.map((item) => {
 										const itemTotal =
-											item.calculatedTotal !== undefined ? item.calculatedTotal : item.unitPrice * item.orderQuantity;
-
-										const displayUnitPrice =
-											item.displayUnitPrice !== undefined ? item.displayUnitPrice : item.unitPrice;
+											item.totalPrice !== undefined ? item.totalPrice : item.unitPrice * item.orderQuantity;
+										const itemExtra = item.extraAmount || 0;
+										const displayPrice = item.displayPrice || item.unitPrice;
 
 										return (
 											<div
@@ -1494,8 +1530,18 @@ export default function PointOfSalePage() {
 																Special Price
 															</Badge>
 														)}
+														{itemExtra > 0 && (
+															<Badge variant="outline" className="text-xs border-orange-500 text-orange-600">
+																+{formatCurrency(itemExtra)}
+															</Badge>
+														)}
 													</div>
-													<p className="text-sm text-muted-foreground">{formatCurrency(displayUnitPrice)} each</p>
+													<p className="text-sm text-muted-foreground">
+														{formatCurrency(displayPrice)} each
+														{itemExtra > 0 && (
+															<span className="ml-2 text-xs text-gray-400">(Extra: +{formatCurrency(itemExtra)})</span>
+														)}
+													</p>
 													<p className="text-xs text-muted-foreground">Stock: {item.availableStock}</p>
 												</div>
 												<div className="flex items-center gap-2">
@@ -1535,8 +1581,16 @@ export default function PointOfSalePage() {
 							<div className="border-t-2 border-black pt-4 space-y-3">
 								<div className="flex justify-between text-sm">
 									<span>Subtotal:</span>
-									<span>{formatCurrency(totalAmount)}</span>
+									<span>{formatCurrency(totalAmount - totalExtra)}</span>
 								</div>
+
+								{totalExtra > 0 && (
+									<div className="flex justify-between text-sm text-orange-600">
+										<span>Extra Amount:</span>
+										<span>+{formatCurrency(totalExtra)}</span>
+									</div>
+								)}
+
 								<div className="flex justify-between text-lg font-bold">
 									<span>Total Amount:</span>
 									<span>{formatCurrency(totalAmount)}</span>

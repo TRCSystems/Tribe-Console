@@ -1,5 +1,4 @@
 // src/api/services/userService.ts - FINAL VERSION
-import type { UserInfo, UserToken } from "#/entity";
 import { loyaltyApiClient } from "../apiClient";
 
 export interface SignInReq {

@@ -8,8 +8,7 @@ import { useMerchantId } from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/ui/dialog";
-import { Input } from "@/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/dialog";
 import { ScrollArea } from "@/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table";
 
@@ -180,11 +179,6 @@ export default function SoldItemsPage() {
 		}, 100);
 	};
 
-	// Handle date change
-	const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		setSelectedDate(e.target.value);
-	};
-
 	// Navigate back
 	const handleGoBack = () => {
 		navigate("/analytics/daily-sales");
@@ -338,7 +332,7 @@ export default function SoldItemsPage() {
 										<TableRow>
 											<TableHead>Item Name</TableHead>
 											<TableHead>Times Sold</TableHead>
-											{/*	<TableHead className="text-right">Quantity</TableHead>*/}
+											<TableHead className="text-right">Quantity</TableHead>
 											<TableHead className="text-right">Total Amount</TableHead>
 											<TableHead>Actions</TableHead>
 										</TableRow>
@@ -350,7 +344,7 @@ export default function SoldItemsPage() {
 												<TableCell>
 													<Badge variant="outline">{item.timesSold}</Badge>
 												</TableCell>
-												{/*<TableCell className="text-right font-semibold">{item.totalQuantity}</TableCell>*/}
+												<TableCell className="text-right font-semibold">{item.totalQuantity}</TableCell>
 												<TableCell className="text-right font-semibold text-green-600">
 													{formatCurrency(item.totalAmount)}
 												</TableCell>
@@ -443,8 +437,8 @@ export default function SoldItemsPage() {
 									</tr>
 								</thead>
 								<tbody>
-									{summaryByItem.map((item: SummaryByItem, index) => (
-										<tr key={index} className="border-b hover:bg-gray-50">
+									{summaryByItem.map((item: SummaryByItem) => (
+										<tr key={item.itemCode} className="border-b hover:bg-gray-50">
 											<td className="border p-2 font-medium">{item.itemName}</td>
 											<td className="border p-2">{item.timesSold}</td>
 											{/*<td className="border p-2 text-right font-bold">{item.totalQuantity}</td>*/}

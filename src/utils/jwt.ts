@@ -1,4 +1,4 @@
-// src/utils/jwt.ts - FIXED VERSION
+// src/utils/jwt.ts - FIXED VERSION WITH PRIVACY
 import { jwtDecode } from "jwt-decode";
 import type { UserRole } from "#/entity";
 
@@ -26,21 +26,22 @@ export interface JwtPayload {
 export const decodeToken = (token: string): JwtPayload | null => {
 	try {
 		const decoded = jwtDecode<JwtPayload>(token);
-		console.log("🛠️ JWT Debug - Full decoded token structure:", decoded);
-		console.log("🛠️ JWT Debug - Key fields:", {
-			id: decoded.id,
+
+		// PRIVACY: Remove full token structure logging
+		console.log("🔐 JWT decoded successfully");
+		console.debug("JWT Debug - Key fields (sensitive):", {
+			id: decoded.id ? "[REDACTED]" : null,
 			role: decoded.role,
-			username: decoded.username,
-			user_name: decoded.user_name,
-			preferred_username: decoded.preferred_username,
-			email: decoded.email,
+			username: decoded.username ? "[REDACTED]" : null,
+			has_username: !!(decoded.username || decoded.user_name || decoded.preferred_username),
+			has_email: !!decoded.email,
 			exp: decoded.exp,
-			sub: decoded.sub,
-			user_id: decoded.user_id,
+			has_role: !!decoded.role,
+			has_user_id: !!(decoded.user_id || decoded.sub || decoded.userId),
 		});
 		return decoded;
-	} catch (error) {
-		console.error("🛠️ Failed to decode JWT token:", error);
+	} catch (_error) {
+		console.error("❌ Failed to decode JWT token");
 		return null;
 	}
 };
@@ -53,14 +54,15 @@ export const isTokenExpired = (token: string): boolean => {
 		const decoded = jwtDecode<JwtPayload>(token);
 		const currentTime = Date.now() / 1000;
 		const isExpired = decoded.exp < currentTime;
-		console.log("🛠️ Token expiration check:", {
-			exp: decoded.exp,
-			current: currentTime,
+
+		// PRIVACY: Remove expiration time logging
+		console.debug("Token expiration check:", {
 			isExpired,
+			will_expire_in: isExpired ? "Already expired" : `${Math.round((decoded.exp - currentTime) / 60)} minutes`,
 		});
 		return isExpired;
-	} catch (error) {
-		console.error("Failed to check token expiration:", error);
+	} catch (_error) {
+		console.error("Failed to check token expiration");
 		return true;
 	}
 };
@@ -72,10 +74,12 @@ export const getRoleFromToken = (token: string): UserRole | null => {
 	try {
 		const decoded = decodeToken(token);
 		const role = (decoded?.role as UserRole) || "ADMIN"; // Default to ADMIN if no role
-		console.log("🛠️ Extracted role from token:", role);
+
+		// PRIVACY: Log only role existence, not value
+		console.debug(`Role extracted: ${role ? "[REDACTED]" : "Not found"}`);
 		return role;
-	} catch (error) {
-		console.error("Failed to extract role from token:", error);
+	} catch (_error) {
+		console.error("Failed to extract role from token");
 		return "ADMIN"; // Default fallback
 	}
 };
@@ -89,10 +93,11 @@ export const getUserIdFromToken = (token: string): string | null => {
 		// Try multiple possible fields for user ID
 		const userId = decoded?.id?.toString() || decoded?.user_id || decoded?.sub || decoded?.userId || "1"; // Default fallback
 
-		console.log("🛠️ Extracted user ID from token:", userId);
+		// PRIVACY: Never log actual user IDs
+		console.debug(`User ID extracted: ${userId ? "[REDACTED]" : "Not found"}`);
 		return userId;
-	} catch (error) {
-		console.error("Failed to get user ID from token:", error);
+	} catch (_error) {
+		console.error("Failed to get user ID from token");
 		return "1"; // Default fallback
 	}
 };
@@ -104,15 +109,11 @@ export const getUsernameFromToken = (token: string): string | null => {
 	try {
 		const decoded = decodeToken(token);
 
-		// FIXED: Enhanced debug to see what's actually available
-		console.log("🛠️ Username extraction debug:", {
-			availableFields: Object.keys(decoded || {}),
-			username: decoded?.username,
-			user_name: decoded?.user_name,
-			preferred_username: decoded?.preferred_username,
-			sub: decoded?.sub,
-			email: decoded?.email,
-			id: decoded?.id,
+		// PRIVACY: Remove sensitive debug logging
+		console.debug("Username extraction:", {
+			has_username_field: !!(decoded?.username || decoded?.user_name || decoded?.preferred_username),
+			has_email: !!decoded?.email,
+			has_id: !!decoded?.id,
 		});
 
 		// FIXED: Try multiple possible fields for username with better fallbacks
@@ -123,22 +124,23 @@ export const getUsernameFromToken = (token: string): string | null => {
 			if (decoded?.email) {
 				// Use email prefix as username
 				username = decoded.email.split("@")[0];
-				console.log("🛠️ Using email prefix as username:", username);
+				console.debug("Using email prefix as username");
 			} else if (decoded?.id) {
 				// Use ID-based username
-				username = `user_${decoded.id}`;
-				console.log("🛠️ Using ID-based username:", username);
+				username = `user_[REDACTED]`;
+				console.debug("Using ID-based username");
 			} else {
 				// Final fallback
 				username = "admin";
-				console.log("🛠️ Using default username fallback");
+				console.debug("Using default username fallback");
 			}
 		}
 
-		console.log("🛠️ Final extracted username:", username);
+		// PRIVACY: Never log actual usernames
+		console.debug(`Username extracted: ${username ? "[REDACTED]" : "Not found"}`);
 		return username;
-	} catch (error) {
-		console.error("Failed to get username from token:", error);
+	} catch (_error) {
+		console.error("Failed to get username from token");
 		return "admin"; // Default fallback
 	}
 };
@@ -149,34 +151,42 @@ export const getUsernameFromToken = (token: string): string | null => {
 export const getMerchantIdFromToken = (token: string): string | null => {
 	try {
 		const decoded = decodeToken(token);
-		console.log("🛠️ Merchant ID extraction - All token fields:", decoded);
+
+		// PRIVACY: Remove full token field logging
+		console.debug("Merchant ID extraction - Available fields:", {
+			has_id: !!decoded?.id,
+			has_merchantId: !!decoded?.merchantId,
+			has_user_id: !!decoded?.user_id,
+			has_sub: !!decoded?.sub,
+		});
 
 		// Try multiple possible fields for merchant ID
 		let merchantId: string | null = null;
 
 		if (decoded?.id) {
 			merchantId = decoded.id.toString();
-			console.log("✅ Extracted merchant ID from 'id' field:", merchantId);
+			console.debug("✅ Merchant ID found in 'id' field");
 		} else if (decoded?.merchantId) {
 			merchantId = decoded.merchantId;
-			console.log("✅ Extracted merchant ID from 'merchantId' field:", merchantId);
+			console.debug("✅ Merchant ID found in 'merchantId' field");
 		} else if (decoded?.user_id) {
 			merchantId = decoded.user_id;
-			console.log("✅ Extracted merchant ID from 'user_id' field:", merchantId);
+			console.debug("✅ Merchant ID found in 'user_id' field");
 		} else if (decoded?.sub) {
 			merchantId = decoded.sub;
-			console.log("✅ Extracted merchant ID from 'sub' field:", merchantId);
+			console.debug("✅ Merchant ID found in 'sub' field");
 		}
 
 		if (!merchantId) {
-			console.warn("❌ No merchant ID field found in token, using default '1'");
+			console.warn("❌ No merchant ID field found in token");
 			merchantId = "1"; // Default fallback
 		}
 
-		console.log("🛠️ Final merchant ID:", merchantId);
+		// PRIVACY: Never log actual merchant IDs
+		console.debug(`Final merchant ID extracted: ${merchantId ? "[REDACTED]" : "Not found"}`);
 		return merchantId;
-	} catch (error) {
-		console.error("❌ Failed to extract merchant ID from token:", error);
+	} catch (_error) {
+		console.error("❌ Failed to extract merchant ID from token");
 		return "1"; // Default fallback
 	}
 };
@@ -214,19 +224,16 @@ export const validateToken = (token: string): { isValid: boolean; missingFields:
 
 		const isValid = missingFields.length === 0;
 
-		console.log("🛠️ Token validation:", {
+		// PRIVACY: Remove sensitive field values from logs
+		console.debug("Token validation result:", {
 			isValid,
-			missingFields,
-			warnings,
-			hasId: !!decoded.id,
-			hasRole: !!decoded.role,
-			hasExp: !!decoded.exp,
-			hasUsername: !!(decoded?.username || decoded?.user_name || decoded?.preferred_username),
+			missingFieldsCount: missingFields.length,
+			warningsCount: warnings.length,
 		});
 
 		return { isValid, missingFields, warnings };
-	} catch (error) {
-		console.error("❌ Token validation failed:", error);
+	} catch (_error) {
+		console.error("❌ Token validation failed");
 		return { isValid: false, missingFields: ["decodable"], warnings: [] };
 	}
 };
@@ -247,19 +254,42 @@ export const extractUserInfoFromToken = (token: string) => {
 			email: decoded.email || "",
 			role: getRoleFromToken(token) || "ADMIN",
 			merchantId: getMerchantIdFromToken(token),
-			// FIXED: Add raw token data for debugging
-			rawTokenData: {
-				hasUsername: !!(decoded.username || decoded.user_name || decoded.preferred_username),
-				hasEmail: !!decoded.email,
-				hasRole: !!decoded.role,
-				hasId: !!decoded.id,
-			},
 		};
 
-		console.log("🛠️ Extracted complete user info from token:", userInfo);
+		// PRIVACY: Only log that info was extracted, not the actual values
+		console.debug("User info extracted from token successfully");
+		console.debug("Extracted fields:", {
+			has_id: !!userInfo.id,
+			has_username: !!userInfo.username,
+			has_email: !!userInfo.email,
+			has_role: !!userInfo.role,
+			has_merchantId: !!userInfo.merchantId,
+		});
+
 		return userInfo;
-	} catch (error) {
-		console.error("❌ Failed to extract user info from token:", error);
+	} catch (_error) {
+		console.error("❌ Failed to extract user info from token");
+		return null;
+	}
+};
+// ADD THIS FUNCTION TO src/utils/jwt.ts (at the end of the file)
+/**
+ * Extract merchant name from JWT token
+ */
+export const getMerchantNameFromToken = (token: string): string | null => {
+	try {
+		const decoded = decodeToken(token);
+
+		// Try multiple possible fields for merchant name
+		const merchantName =
+			decoded?.username || decoded?.preferred_username || decoded?.name || decoded?.businessName || decoded?.sub; // Fallback to subject
+
+		// PRIVACY: Never log actual merchant names
+		console.debug(`Merchant name extracted: ${merchantName ? "[REDACTED]" : "Not found"}`);
+
+		return merchantName;
+	} catch (_error) {
+		console.error("Failed to extract merchant name from token");
 		return null;
 	}
 };
