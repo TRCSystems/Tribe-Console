@@ -120,7 +120,7 @@ export default function SoldItemsPage() {
 	const queryParams = new URLSearchParams(location.search);
 	const initialDate = queryParams.get("date") || new Date().toISOString().split("T")[0];
 
-	const [selectedDate, setSelectedDate] = useState(initialDate);
+	const [selectedDate, _setSelectedDate] = useState(initialDate);
 	const [printMode, setPrintMode] = useState(false);
 
 	const {

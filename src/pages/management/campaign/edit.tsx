@@ -25,7 +25,7 @@ export default function CampaignEditPage() {
 		error,
 	} = useQuery({
 		queryKey: ["campaign", id],
-		queryFn: () => campaignService.getCampaignById(id!),
+		queryFn: () => campaignService.getCampaignById(Number(id)),
 		enabled: !!id,
 		onSuccess: (data) => {
 			if (data.messages && data.messages.length > 0) {
@@ -36,7 +36,7 @@ export default function CampaignEditPage() {
 
 	// Update campaign mutation
 	const updateMutation = useMutation({
-		mutationFn: (data: any) => campaignService.updateCampaign(id!, data),
+		mutationFn: (data: any) => campaignService.updateCampaign(Number(id)!, data),
 		onSuccess: () => {
 			message.success("Campaign updated successfully!");
 			queryClient.invalidateQueries({ queryKey: ["campaigns"] });

@@ -12,7 +12,7 @@ interface LockModalProps {
 	onCancel: () => void;
 }
 
-export const LockModal: React.FC<LockModalProps> = ({ isOpen, merchantName, onUnlock }) => {
+export const LockModal: React.FC<LockModalProps> = ({ isOpen, merchantName: _merchantName, onUnlock }) => {
 	const [password, setPassword] = useState("");
 	const [isVisible, setIsVisible] = useState(false);
 	const [error, setError] = useState("");

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message, DatePicker } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
-import inventoryService, { type ExpenseData, type ExpenseRecord } from "@/api/services/inventoryService";
+import inventoryService, { type ExpenseData } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -173,7 +173,7 @@ export default function ExpenseTrackingPage() {
 		}));
 	};
 
-	const handleDateChange = (date: dayjs.Dayjs | null, dateString: string | string[]) => {
+	const handleDateChange = (date: dayjs.Dayjs | null, _dateString: string | string[]) => {
 		if (date) {
 			const formattedDate = date.format("YYYY-MM-DD");
 			setSelectedDate(formattedDate);
@@ -186,7 +186,7 @@ export default function ExpenseTrackingPage() {
 		return `KSh ${amount?.toFixed(2) || "0.00"}`;
 	};
 
-	const formatDate = (dateString: string) => {
+	const _formatDate = (dateString: string) => {
 		return dayjs(dateString).format("MMM D, YYYY h:mm A");
 	};
 

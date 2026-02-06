@@ -85,6 +85,7 @@
 			"components": "Components",
 			"disabled": "Item Disabled",
 			"editor": "Editor",
+
 			"error": {
 				"403": "403",
 				"404": "404",
@@ -175,7 +176,8 @@
 			},
 
 			"marketing": "Marketing",
-			"finance": "Finance"
+			"finance": "Finance",
+			"features": "Features..?"
 		},
 
 		"search": {

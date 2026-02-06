@@ -95,6 +95,17 @@ export const frontendNavData: NavProps["data"] = [
 			},
 			//	{ title: "marketing", path: "/marketing", icon: <Icon icon="lucide:megaphone" size="24" /> },
 			{ title: "Stock_Finance", path: "/finance", icon: <Icon icon="lucide:coins" size="24" /> },
+			//{ title: "Features..?", path: "/features", icon: <Icon icon="lucide:help-circle" size="24" /> },
+		],
+	},
+	{
+		name: "sys.nav.footer",
+		items: [
+			{
+				title: "sys.nav.features",
+				path: "/features",
+				icon: <Icon icon="lucide:help-circle" size="24" />,
+			},
 		],
 	},
 ];

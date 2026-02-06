@@ -4,14 +4,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import campaignService from "@/api/services/campaignService";
 import merchantService from "@/api/services/merchantService";
-import avatar1 from "@/assets/images/avatars/avatar-1.png";
 import avatar2 from "@/assets/images/avatars/avatar-2.png";
 import avatar3 from "@/assets/images/avatars/avatar-3.png";
 import avatar4 from "@/assets/images/avatars/avatar-4.png";
 import avatar5 from "@/assets/images/avatars/avatar-5.png";
 import { Chart, useChart } from "@/components/chart";
 import Icon from "@/components/icon/icon";
-import { GLOBAL_CONFIG } from "@/global-config";
 import { useAuthCheck } from "@/store/userStore"; // ADDED: Import auth hook
 import { Avatar, AvatarImage } from "@/ui/avatar";
 import { Button } from "@/ui/button";
@@ -29,7 +27,7 @@ const formatCurrency = (amount: number) => {
 const generateAnalyticsData = (campaigns: any[], merchants: any[]) => {
 	// FIXED: Ensure campaigns is always an array
 	const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
-	const safeMerchants = Array.isArray(merchants) ? merchants : [];
+	const _safeMerchants = Array.isArray(merchants) ? merchants : [];
 
 	const activeCampaigns = safeCampaigns.filter((c) => {
 		try {

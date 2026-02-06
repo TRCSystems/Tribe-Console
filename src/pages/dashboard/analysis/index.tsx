@@ -257,7 +257,7 @@ export default function AnalysisPage() {
 									fill="#8884d8"
 									dataKey="value"
 								>
-									{analyticsData.merchantDistribution.map((entry, index) => (
+									{analyticsData.merchantDistribution.map((_entry, index) => (
 										<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
 									))}
 								</Pie>

@@ -38,7 +38,7 @@ interface Campaign {
 }
 
 // Mock analytics data (since the API doesn't provide analytics yet)
-const generateMockAnalytics = (campaign: Campaign) => {
+const generateMockAnalytics = (_campaign: Campaign) => {
 	const baseViews = Math.floor(Math.random() * 1000) + 500;
 	const baseClicks = Math.floor(baseViews * 0.6);
 	const baseConversions = Math.floor(baseClicks * 0.15);

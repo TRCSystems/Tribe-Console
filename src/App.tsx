@@ -31,8 +31,8 @@ function App({ children }: { children: React.ReactNode }) {
 
 						<TokenRecovery />
 
-						{import.meta.env.DEV &&
-							null
+						{
+							import.meta.env.DEV && null
 							/*	<DebugAuth />
 							<MerchantDebug />
 							<TokenDebug /> */

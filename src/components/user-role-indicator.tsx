@@ -76,8 +76,8 @@ export function UserRoleIndicator() {
 		}
 	};
 
-	// FIXED: Proper logout function
-	const handleLogout = () => {
+	// FIXED: Proper logout function (unused)
+	const _handleLogout = () => {
 		console.log("🚪 Logging out user...");
 		clearUserInfoAndToken(); // Use the proper store action
 		// Optional: Redirect to login page

@@ -72,6 +72,7 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 		},
 		//	{ path: "marketing", element: Component("/pages/marketing/social/index") },
 		{ path: "finance", element: Component("/pages/finance/overview/index") },
+		{ path: "features", element: Component("/pages/features/index") },
 	];
 	return frontendDashboardRoutes;
 }

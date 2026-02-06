@@ -3,7 +3,6 @@ import { message } from "antd";
 import { useEffect, useState } from "react";
 import inventoryService, {
 	type InventoryItem,
-	type MerchantDetails,
 	type ProcessSaleRequest,
 	type SaleItem,
 } from "@/api/services/inventoryService";
@@ -734,7 +733,7 @@ export default function PointOfSalePage() {
 	// Merchant Details Query - FIXED: This will fetch merchant details including businessPhone
 	const {
 		data: merchantDetailsData,
-		isLoading: isLoadingMerchantDetails,
+		isLoading: _isLoadingMerchantDetails,
 		error: merchantDetailsError,
 	} = useQuery({
 		queryKey: ["merchant-details", merchantId],

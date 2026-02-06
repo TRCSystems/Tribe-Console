@@ -1,9 +1,9 @@
 // src/components/debug/auth-emergency-fix.tsx - FIXED VERSION
 import { useEffect } from "react";
-import { useUserActions, useUserToken } from "@/store/userStore";
+import { useUserActions } from "@/store/userStore";
 
 export const AuthEmergencyFix = () => {
-	const { accessToken } = useUserToken();
+	// const { accessToken: _accessToken } = useUserToken();
 	const { clearUserInfoAndToken } = useUserActions();
 
 	useEffect(() => {

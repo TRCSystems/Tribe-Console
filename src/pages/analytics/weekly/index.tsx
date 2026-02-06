@@ -2,7 +2,6 @@
 import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
-	Bar,
 	BarChart,
 	CartesianGrid,
 	Cell,
@@ -117,6 +116,7 @@ const secureData = {
 };
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+// Note: COLORS array defined but not currently used
 
 // Secure export function
 const exportReport = async (currentData: any, merchantId: string, reportType: string, dateRange: string) => {
@@ -150,7 +150,7 @@ const exportReport = async (currentData: any, merchantId: string, reportType: st
 };
 
 // Generate professional banking PDF
-const generateProfessionalPDF = async (data: any, filename: string) => {
+const generateProfessionalPDF = async (data: any, _filename: string) => {
 	try {
 		// Use print dialog with professional banking template
 		await generateBankingReportHTML(data);
@@ -647,7 +647,7 @@ const generateBankingReportHTML = (data: any) => {
 export default function WeeklyAnalyticsPage() {
 	const merchantId = useMerchantId();
 	const [dateRange, setDateRange] = useState<string>("this-week");
-	const [reportType, setReportType] = useState<string>("summary");
+	const [reportType, _setReportType] = useState<string>("summary");
 	const [isExporting, setIsExporting] = useState(false);
 
 	// Security: Mask merchant ID in console

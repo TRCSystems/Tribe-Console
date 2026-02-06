@@ -8,7 +8,6 @@ import { Card, CardContent, CardFooter } from "@/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel } from "@/ui/form";
 import { Input } from "@/ui/input";
 import { Switch } from "@/ui/switch";
-import { Textarea } from "@/ui/textarea";
 import { Text } from "@/ui/typography";
 
 type FieldType = {

@@ -32,7 +32,7 @@ interface DailyTransactionsResponse {
 }
 
 export default function NotificationsTab() {
-	const [today, setToday] = useState(new Date().toISOString().split("T")[0]);
+	const [today, _setToday] = useState(new Date().toISOString().split("T")[0]);
 	const [lastRefresh, setLastRefresh] = useState(new Date());
 	const merchantId = useMerchantId();
 

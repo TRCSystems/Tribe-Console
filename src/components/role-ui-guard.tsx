@@ -19,8 +19,13 @@ interface RoleUIGuardProps {
 	noAccessFallback?: React.ReactNode;
 }
 
-export const RoleUIGuard = ({ children, permission, readOnlyFallback, noAccessFallback = null }: RoleUIGuardProps) => {
-	const userRole = useUserRole();
+export const RoleUIGuard = ({
+	children,
+	permission,
+	readOnlyFallback: _readOnlyFallback,
+	noAccessFallback = null,
+}: RoleUIGuardProps) => {
+	const _userRole = useUserRole();
 
 	// If user has write permission, show full access
 	return (

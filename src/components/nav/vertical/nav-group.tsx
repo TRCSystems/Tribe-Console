@@ -1,27 +1,35 @@
+import { useToggle } from "react-use";
 import { Icon } from "@/components/icon";
 import useLocale from "@/locales/use-locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/ui/collapsible";
 import { cn } from "@/utils";
-import { useToggle } from "react-use";
 import type { NavGroupProps } from "../types";
 import { NavList } from "./nav-list";
 
 export function NavGroup({ name, items }: NavGroupProps) {
 	const [open, toggleOpen] = useToggle(true);
 
+	// detect footer group
+	const isFooter = name === "sys.nav.footer";
+
 	return (
-		<Collapsible open={open}>
-			<CollapsibleTrigger asChild>
-				<Group name={name} open={open} onClick={toggleOpen} />
-			</CollapsibleTrigger>
-			<CollapsibleContent>
-				<ul className="flex w-full flex-col gap-1">
-					{items.map((item, index) => (
-						<NavList key={item.title || index} data={item} depth={1} />
-					))}
-				</ul>
-			</CollapsibleContent>
-		</Collapsible>
+		<div className={cn(isFooter && "mt-auto")}>
+			<Collapsible open={open}>
+				{/* only show group header if not footer */}
+				{!isFooter && (
+					<CollapsibleTrigger asChild>
+						<Group name={name} open={open} onClick={toggleOpen} />
+					</CollapsibleTrigger>
+				)}
+				<CollapsibleContent>
+					<ul className="flex w-full flex-col gap-1">
+						{items.map((item, index) => (
+							<NavList key={item.title || index} data={item} depth={1} />
+						))}
+					</ul>
+				</CollapsibleContent>
+			</Collapsible>
+		</div>
 	);
 }
 

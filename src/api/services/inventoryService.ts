@@ -498,7 +498,7 @@ class InventoryService {
 		});
 
 		const result: InventoryItem[] = [];
-		itemsByKey.forEach((duplicateItems, key) => {
+		itemsByKey.forEach((duplicateItems, _key) => {
 			if (duplicateItems.length > 1) {
 				duplicateItems.sort((a, b) => a.id - b.id);
 				result.push(duplicateItems[0]);

@@ -4,10 +4,10 @@ import { NavGroup } from "./nav-group";
 
 export const NavMini = ({ data, className, ...props }: NavProps) => {
 	return (
-		<nav className={cn("flex flex-col", className)} {...props}>
-			<ul className="flex flex-col gap-1">
+		<nav className={cn("flex h-full flex-col", className)} {...props}>
+			<ul className="flex flex-1 flex-col gap-1">
 				{data.map((item, index) => (
-					<NavGroup key={item.name || index} items={item.items} />
+					<NavGroup key={item.name || index} name={item.name} items={item.items} />
 				))}
 			</ul>
 		</nav>

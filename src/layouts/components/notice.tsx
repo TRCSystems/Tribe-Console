@@ -114,7 +114,7 @@ function NoticeTab() {
 		return `KShs ${amount?.toFixed(2) || "0.00"}`;
 	};
 
-	const formatDate = (dateString: string) => {
+	const _formatDate = (dateString: string) => {
 		return new Date(dateString).toLocaleDateString("en-US", {
 			weekday: "long",
 			year: "numeric",

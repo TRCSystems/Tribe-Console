@@ -1,9 +1,7 @@
 import type { CSSProperties } from "react";
 import bgImg from "@/assets/images/background/banner-1.png";
 import Character from "@/assets/images/characters/character_3.png";
-import { Icon } from "@/components/icon";
 import { GLOBAL_CONFIG } from "@/global-config";
-import { Button } from "@/ui/button";
 import { Text, Title } from "@/ui/typography";
 
 export default function BannerCard() {
