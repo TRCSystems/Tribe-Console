@@ -1,7 +1,7 @@
+import { useState } from "react";
 import Editor from "@/components/editor";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
-import { useState } from "react";
 
 export default function EditorPage() {
 	const [quillSimple, setQuillSimple] = useState("");

@@ -1,6 +1,7 @@
+//original author : Marcellas
 // src/pages/inventory/expenses/index.tsx - UPDATED VERSION USING API
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { message, DatePicker } from "antd";
+import { DatePicker, message } from "antd";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import inventoryService, { type ExpenseData } from "@/api/services/inventoryService";
@@ -148,7 +149,7 @@ export default function ExpenseTrackingPage() {
 
 		// Validate amount (accept decimal numbers)
 		const amountValue = formData.amount.trim();
-		if (isNaN(parseFloat(amountValue)) || parseFloat(amountValue) <= 0) {
+		if (Number.isNaN(parseFloat(amountValue)) || parseFloat(amountValue) <= 0) {
 			message.warning("Please enter a valid amount");
 			return;
 		}

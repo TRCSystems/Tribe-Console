@@ -1,7 +1,7 @@
+//original author : Marcellas
 // src/pages/sys/login/index.tsx - UPDATED
 import { Navigate } from "react-router";
 import PlaceholderImg from "@/assets/images/background/loyalty.png";
-import LocalePicker from "@/components/locale-picker";
 import Logo from "@/components/logo";
 import SettingButton from "@/layouts/components/setting-button";
 import { useUserToken } from "@/store/userStore";

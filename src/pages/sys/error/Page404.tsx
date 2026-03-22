@@ -1,3 +1,4 @@
+//original author : Marcellas
 import Character from "@/assets/images/characters/character_1.png";
 import { themeVars } from "@/theme/theme.css";
 import ErrorLayout from "./components/ErrorLayout";

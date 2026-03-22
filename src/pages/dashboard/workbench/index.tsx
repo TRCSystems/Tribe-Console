@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/dashboard/workbench/index.tsx - FINAL FIXED VERSION
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
@@ -146,7 +147,7 @@ const getCampaignPerformance = (campaigns: any[], isLoading: boolean) => {
 
 export default function Workbench() {
 	const [activeTab, setActiveTab] = useState("All Campaigns");
-	const [animatedValues, setAnimatedValues] = useState({
+	const [_animatedValues, setAnimatedValues] = useState({
 		activeCampaigns: 0,
 		totalViews: 0,
 		engagementRate: 0,

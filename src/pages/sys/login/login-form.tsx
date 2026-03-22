@@ -1,3 +1,4 @@
+//original author : Marcellas
 //[file name]: login-form.tsx
 import { Loader2 } from "lucide-react";
 import { useState } from "react";
@@ -5,8 +6,8 @@ import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { toast } from "sonner";
+import type { UserInfo } from "#/entity";
 import type { SignInReq } from "@/api/services/userService";
-import { Icon } from "@/components/icon";
 import { GLOBAL_CONFIG } from "@/global-config";
 import { useSignIn, useUserActions } from "@/store/userStore";
 import { Button } from "@/ui/button";
@@ -54,7 +55,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 			const accessToken = response.respObject?.value;
 
-			console.log("🔑 Extracted JWT token:", accessToken ? "***" + accessToken.slice(-8) : "none");
+			console.log("🔑 Extracted JWT token:", accessToken ? `***${accessToken.slice(-8)}` : "none");
 			console.log("📋 Response structure:", {
 				status: response.status,
 				message: response.message,
@@ -76,7 +77,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 
 			setUserInfo({
 				username: values.username,
-			});
+			} as UserInfo);
 
 			// Wait for state persistence
 			await new Promise((resolve) => setTimeout(resolve, 100));

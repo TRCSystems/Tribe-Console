@@ -1,9 +1,14 @@
+/**
+ * Original Author: Marcellas
+ * src/routes/sections/dashboard/backend.tsx - Backend Dashboard Routes Configuration
+ */
+
+import type { RouteObject } from "react-router";
+import { Navigate } from "react-router";
 import { DB_MENU } from "@/_mock/assets_backup";
 import type { MenuMetaInfo, MenuTree } from "@/types/entity";
 import { PermissionType } from "@/types/enum";
 import { convertFlatToTree } from "@/utils/tree";
-import type { RouteObject } from "react-router";
-import { Navigate } from "react-router";
 import { Component } from "./utils";
 
 /**
@@ -91,6 +96,10 @@ const convertToRoute = (items: MenuTree[], parent?: MenuTree): RouteObject[] => 
 	return routes;
 };
 
+/**
+ * Original Author: Marcellas
+ * Get backend dashboard routes from menu configuration
+ */
 export function getBackendDashboardRoutes() {
 	const backendDashboardRoutes = convertToRoute(convertFlatToTree(DB_MENU));
 	return backendDashboardRoutes;

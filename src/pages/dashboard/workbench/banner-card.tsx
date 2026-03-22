@@ -1,3 +1,4 @@
+//original author : Marcellas
 import type { CSSProperties } from "react";
 import bgImg from "@/assets/images/background/banner-1.png";
 import Character from "@/assets/images/characters/character_3.png";

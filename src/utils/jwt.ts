@@ -1,4 +1,7 @@
-// src/utils/jwt.ts - FIXED VERSION WITH PRIVACY
+/**
+ * Original Author: Marcellas
+ * src/utils/jwt.ts - JWT Utility Functions
+ */
 import { jwtDecode } from "jwt-decode";
 import type { UserRole } from "#/entity";
 
@@ -12,15 +15,16 @@ export interface JwtPayload {
 	iat: number;
 	sub?: string;
 	iss?: string;
-	// The actual merchant ID is in the 'id' field
 	id?: string | number;
-	// ADDED: Support for different field names
 	user_id?: string;
 	user_name?: string;
 	preferred_username?: string;
+	name?: string;
+	businessName?: string;
 }
 
 /**
+ * Original Author: Marcellas
  * Decode JWT token to extract payload
  */
 export const decodeToken = (token: string): JwtPayload | null => {
@@ -47,6 +51,7 @@ export const decodeToken = (token: string): JwtPayload | null => {
 };
 
 /**
+ * Original Author: Marcellas
  * Check if token is expired
  */
 export const isTokenExpired = (token: string): boolean => {
@@ -68,6 +73,7 @@ export const isTokenExpired = (token: string): boolean => {
 };
 
 /**
+ * Original Author: Marcellas
  * Extract user role from JWT token
  */
 export const getRoleFromToken = (token: string): UserRole | null => {
@@ -85,6 +91,7 @@ export const getRoleFromToken = (token: string): UserRole | null => {
 };
 
 /**
+ * Original Author: Marcellas
  * Extract user ID from JWT token
  */
 export const getUserIdFromToken = (token: string): string | null => {
@@ -103,7 +110,8 @@ export const getUserIdFromToken = (token: string): string | null => {
 };
 
 /**
- * Extract username from JWT token - FIXED: Handle missing username fields
+ * Original Author: Marcellas
+ * Extract username from JWT token
  */
 export const getUsernameFromToken = (token: string): string | null => {
 	try {
@@ -146,7 +154,8 @@ export const getUsernameFromToken = (token: string): string | null => {
 };
 
 /**
- * Extract merchant ID from JWT token - ENHANCED with better fallbacks
+ * Original Author: Marcellas
+ * Extract merchant ID from JWT token
  */
 export const getMerchantIdFromToken = (token: string): string | null => {
 	try {
@@ -192,7 +201,8 @@ export const getMerchantIdFromToken = (token: string): string | null => {
 };
 
 /**
- * NEW: Enhanced token validation that handles missing username gracefully
+ * Original Author: Marcellas
+ * Enhanced token validation that handles missing username gracefully
  */
 export const validateToken = (token: string): { isValid: boolean; missingFields: string[]; warnings: string[] } => {
 	try {
@@ -239,7 +249,8 @@ export const validateToken = (token: string): { isValid: boolean; missingFields:
 };
 
 /**
- * NEW: Get all user info from token in one call - FIXED
+ * Original Author: Marcellas
+ * Get all user info from token in one call
  */
 export const extractUserInfoFromToken = (token: string) => {
 	try {
@@ -272,19 +283,22 @@ export const extractUserInfoFromToken = (token: string) => {
 		return null;
 	}
 };
-// ADD THIS FUNCTION TO src/utils/jwt.ts (at the end of the file)
 /**
+ * Original Author: Marcellas
  * Extract merchant name from JWT token
  */
 export const getMerchantNameFromToken = (token: string): string | null => {
 	try {
 		const decoded = decodeToken(token);
 
-		// Try multiple possible fields for merchant name
 		const merchantName =
-			decoded?.username || decoded?.preferred_username || decoded?.name || decoded?.businessName || decoded?.sub; // Fallback to subject
+			decoded?.username ||
+			decoded?.preferred_username ||
+			decoded?.name ||
+			decoded?.businessName ||
+			decoded?.sub ||
+			null;
 
-		// PRIVACY: Never log actual merchant names
 		console.debug(`Merchant name extracted: ${merchantName ? "[REDACTED]" : "Not found"}`);
 
 		return merchantName;

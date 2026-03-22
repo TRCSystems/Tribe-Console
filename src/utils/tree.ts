@@ -1,6 +1,11 @@
+/**
+ * Original Author: Marcellas
+ * src/utils/tree.ts - Tree Utility Functions
+ */
 import { chain } from "ramda";
 
 /**
+ * Original Author: Marcellas
  * Flatten an array containing a tree structure
  * @param {T[]} trees - An array containing a tree structure
  * @returns {T[]} - Flattened array
@@ -13,6 +18,7 @@ export function flattenTrees<T extends { children?: T[] }>(trees: T[] = []): T[]
 }
 
 /**
+ * Original Author: Marcellas
  * Convert an array to a tree structure
  * @param items - An array of items
  * @returns A tree structure
@@ -24,6 +30,7 @@ export function convertToTree<T extends { children?: T[] }>(items: T[]): T[] {
 }
 
 /**
+ * Original Author: Marcellas
  * Convert a flat array with parentId to a tree structure
  * @param items - An array of items with parentId
  * @returns A tree structure with children property

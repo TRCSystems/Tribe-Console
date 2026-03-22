@@ -1,5 +1,11 @@
 // src/api/apiClient.ts - FINAL COMPLETE VERSION
-import axios, { type AxiosError, type AxiosRequestConfig, type AxiosResponse } from "axios";
+import axios, {
+	type AxiosError,
+	type AxiosInstance,
+	type AxiosRequestConfig,
+	type AxiosResponse,
+	type InternalAxiosRequestConfig,
+} from "axios";
 import { GLOBAL_CONFIG } from "@/global-config";
 import useUserStore from "@/store/userStore";
 
@@ -25,7 +31,7 @@ const loyaltyApiInstance = axios.create({
 });
 
 // Enhanced request interceptor with better token handling
-const requestInterceptor = (config: AxiosRequestConfig) => {
+const requestInterceptor = (config: InternalAxiosRequestConfig) => {
 	const token = useUserStore.getState().userToken?.accessToken;
 
 	console.log("🔐 API Request:", {
@@ -209,9 +215,9 @@ mainApiInstance.interceptors.response.use(responseInterceptor.success, responseI
 loyaltyApiInstance.interceptors.response.use(responseInterceptor.success, responseInterceptor.error);
 
 class APIClient {
-	private instance: typeof axios;
+	private instance: AxiosInstance;
 
-	constructor(instance: typeof axios) {
+	constructor(instance: AxiosInstance) {
 		this.instance = instance;
 	}
 

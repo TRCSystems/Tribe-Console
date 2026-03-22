@@ -1,4 +1,7 @@
-// src/store/userStore.ts - FIXED VERSION WITH PRIVACY AND PASSWORD CLEARING
+/**
+ * Original Author: Marcellas
+ * src/store/userStore.ts - User State Management
+ */
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { create } from "zustand";
@@ -12,7 +15,6 @@ import {
 	getUserIdFromToken,
 	getUsernameFromToken,
 	isTokenExpired,
-	type JwtPayload,
 } from "@/utils/jwt";
 
 type UserStore = {
@@ -75,7 +77,7 @@ const useUserStore = create<UserStore>()(
 							const decoded = decodeToken(userToken.accessToken);
 							merchantId = decoded?.id ? decoded.id.toString() : null;
 							console.debug("Extracted merchant ID from token");
-						} catch (error) {
+						} catch (_error) {
 							console.error("❌ Failed to decode token for merchant ID");
 						}
 					}
@@ -143,10 +145,13 @@ const useUserStore = create<UserStore>()(
 					let merchantId = state.merchantId;
 					if (hasToken && !merchantId) {
 						try {
-							const decoded = decodeToken(state.userToken.accessToken!);
-							merchantId = decoded?.id ? decoded.id.toString() : null;
+							const token = state.userToken.accessToken;
+							if (token) {
+								const decoded = decodeToken(token);
+								merchantId = decoded?.id ? decoded.id.toString() : null;
+							}
 							console.debug("🔄 Synced merchant ID from token");
-						} catch (error) {
+						} catch (_error) {
 							console.error("❌ Failed to sync merchant ID");
 						}
 					}
@@ -210,7 +215,7 @@ export const useMerchantId = (): string | null => {
 		const merchantId = getMerchantIdFromToken(token.accessToken);
 		console.debug("🔄 useMerchantId: Extracted from token");
 		return merchantId;
-	} catch (error) {
+	} catch (_error) {
 		console.error("Failed to get merchant ID from token");
 		return null;
 	}
@@ -228,7 +233,7 @@ export const useUserRole = (): UserRole | null => {
 	try {
 		const role = getRoleFromToken(accessToken);
 		return role;
-	} catch (error) {
+	} catch (_error) {
 		console.error("Failed to get role from token");
 		return null;
 	}
@@ -242,7 +247,7 @@ export const useUserId = (): string | null => {
 	try {
 		const userId = getUserIdFromToken(accessToken);
 		return userId;
-	} catch (error) {
+	} catch (_error) {
 		console.error("Failed to get user ID from token");
 		return null;
 	}
@@ -266,7 +271,7 @@ export const useHasPermission = (permission: string): boolean => {
 
 	if (!userRole) return false;
 
-	return userPermissions.includes(permission);
+	return userPermissions.some((p) => p.code === permission);
 };
 
 export const useTokenDebug = () => {
@@ -288,7 +293,10 @@ export const useTokenDebug = () => {
 	};
 };
 
-//  Enhanced auth check hook
+/**
+ * Original Author: Marcellas
+ * Enhanced auth check hook
+ */
 export const useAuthCheck = () => {
 	const isAuthenticated = useIsAuthenticated();
 	const merchantId = useMerchantId();
@@ -323,7 +331,10 @@ export const useAuthCheck = () => {
 	};
 };
 
-// FIXED: Enhanced signIn function
+/**
+ * Original Author: Marcellas
+ * Enhanced signIn function
+ */
 export const useSignIn = () => {
 	const { setUserToken, setUserInfo, syncAuthState } = useUserActions();
 
@@ -344,16 +355,17 @@ export const useSignIn = () => {
 
 				// FIXED: Proper token extraction - ONLY extract the JWT token
 				let token: string | null = null;
+				const resAny = res as unknown as Record<string, unknown>;
 
 				if (res?.respObject?.value && typeof res.respObject.value === "string") {
 					// This is the correct path - extract just the JWT token
 					token = res.respObject.value;
 					console.debug("Token length:", token.length);
-				} else if (res?.accessToken) {
-					token = res.accessToken;
+				} else if (resAny?.accessToken) {
+					token = resAny.accessToken as string;
 					console.debug("Token found in accessToken");
-				} else if (res?.token) {
-					token = res.token;
+				} else if (resAny?.token) {
+					token = resAny.token as string;
 					console.debug("Token found in token");
 				}
 
@@ -422,7 +434,7 @@ export const useSignIn = () => {
 
 				return `Login successful! Welcome ${userInfo.username} (${userInfo.role})`;
 			},
-			error: (err) => {
+			error: (_err) => {
 				// PRIVACY: Don't expose error details
 				console.error("🛠️ Login error");
 				return "Login failed. Please try again.";

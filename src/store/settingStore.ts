@@ -1,8 +1,11 @@
+/**
+ * Original Author: Marcellas
+ * src/store/settingStore.ts - Application Settings State Management
+ */
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-
-import { FontFamilyPreset, typographyTokens } from "@/theme/tokens/typography";
 import { StorageEnum, ThemeColorPresets, ThemeLayout, ThemeMode } from "#/enum";
+import { FontFamilyPreset, typographyTokens } from "@/theme/tokens/typography";
 
 export type SettingsType = {
 	themeColorPresets: ThemeColorPresets;

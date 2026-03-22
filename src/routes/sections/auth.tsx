@@ -1,4 +1,8 @@
-import { Suspense, lazy } from "react";
+/**
+ * Original Author: Marcellas
+ * src/routes/sections/auth.tsx - Authentication Routes Configuration
+ */
+import { lazy, Suspense } from "react";
 import type { RouteObject } from "react-router";
 import { Outlet } from "react-router";
 

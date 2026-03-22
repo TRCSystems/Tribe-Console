@@ -1,9 +1,9 @@
+import { useState } from "react";
 import { Icon } from "@/components/icon";
 import { Upload, UploadAvatar, UploadBox } from "@/components/upload";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { Switch } from "@/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
-import { useState } from "react";
 
 export default function UploadPage() {
 	const [thumbnail, setThumbnail] = useState<boolean>(false);

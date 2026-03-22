@@ -1,4 +1,7 @@
-// src/components/user-role-indicator.tsx - FIXED VERSION
+/**
+ * Original Author: Marcellas
+ * src/components/user-role-indicator.tsx - User Role Indicator Component
+ */
 
 import { Icon } from "@/components/icon";
 import { useMerchantId, useUserActions, useUserInfo, useUserRole } from "@/store/userStore";

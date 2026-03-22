@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/management/system-users/edit/index.tsx - NEW FILE
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Form, message } from "antd";
@@ -23,7 +24,7 @@ export default function EditUserPage() {
 
 			// API expects numeric ID but our routes use string
 			const numericId = parseInt(id);
-			if (isNaN(numericId)) {
+			if (Number.isNaN(numericId)) {
 				throw new Error("Invalid user ID");
 			}
 

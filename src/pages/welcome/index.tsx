@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/welcome/index.tsx - LANDSCAPE FRIENDLY VERSION
 import { useNavigate } from "react-router";
 import { Icon } from "@/components/icon";

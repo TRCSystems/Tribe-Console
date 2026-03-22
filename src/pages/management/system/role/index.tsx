@@ -1,12 +1,14 @@
+//original author : Marcellas
 // import { ROLE_LIST } from "@/_mock/assets";
-import { Icon } from "@/components/icon";
-import { Badge } from "@/ui/badge";
-import { Button } from "@/ui/button";
-import { Card, CardContent, CardHeader } from "@/ui/card";
+
 import Table, { type ColumnsType } from "antd/es/table";
 import { useState } from "react";
 import type { Role_Old } from "#/entity";
 import { BasicStatus } from "#/enum";
+import { Icon } from "@/components/icon";
+import { Badge } from "@/ui/badge";
+import { Button } from "@/ui/button";
+import { Card, CardContent, CardHeader } from "@/ui/card";
 import { RoleModal, type RoleModalProps } from "./role-modal";
 
 // TODO: fix
@@ -48,7 +50,11 @@ export default function RolePage() {
 			dataIndex: "status",
 			align: "center",
 			width: 120,
-			render: (status) => <Badge variant={status === BasicStatus.DISABLE ? "error" : "success"}>{status === BasicStatus.DISABLE ? "Disable" : "Enable"}</Badge>,
+			render: (status) => (
+				<Badge variant={status === BasicStatus.DISABLE ? "error" : "success"}>
+					{status === BasicStatus.DISABLE ? "Disable" : "Enable"}
+				</Badge>
+			),
 		},
 		{ title: "Desc", dataIndex: "desc" },
 		{
@@ -99,7 +105,14 @@ export default function RolePage() {
 				</div>
 			</CardHeader>
 			<CardContent>
-				<Table rowKey="id" size="small" scroll={{ x: "max-content" }} pagination={false} columns={columns} dataSource={ROLES} />
+				<Table
+					rowKey="id"
+					size="small"
+					scroll={{ x: "max-content" }}
+					pagination={false}
+					columns={columns}
+					dataSource={ROLES}
+				/>
 			</CardContent>
 			<RoleModal {...roleModalPros} />
 		</Card>

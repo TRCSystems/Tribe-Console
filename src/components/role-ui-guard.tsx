@@ -1,4 +1,7 @@
-// src/components/role-ui-guard.tsx
+/**
+ * Original Author: Marcellas
+ * src/components/role-ui-guard.tsx - Role-based UI Guard Component
+ */
 
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { useUserRole } from "@/store/userStore";

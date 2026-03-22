@@ -1,9 +1,8 @@
+//original author : Marcellas
 // src/pages/management/user-profile/profile-tab.tsx - FIXED
 import { Icon } from "@/components/icon";
-import { useUserInfo, useUserEmail, useUserRole, useMerchantId } from "@/store/userStore"; // ADDED
-import { themeVars } from "@/theme/theme.css";
+import { useMerchantId, useUserEmail, useUserInfo, useUserRole } from "@/store/userStore"; // ADDED
 import { Badge } from "@/ui/badge";
-import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Text } from "@/ui/typography";
 
@@ -58,11 +57,11 @@ export default function ProfileTab() {
 					<CardHeader>
 						<CardTitle>About</CardTitle>
 						<CardDescription>
-							{userRole === "ADMIN" 
+							{userRole === "ADMIN"
 								? "Administrator account with full system access"
 								: userRole === "MERCHANT"
-								? "Merchant account for business operations"
-								: "User account"}
+									? "Merchant account for business operations"
+									: "User account"}
 						</CardDescription>
 					</CardHeader>
 					<CardContent>

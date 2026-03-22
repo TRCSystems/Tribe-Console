@@ -1,6 +1,6 @@
+import { toast } from "sonner";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
-import { toast } from "sonner";
 
 export default function ToastPage() {
 	const promise = () => new Promise((resolve) => setTimeout(() => resolve({ name: "Sonner" }), 2000));

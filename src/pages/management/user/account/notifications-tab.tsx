@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/management/user-account/notifications-tab.tsx - FINAL VERSION
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";

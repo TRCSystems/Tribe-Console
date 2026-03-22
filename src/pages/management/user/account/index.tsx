@@ -1,3 +1,4 @@
+//original author : Marcellas
 import { Icon } from "@/components/icon";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import GeneralTab from "./general-tab";

@@ -1,9 +1,7 @@
+//original author : Marcellas
 // src/pages/marketing/social/index.tsx
 import { Icon } from "@/components/icon";
-import { Button } from "@/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import { Input } from "@/ui/input";
-import { Label } from "@/ui/label";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 
 export default function SocialMarketingPage() {
 	return (

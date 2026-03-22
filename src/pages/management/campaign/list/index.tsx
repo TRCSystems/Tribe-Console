@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/management/campaign/list/index.tsx - FINAL FIXED VERSION
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -90,7 +91,7 @@ const calculateOverallStats = (campaigns: Campaign[]) => {
 		totalConversions += stats.conversions;
 	});
 
-	const conversionRate = totalClicks > 0 ? ((totalConversions / totalClicks) * 100).toFixed(1) + "%" : "0%";
+	const conversionRate = totalClicks > 0 ? `${((totalConversions / totalClicks) * 100).toFixed(1)}%` : "0%";
 
 	return {
 		totalViews,

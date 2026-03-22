@@ -1,3 +1,7 @@
+/**
+ * Original Author: Marcellas
+ * src/utils/storage.ts - Local Storage Utility Functions
+ */
 import type { StorageEnum } from "#/enum";
 
 export const getItem = <T>(key: StorageEnum): T | null => {

@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/management/merchant/list/index.tsx - FINAL VERSION
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";

@@ -1,8 +1,8 @@
+import { faker } from "@faker-js/faker";
 import { themeVars } from "@/theme/theme.css";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/ui/card";
 import { ScrollArea, ScrollBar } from "@/ui/scroll-area";
-import { faker } from "@faker-js/faker";
 
 const TEXT = faker.lorem.paragraphs({ min: 20, max: 30 });
 export default function ScrollbarView() {

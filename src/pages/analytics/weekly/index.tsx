@@ -1,8 +1,8 @@
+//original author : Marcellas
 // src/pages/analytics/weekly/index.tsx - FINAL VERSION WITH SECURITY
 import { useQuery } from "@tanstack/react-query";
 import React, { useState } from "react";
 import {
-	BarChart,
 	CartesianGrid,
 	Cell,
 	Legend,
@@ -115,8 +115,7 @@ const secureData = {
 	},
 };
 
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
-// Note: COLORS array defined but not currently used
+const _COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 // Secure export function
 const exportReport = async (currentData: any, merchantId: string, reportType: string, dateRange: string) => {
@@ -140,7 +139,7 @@ const exportReport = async (currentData: any, merchantId: string, reportType: st
 		secureData.setSecureData("merchantId", merchantId);
 
 		// Generate professional banking PDF
-		await generateProfessionalPDF(exportData, `Business-Report-${new Date().getTime()}.pdf`);
+		await generateProfessionalPDF(exportData, `Business-Report-${Date.now()}.pdf`);
 
 		return true;
 	} catch (error) {
@@ -1035,7 +1034,7 @@ export default function WeeklyAnalyticsPage() {
 										<Tooltip
 											formatter={(value) => [formatCurrency(Number(value)), "Amount"]}
 											labelFormatter={(label, payload) => {
-												if (payload && payload[0]) {
+												if (payload?.[0]) {
 													return `Date: ${payload[0].payload.fullDate}`;
 												}
 												return label;

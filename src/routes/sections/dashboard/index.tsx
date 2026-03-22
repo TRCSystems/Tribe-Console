@@ -1,4 +1,7 @@
-// src/routes/sections/dashboard/index.tsx - UPDATED
+/**
+ * Original Author: Marcellas
+ * src/routes/sections/dashboard/index.tsx - Dashboard Routes Configuration
+ */
 
 import { Navigate, type RouteObject } from "react-router";
 import { GLOBAL_CONFIG } from "@/global-config";

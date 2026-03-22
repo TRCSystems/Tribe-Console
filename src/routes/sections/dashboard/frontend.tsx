@@ -1,7 +1,15 @@
+/**
+ * Original Author: Marcellas
+ * src/routes/sections/dashboard/frontend.tsx - Frontend Dashboard Routes Configuration
+ */
 import type { RouteObject } from "react-router";
 import { Navigate } from "react-router";
 import { Component } from "./utils";
 
+/**
+ * Original Author: Marcellas
+ * Get frontend dashboard routes
+ */
 export function getFrontendDashboardRoutes(): RouteObject[] {
 	const frontendDashboardRoutes: RouteObject[] = [
 		{ path: "welcome", element: Component("/pages/welcome") },

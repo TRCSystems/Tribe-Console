@@ -1,12 +1,14 @@
 /* eslint-disable import/order */
 import "@/utils/highlight";
-import ReactQuill, { type ReactQuillProps } from "react-quill";
+import ReactQuill from "react-quill";
 import { StyledEditor } from "./styles";
 import Toolbar, { formats } from "./toolbar";
 
-// TODO: repace react-quill with tiptap
-interface Props extends ReactQuillProps {
+interface Props {
 	sample?: boolean;
+	id?: string;
+	value?: string;
+	onChange?: (value: string) => void;
 }
 export default function Editor({ id = "slash-quill", sample = false, ...other }: Props) {
 	const modules = {

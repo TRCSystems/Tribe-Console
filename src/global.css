@@ -19,130 +19,128 @@
 /* base layer */
 
 @layer base {
-    *,
-     ::after,
-     ::before,
-     ::backdrop,
-     ::file-selector-button {
-        /* https://tailwindcss.com/docs/upgrade-guide#default-border-color */
-        border-color: rgba(var(--colors-palette-gray-500Channel) / var(--opacity-border));
-    }
-    body {
-        background-color: var(--background);
-    }
+	*,
+	::after,
+	::before,
+	::backdrop,
+	::file-selector-button {
+		/* https://tailwindcss.com/docs/upgrade-guide#default-border-color */
+		border-color: rgba(var(--colors-palette-gray-500Channel) / var(--opacity-border));
+	}
+	body {
+		background-color: var(--background);
+	}
 }
 
 @theme {
-    --animate-collapsible-down: collapsible-down 0.2s ease-in-out;
-    --animate-collapsible-up: collapsible-up 0.2s ease-in-out;
-    @keyframes collapsible-down {
-        from {
-            height: 0;
-        }
-        to {
-            height: var(--radix-collapsible-content-height);
-        }
-    }
-    @keyframes collapsible-up {
-        from {
-            height: var(--radix-collapsible-content-height);
-        }
-        to {
-            height: 0;
-        }
-    }
-    --animate-slow-spin: spin 4s linear infinite;
-    @keyframes spin {
-        from {
-            transform: rotate(0deg);
-        }
-        to {
-            transform: rotate(360deg);
-        }
-    }
+	--animate-collapsible-down: collapsible-down 0.2s ease-in-out;
+	--animate-collapsible-up: collapsible-up 0.2s ease-in-out;
+	@keyframes collapsible-down {
+		from {
+			height: 0;
+		}
+		to {
+			height: var(--radix-collapsible-content-height);
+		}
+	}
+	@keyframes collapsible-up {
+		from {
+			height: var(--radix-collapsible-content-height);
+		}
+		to {
+			height: 0;
+		}
+	}
+	--animate-slow-spin: spin 4s linear infinite;
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
 }
-
 
 /* Shadcn UI Light Theme */
 
 :root {
-    --radius: 0.5rem;
-    --background: var(--colors-common-white);
-    --foreground: var(--colors-common-black);
-    --card: var(--colors-common-white);
-    --card-foreground: var(--colors-common-black);
-    --popover: var(--colors-common-white);
-    --popover-foreground: var(--colors-common-black);
-    --primary: var(--colors-palette-primary-default);
-    --primary-foreground: var(--colors-palette-primary-lighter);
-    --secondary: var(--colors-palette-gray-200);
-    --secondary-foreground: var(--colors-palette-gray-600);
-    --muted: var(--colors-palette-gray-200);
-    --muted-foreground: var(--colors-palette-gray-500);
-    --accent: var(--colors-palette-gray-200);
-    --accent-foreground: var(--colors-palette-gray-600);
-    --destructive: var(--colors-palette-error-default);
-    --border: rgba(var(--colors-palette-gray-500Channel)/ var(--opacity-border));
-    --input: rgba(var(--colors-palette-gray-500Channel)/ var(--opacity-border));
-    --ring: var(--colors-palette-primary-default);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: var(--colors-palette-gray-200);
-    --sidebar-foreground: var(--colors-palette-gray-800);
-    --sidebar-primary: var(--colors-palette-primary-default);
-    --sidebar-primary-foreground: var(--colors-palette-primary-lighter);
-    --sidebar-accent: var(--colors-palette-gray-200);
-    --sidebar-accent-foreground: var(--colors-palette-gray-800);
-    --sidebar-border: var(--colors-palette-gray-200);
-    --sidebar-ring: var(--colors-palette-primary-default);
+	--radius: 0.5rem;
+	--background: var(--colors-common-white);
+	--foreground: var(--colors-common-black);
+	--card: var(--colors-common-white);
+	--card-foreground: var(--colors-common-black);
+	--popover: var(--colors-common-white);
+	--popover-foreground: var(--colors-common-black);
+	--primary: var(--colors-palette-primary-default);
+	--primary-foreground: var(--colors-palette-primary-lighter);
+	--secondary: var(--colors-palette-gray-200);
+	--secondary-foreground: var(--colors-palette-gray-600);
+	--muted: var(--colors-palette-gray-200);
+	--muted-foreground: var(--colors-palette-gray-500);
+	--accent: var(--colors-palette-gray-200);
+	--accent-foreground: var(--colors-palette-gray-600);
+	--destructive: var(--colors-palette-error-default);
+	--border: rgba(var(--colors-palette-gray-500Channel) / var(--opacity-border));
+	--input: rgba(var(--colors-palette-gray-500Channel) / var(--opacity-border));
+	--ring: var(--colors-palette-primary-default);
+	--chart-1: oklch(0.646 0.222 41.116);
+	--chart-2: oklch(0.6 0.118 184.704);
+	--chart-3: oklch(0.398 0.07 227.392);
+	--chart-4: oklch(0.828 0.189 84.429);
+	--chart-5: oklch(0.769 0.188 70.08);
+	--sidebar: var(--colors-palette-gray-200);
+	--sidebar-foreground: var(--colors-palette-gray-800);
+	--sidebar-primary: var(--colors-palette-primary-default);
+	--sidebar-primary-foreground: var(--colors-palette-primary-lighter);
+	--sidebar-accent: var(--colors-palette-gray-200);
+	--sidebar-accent-foreground: var(--colors-palette-gray-800);
+	--sidebar-border: var(--colors-palette-gray-200);
+	--sidebar-ring: var(--colors-palette-primary-default);
 }
-
 
 /* Shadcn UI Dark Theme */
 
 [data-theme-mode="dark"] {
-    --background: var(--colors-common-black);
-    --foreground: var(--colors-common-white);
-    --card: var(--colors-common-black);
-    --card-foreground: var(--colors-common-white);
-    --popover: var(--colors-common-black);
-    --popover-foreground: var(--colors-common-white);
-    --primary: var(--colors-palette-primary-default);
-    --primary-foreground: var(--colors-palette-primary-darker);
-    --secondary: var(--colors-background-neutral);
-    --secondary-foreground: var(--colors-palette-gray-500);
-    --muted: var(--colors-background-neutral);
-    --muted-foreground: var(--colors-palette-gray-400);
-    --accent: var(--colors-background-neutral);
-    --accent-foreground: var(--colors-palette-gray-500);
-    --destructive: var(--colors-palette-error-default);
-    --border: rgba(var(--colors-palette-gray-500Channel)/ var(--opacity-border));
-    --input: rgba(var(--colors-palette-gray-500Channel)/ var(--opacity-border));
-    --ring: var(--colors-palette-primary-default);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: var(--colors-background-neutral);
-    --sidebar-foreground: var(--colors-common-white);
-    --sidebar-primary: var(--colors-palette-primary-default);
-    --sidebar-primary-foreground: var(--colors-palette-primary-darker);
-    --sidebar-accent: var(--colors-background-neutral);
-    --sidebar-accent-foreground: var(--colors-common-white);
-    --sidebar-border: rgba(var(--colors-palette-gray-500Channel)/ var(--opacity-border));
-    --sidebar-ring: var(--colors-palette-primary-default);
+	--background: var(--colors-common-black);
+	--foreground: var(--colors-common-white);
+	--card: var(--colors-common-black);
+	--card-foreground: var(--colors-common-white);
+	--popover: var(--colors-common-black);
+	--popover-foreground: var(--colors-common-white);
+	--primary: var(--colors-palette-primary-default);
+	--primary-foreground: var(--colors-palette-primary-darker);
+	--secondary: var(--colors-background-neutral);
+	--secondary-foreground: var(--colors-palette-gray-500);
+	--muted: var(--colors-background-neutral);
+	--muted-foreground: var(--colors-palette-gray-400);
+	--accent: var(--colors-background-neutral);
+	--accent-foreground: var(--colors-palette-gray-500);
+	--destructive: var(--colors-palette-error-default);
+	--border: rgba(var(--colors-palette-gray-500Channel) / var(--opacity-border));
+	--input: rgba(var(--colors-palette-gray-500Channel) / var(--opacity-border));
+	--ring: var(--colors-palette-primary-default);
+	--chart-1: oklch(0.488 0.243 264.376);
+	--chart-2: oklch(0.696 0.17 162.48);
+	--chart-3: oklch(0.769 0.188 70.08);
+	--chart-4: oklch(0.627 0.265 303.9);
+	--chart-5: oklch(0.645 0.246 16.439);
+	--sidebar: var(--colors-background-neutral);
+	--sidebar-foreground: var(--colors-common-white);
+	--sidebar-primary: var(--colors-palette-primary-default);
+	--sidebar-primary-foreground: var(--colors-palette-primary-darker);
+	--sidebar-accent: var(--colors-background-neutral);
+	--sidebar-accent-foreground: var(--colors-common-white);
+	--sidebar-border: rgba(var(--colors-palette-gray-500Channel) / var(--opacity-border));
+	--sidebar-ring: var(--colors-palette-primary-default);
 }
 
 :root {
-    --layout-nav-width: 260px;
-    --layout-nav-width-mini: 88px;
-    --layout-nav-height-horizontal: 48px;
-    --layout-header-height: 64px;
-    --layout-multi-tabs-height: 48px;
+	--layout-nav-width: 260px;
+	--layout-nav-width-mini: 88px;
+	--layout-nav-height-horizontal: 48px;
+	--layout-header-height: 64px;
+	--layout-multi-tabs-height: 48px;
 }
 
 /* =========================================== */
@@ -152,40 +150,40 @@
 /* Prevent browser authentication dialog */
 input[type="password"]::-webkit-credentials-auto-fill-button,
 input[type="password"]::-webkit-credentials-auto-fill-button:hover {
-    visibility: hidden;
-    display: none !important;
-    pointer-events: none;
-    position: absolute;
-    right: -10000px;
+	visibility: hidden;
+	display: none !important;
+	pointer-events: none;
+	position: absolute;
+	right: -10000px;
 }
 
 /* Base fix for all text */
 * {
-    -webkit-touch-callout: default;
+	-webkit-touch-callout: default;
 }
 
 /* ✅ CRITICAL: Force ALL inputs to be editable in Electron */
 input:not([type="checkbox"]):not([type="radio"]),
 textarea,
 [contenteditable="true"] {
-    -webkit-user-modify: read-write !important;
-    -webkit-user-select: text !important;
-    user-select: text !important;
-    caret-color: #3b82f6 !important;
-    pointer-events: auto !important;
+	-webkit-user-modify: read-write !important;
+	-webkit-user-select: text !important;
+	user-select: text !important;
+	caret-color: #3b82f6 !important;
+	pointer-events: auto !important;
 }
 
 /* ✅ SPECIFIC FIX FOR OTP INPUTS - MOST IMPORTANT */
 input[type="text"][inputmode="numeric"],
 input[pattern="[0-9]*"],
 .otp-input {
-    -webkit-user-modify: read-write-plaintext-only !important;
-    -webkit-user-select: text !important;
-    user-select: text !important;
-    caret-color: #3b82f6 !important;
-    pointer-events: auto !important;
-    /* Remove number spinner */
-    -moz-appearance: textfield !important;
+	-webkit-user-modify: read-write-plaintext-only !important;
+	-webkit-user-select: text !important;
+	user-select: text !important;
+	caret-color: #3b82f6 !important;
+	pointer-events: auto !important;
+	/* Remove number spinner */
+	-moz-appearance: textfield !important;
 }
 
 /* Hide number spinners */
@@ -193,63 +191,78 @@ input[type="text"][inputmode="numeric"]::-webkit-outer-spin-button,
 input[type="text"][inputmode="numeric"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button {
-    -webkit-appearance: none !important;
-    margin: 0 !important;
+	-webkit-appearance: none !important;
+	margin: 0 !important;
 }
 
 /* Allow text selection in content areas */
-div, p, span, h1, h2, h3, h4, h5, h6, li, td, th {
-    -webkit-user-select: text;
-    user-select: text;
+div,
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+td,
+th {
+	-webkit-user-select: text;
+	user-select: text;
 }
 
 /* Enable drag for specific elements only */
 .draggable {
-    -webkit-app-region: drag;
+	-webkit-app-region: drag;
 }
 
 /* Disable drag for interactive elements */
-input, textarea, button, select, [contenteditable] {
-    -webkit-app-region: no-drag !important;
+input,
+textarea,
+button,
+select,
+[contenteditable] {
+	-webkit-app-region: no-drag !important;
 }
 
 /* Ensure body allows text selection */
 body {
-    -webkit-user-select: text;
-    user-select: text;
+	-webkit-user-select: text;
+	user-select: text;
 }
 
 /* ✅ CRITICAL: Fix for focus in Electron - more aggressive */
 input:focus,
 textarea:focus,
 [contenteditable="true"]:focus {
-    outline: 3px solid #3b82f6 !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2) !important;
-    border-color: #3b82f6 !important;
+	outline: 3px solid #3b82f6 !important;
+	outline-offset: 2px !important;
+	box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2) !important;
+	border-color: #3b82f6 !important;
 }
 
 /* ✅ CRITICAL: When body has electron class (added by JS) */
 body.electron-app {
-    -webkit-user-select: auto !important;
-    user-select: auto !important;
+	-webkit-user-select: auto !important;
+	user-select: auto !important;
 }
 
 /* ✅ CRITICAL: Remove any blockers from OTP modal */
 .otp-modal *,
 [data-otp-modal] *,
 [data-electron-fix="true"] {
-    -webkit-user-select: auto !important;
-    user-select: auto !important;
+	-webkit-user-select: auto !important;
+	user-select: auto !important;
 }
 
 /* ✅ CRITICAL: Fix for Tailwind focus rings in Electron */
 .focus\:border-blue-500:focus {
-    border-color: #3b82f6 !important;
+	border-color: #3b82f6 !important;
 }
 
 .focus\:ring-2:focus,
 .focus\:ring-4:focus {
-    --tw-ring-color: rgba(59, 130, 246, 0.5) !important;
-    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
+	--tw-ring-color: rgba(59, 130, 246, 0.5) !important;
+	box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
 }

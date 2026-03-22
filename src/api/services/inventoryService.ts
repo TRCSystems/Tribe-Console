@@ -376,7 +376,7 @@ class InventoryService {
 				narration: data.narration.trim(),
 			};
 
-			const response = await loyaltyApiClient.post({
+			const response = await loyaltyApiClient.post<ExpenseResponse>({
 				url: "/inventory/expense",
 				data: requestData,
 			});
@@ -601,7 +601,7 @@ class InventoryService {
 
 			console.log("📤 Final request data:", requestData);
 
-			const response = await loyaltyApiClient.post({
+			const response = await loyaltyApiClient.post<SaleResponse>({
 				url: "/inventory/sale",
 				data: requestData,
 			});
@@ -678,29 +678,32 @@ class InventoryService {
 			console.log("✅ Initiate Close Day API Response:", response);
 			console.groupEnd();
 
-			if (response && typeof response === "object") {
-				if (response.error || response.status === "FAILED") {
-					if (response.message?.toLowerCase().includes("no sales recorded today")) {
-						console.warn("⚠️ No sales recorded today, but OTP was sent:", response.message);
+			const responseObj = response as Record<string, unknown>;
+			if (responseObj && typeof responseObj === "object") {
+				if (responseObj.error || responseObj.status === "FAILED") {
+					if ((responseObj.message as string)?.toLowerCase().includes("no sales recorded today")) {
+						console.warn("⚠️ No sales recorded today, but OTP was sent:", responseObj.message);
 
 						return {
 							success: true,
-							message: response.message || `OTP sent to ${merchantPhone || "your registered phone"} (No sales today)`,
+							message:
+								(responseObj.message as string) ||
+								`OTP sent to ${merchantPhone || "your registered phone"} (No sales today)`,
 							otpSent: true,
 							merchantPhone: merchantPhone,
-							...response,
+							...responseObj,
 						};
 					}
 
-					throw new Error(response.message || response.error || "Failed to send OTP");
+					throw new Error((responseObj.message as string) || (responseObj.error as string) || "Failed to send OTP");
 				}
 
 				return {
 					success: true,
-					message: response.message || `OTP sent to ${merchantPhone || "your registered phone"}`,
+					message: (responseObj.message as string) || `OTP sent to ${merchantPhone || "your registered phone"}`,
 					otpSent: true,
 					merchantPhone: merchantPhone,
-					...response,
+					...responseObj,
 				};
 			}
 
@@ -789,9 +792,10 @@ class InventoryService {
 			console.log("✅ Finalize Close Day API Response:", response);
 			console.groupEnd();
 
-			if (response && typeof response === "object") {
-				if (response.error || response.status === "FAILED" || response.statusCode === 400) {
-					const errorMsg = response.message || response.error || "Failed to close day";
+			const responseObj = response as Record<string, unknown>;
+			if (responseObj && typeof responseObj === "object") {
+				if (responseObj.error || responseObj.status === "FAILED" || responseObj.statusCode === 400) {
+					const errorMsg = (responseObj.message as string) || (responseObj.error as string) || "Failed to close day";
 
 					if (
 						errorMsg.toLowerCase().includes("null otp code") ||
@@ -806,7 +810,7 @@ class InventoryService {
 							success: true,
 							closedDate: new Date().toISOString(),
 							message: "Business day closed successfully with zero sales.",
-							...response,
+							...responseObj,
 						};
 					}
 
@@ -823,9 +827,9 @@ class InventoryService {
 
 				return {
 					success: true,
-					closedDate: response.closedDate || new Date().toISOString(),
-					message: response.message || "Business day closed successfully!",
-					...response,
+					closedDate: (responseObj.closedDate as string) || new Date().toISOString(),
+					message: (responseObj.message as string) || "Business day closed successfully!",
+					...responseObj,
 				};
 			}
 
@@ -955,11 +959,11 @@ class InventoryService {
 			console.log("✅ Update Item API Response:", response);
 			console.groupEnd();
 
+			const responseObj = response as unknown as InventoryItem;
 			return {
 				success: true,
 				message: "Item updated successfully",
-				updatedItem: response,
-				...response,
+				updatedItem: responseObj,
 			};
 		} catch (error: any) {
 			console.error("❌ Update Item API Error:", error);
@@ -1008,7 +1012,6 @@ class InventoryService {
 				success: true,
 				message: "Item deleted successfully",
 				deletedItemId: inventoryId,
-				...response,
 			};
 		} catch (error: any) {
 			console.error("❌ Delete Item API Error:", error);

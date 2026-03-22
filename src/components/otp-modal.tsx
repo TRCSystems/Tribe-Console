@@ -1,4 +1,7 @@
-// src/components/otp-modal.tsx - FINAL ELECTRON FIX
+/**
+ * Original Author: Marcellas
+ * src/components/otp-modal.tsx - OTP Verification Modal Component
+ */
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/icon";
 import { Button } from "@/ui/button";

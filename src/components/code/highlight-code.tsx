@@ -1,10 +1,10 @@
+import { useState } from "react";
+import { createHighlighter } from "shiki/bundle/web";
 import { Icon } from "@/components/icon";
 import { useCopyToClipboard } from "@/hooks";
 import { useSettings } from "@/store/settingStore";
 import { Button } from "@/ui/button";
 import { cn } from "@/utils";
-import { useState } from "react";
-import { createHighlighter } from "shiki/bundle/web";
 import type { HighlightCodeProps } from ".";
 
 const highlighter = await createHighlighter({

@@ -1,3 +1,4 @@
+//original author : Marcellas
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
@@ -5,7 +6,7 @@ import { useNavigate } from "react-router";
 import inventoryService, {
 	type InventoryItem,
 	type InvoiceUploadResponse,
-	type StockItem,
+	type StockItemRequest,
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { LockModal } from "@/components/lock-modal";
@@ -345,7 +346,7 @@ const EditInventoryModal = ({
 							value={formData.quantity}
 							onChange={(e) => {
 								const value = parseInt(e.target.value);
-								if (!isNaN(value) && value >= 0) {
+								if (!Number.isNaN(value) && value >= 0) {
 									setFormData({ ...formData, quantity: value });
 								} else if (e.target.value === "" || e.target.value === "-") {
 									setFormData({ ...formData, quantity: 0 });
@@ -353,7 +354,7 @@ const EditInventoryModal = ({
 							}}
 							onBlur={(e) => {
 								const value = parseInt(e.target.value);
-								if (isNaN(value) || value < 0) {
+								if (Number.isNaN(value) || value < 0) {
 									setFormData({ ...formData, quantity: 0 });
 								}
 							}}
@@ -372,7 +373,7 @@ const EditInventoryModal = ({
 							value={formData.unitPrice}
 							onChange={(e) => {
 								const value = parseFloat(e.target.value);
-								if (!isNaN(value) && value >= 0) {
+								if (!Number.isNaN(value) && value >= 0) {
 									setFormData({ ...formData, unitPrice: value });
 								} else if (e.target.value === "" || e.target.value === "-") {
 									setFormData({ ...formData, unitPrice: 0 });
@@ -380,7 +381,7 @@ const EditInventoryModal = ({
 							}}
 							onBlur={(e) => {
 								const value = parseFloat(e.target.value);
-								if (isNaN(value) || value < 0) {
+								if (Number.isNaN(value) || value < 0) {
 									setFormData({ ...formData, unitPrice: 0 });
 								}
 							}}
@@ -719,7 +720,7 @@ export default function StockManagementPage() {
 				} else {
 					localStorage.removeItem("stock_page_unlocked");
 				}
-			} catch (error) {
+			} catch (_error) {
 				localStorage.removeItem("stock_page_unlocked");
 			}
 		}
@@ -820,13 +821,13 @@ export default function StockManagementPage() {
 				if (!itemName || itemName === "") {
 					return { isValid: false, error: `Row ${i + 1}: Item name cannot be empty.` };
 				}
-				if (isNaN(unitPrice) || unitPrice < 0) {
+				if (Number.isNaN(unitPrice) || unitPrice < 0) {
 					return {
 						isValid: false,
 						error: `Row ${i + 1}: Unit price must be a non-negative number.`,
 					};
 				}
-				if (isNaN(startingStock) || startingStock < 0) {
+				if (Number.isNaN(startingStock) || startingStock < 0) {
 					return {
 						isValid: false,
 						error: `Row ${i + 1}: Starting stock must be a non-negative number.`,
@@ -871,7 +872,7 @@ export default function StockManagementPage() {
 			message.success("CSV template downloaded successfully!");
 			setShowTemplateNotification(true);
 			setTimeout(() => setShowTemplateNotification(false), 5000);
-		} catch (error) {
+		} catch (_error) {
 			message.error("Failed to download template. Please try again.");
 		}
 	};
@@ -1046,7 +1047,7 @@ export default function StockManagementPage() {
 									value={stockToAdd.quantity}
 									onChange={(e) => {
 										const value = parseInt(e.target.value);
-										if (!isNaN(value) && value >= 0) {
+										if (!Number.isNaN(value) && value >= 0) {
 											setStockToAdd({ ...stockToAdd, quantity: value });
 										} else if (e.target.value === "" || e.target.value === "-") {
 											setStockToAdd({ ...stockToAdd, quantity: 0 });

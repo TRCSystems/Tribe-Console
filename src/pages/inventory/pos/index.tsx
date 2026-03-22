@@ -1,10 +1,11 @@
+//original author : Marcellas D
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useState } from "react";
 import inventoryService, {
 	type InventoryItem,
-	type ProcessSaleRequest,
-	type SaleItem,
+	type SaleItemRequest,
+	type SaleRequest,
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { OTPModal } from "@/components/otp-modal";
@@ -966,7 +967,7 @@ export default function PointOfSalePage() {
 
 	const processSaleMutation = useMutation({
 		mutationFn: (saleData: ProcessSaleRequest) => inventoryService.processSale(saleData),
-		onSuccess: (data, variables) => {
+		onSuccess: (data, _variables) => {
 			console.log("✅ Sale processed successfully:", data);
 
 			const transactionId = generateTransactionId();
@@ -1249,7 +1250,7 @@ export default function PointOfSalePage() {
 		});
 	};
 
-	const handleMpesaPayment = () => {
+	const _handleMpesaPayment = () => {
 		processSale("mpesa");
 	};
 
@@ -1464,11 +1465,11 @@ export default function PointOfSalePage() {
 											let value = e.target.value.replace(/\D/g, "");
 
 											if (value.startsWith("0") && value.length === 10) {
-												value = "254" + value.substring(1);
+												value = `254${value.substring(1)}`;
 											} else if (value.startsWith("7") && value.length === 9) {
-												value = "254" + value;
+												value = `254${value}`;
 											} else if (value.startsWith("1") && value.length === 9) {
-												value = "254" + value;
+												value = `254${value}`;
 											}
 
 											setCustomerContact(value);
@@ -1511,7 +1512,7 @@ export default function PointOfSalePage() {
 							) : (
 								<div className="space-y-3 max-h-96 overflow-y-auto">
 									{orderItems.map((item) => {
-										const itemTotal =
+										const _itemTotal =
 											item.totalPrice !== undefined ? item.totalPrice : item.unitPrice * item.orderQuantity;
 										const itemExtra = item.extraAmount || 0;
 										const displayPrice = item.displayPrice || item.unitPrice;

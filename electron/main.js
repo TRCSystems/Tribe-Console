@@ -1,11 +1,12 @@
 // electron/main.js - FINAL PRODUCTION VERSION
-import { app, BrowserWindow, Menu, shell, ipcMain, dialog, Notification, nativeTheme, Tray } from "electron";
-import path from "node:path";
-import fs from "node:fs";
-import { fileURLToPath } from "node:url";
 
+import fs from "node:fs";
 // ✅ FIX: Use require() for electron-updater with ES modules
 import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, shell, Tray } from "electron";
+
 const require = createRequire(import.meta.url);
 const { autoUpdater } = require("electron-updater");
 
@@ -21,7 +22,7 @@ let squirrelStartup = null;
 if (process.platform === "win32") {
 	try {
 		squirrelStartup = (await import("electron-squirrel-startup")).default;
-	} catch (error) {
+	} catch (_error) {
 		console.log("electron-squirrel-startup not available, continuing...");
 	}
 }
@@ -148,12 +149,12 @@ function createWindow() {
 	});
 
 	// Log navigation for debugging
-	mainWindow.webContents.on("did-navigate", (event, url) => {
+	mainWindow.webContents.on("did-navigate", (_event, url) => {
 		console.log("Navigated to:", url);
 	});
 
 	// Log failed loads
-	mainWindow.webContents.on("did-fail-load", (event, errorCode, errorDescription, validatedURL) => {
+	mainWindow.webContents.on("did-fail-load", (_event, errorCode, errorDescription, validatedURL) => {
 		console.error("Failed to load:", validatedURL, errorCode, errorDescription);
 	});
 
@@ -376,22 +377,22 @@ function createApplicationMenu() {
 }
 
 // IPC Handlers
-ipcMain.handle("dialog:openFile", async (event, options) => {
+ipcMain.handle("dialog:openFile", async (_event, options) => {
 	const result = await dialog.showOpenDialog(mainWindow, options);
 	return result;
 });
 
-ipcMain.handle("dialog:saveFile", async (event, options) => {
+ipcMain.handle("dialog:saveFile", async (_event, options) => {
 	const result = await dialog.showSaveDialog(mainWindow, options);
 	return result;
 });
 
-ipcMain.handle("dialog:showMessageBox", async (event, options) => {
+ipcMain.handle("dialog:showMessageBox", async (_event, options) => {
 	const result = await dialog.showMessageBox(mainWindow, options);
 	return result;
 });
 
-ipcMain.handle("fs:readFile", async (event, filePath) => {
+ipcMain.handle("fs:readFile", async (_event, filePath) => {
 	try {
 		const content = await fs.promises.readFile(filePath, "utf-8");
 		return { success: true, content };
@@ -400,7 +401,7 @@ ipcMain.handle("fs:readFile", async (event, filePath) => {
 	}
 });
 
-ipcMain.handle("fs:writeFile", async (event, filePath, content) => {
+ipcMain.handle("fs:writeFile", async (_event, filePath, content) => {
 	try {
 		await fs.promises.writeFile(filePath, content, "utf-8");
 		return { success: true };
@@ -409,7 +410,7 @@ ipcMain.handle("fs:writeFile", async (event, filePath, content) => {
 	}
 });
 
-ipcMain.handle("fs:readDir", async (event, dirPath) => {
+ipcMain.handle("fs:readDir", async (_event, dirPath) => {
 	try {
 		const files = await fs.promises.readdir(dirPath, { withFileTypes: true });
 		return {
@@ -425,7 +426,7 @@ ipcMain.handle("fs:readDir", async (event, dirPath) => {
 	}
 });
 
-ipcMain.handle("notification:show", async (event, options) => {
+ipcMain.handle("notification:show", async (_event, options) => {
 	const notification = new Notification({
 		title: options.title || "TRIBE Notification",
 		body: options.body || "",
@@ -435,7 +436,7 @@ ipcMain.handle("notification:show", async (event, options) => {
 	return true;
 });
 
-ipcMain.handle("app:getPath", async (event, name) => {
+ipcMain.handle("app:getPath", async (_event, name) => {
 	return app.getPath(name);
 });
 
@@ -479,7 +480,7 @@ ipcMain.handle("window:requestFocus", () => {
 });
 
 ipcMain.handle("window:sendFocusEvent", () => {
-	if (mainWindow && mainWindow.webContents) {
+	if (mainWindow?.webContents) {
 		mainWindow.webContents.send("window-focused");
 		return true;
 	}
@@ -508,7 +509,7 @@ app.setAsDefaultProtocolClient("tribe-loyalty");
 
 app.on("open-url", (event, url) => {
 	event.preventDefault();
-	if (mainWindow && mainWindow.webContents) {
+	if (mainWindow?.webContents) {
 		mainWindow.webContents.send("deep-link", url);
 	}
 });
@@ -519,7 +520,7 @@ const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
 	app.quit();
 } else {
-	app.on("second-instance", (event, commandLine, workingDirectory) => {
+	app.on("second-instance", (_event, _commandLine, _workingDirectory) => {
 		if (mainWindow) {
 			if (mainWindow.isMinimized()) mainWindow.restore();
 			mainWindow.focus();
@@ -529,19 +530,19 @@ if (!gotTheLock) {
 
 // Auto-updater events
 autoUpdater.on("update-available", (info) => {
-	if (mainWindow && mainWindow.webContents) {
+	if (mainWindow?.webContents) {
 		mainWindow.webContents.send("update-available", info);
 	}
 });
 
 autoUpdater.on("update-downloaded", (info) => {
-	if (mainWindow && mainWindow.webContents) {
+	if (mainWindow?.webContents) {
 		mainWindow.webContents.send("update-downloaded", info);
 	}
 });
 
 autoUpdater.on("error", (error) => {
-	if (mainWindow && mainWindow.webContents) {
+	if (mainWindow?.webContents) {
 		mainWindow.webContents.send("update-error", error);
 	}
 });

@@ -1,7 +1,7 @@
-import { cn } from "@/utils";
-import { Icon as IconifyIcon } from "@iconify/react";
 import type { IconProps as IconifyIconProps } from "@iconify/react";
+import { Icon as IconifyIcon } from "@iconify/react";
 import type { CSSProperties } from "react";
+import { cn } from "@/utils";
 
 interface IconProps extends IconifyIconProps {
 	/**

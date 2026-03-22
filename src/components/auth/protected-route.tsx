@@ -2,8 +2,8 @@
 //[file content begin]
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { useUserToken } from "@/store/userStore";
 import { RoleRouteGuard } from "@/routes/components/role-route-guard";
+import { useUserToken } from "@/store/userStore";
 
 interface ProtectedRouteProps {
 	children: React.ReactNode;

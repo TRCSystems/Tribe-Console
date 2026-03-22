@@ -1,12 +1,14 @@
+//original author : Marcellas
 // src/pages/management/user-profile/index.tsx - FIXED
+
+import type { CSSProperties } from "react";
 import bannerImage from "@/assets/images/background/banner-1.png";
 import { Icon } from "@/components/icon";
-import { useUserInfo, useUserRole, useUserEmail } from "@/store/userStore"; // ADDED
+import { useUserEmail, useUserInfo, useUserRole } from "@/store/userStore"; // ADDED
 import { themeVars } from "@/theme/theme.css";
 import { Avatar, AvatarImage } from "@/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/tabs";
 import { Text, Title } from "@/ui/typography";
-import type { CSSProperties } from "react";
 import ProfileTab from "./profile-tab";
 
 function UserProfile() {
@@ -34,11 +36,16 @@ function UserProfile() {
 	// Get role display name
 	const getRoleDisplayName = (role: string | null) => {
 		switch (role) {
-			case "ADMIN": return "Administrator";
-			case "MERCHANT": return "Merchant";
-			case "SALES_PERSON": return "Sales Person";
-			case "LEAD_COLLECTOR": return "Lead Collector";
-			default: return "User";
+			case "ADMIN":
+				return "Administrator";
+			case "MERCHANT":
+				return "Merchant";
+			case "SALES_PERSON":
+				return "Sales Person";
+			case "LEAD_COLLECTOR":
+				return "Lead Collector";
+			default:
+				return "User";
 		}
 	};
 

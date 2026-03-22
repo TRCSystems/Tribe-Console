@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/management/campaign/templates/index.tsx
 
 import { useQuery } from "@tanstack/react-query";
@@ -33,7 +34,7 @@ export default function CampaignTemplatesPage() {
 			template.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
 			template.description.toLowerCase().includes(searchTerm.toLowerCase());
 		const matchesCategory = categoryFilter === "all" || template.category === categoryFilter;
-		const matchesTag = !selectedTag || (template.tags && template.tags.includes(selectedTag));
+		const matchesTag = !selectedTag || template.tags?.includes(selectedTag);
 
 		return matchesSearch && matchesCategory && matchesTag;
 	});

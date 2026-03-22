@@ -1,6 +1,8 @@
+//original author : Marcellas
+
+import type { UserInfo } from "#/entity";
 import { useParams } from "@/routes/hooks";
 import { Card, CardContent } from "@/ui/card";
-import type { UserInfo } from "#/entity";
 
 // TODO: fix
 // const USERS: UserInfo[] = USER_LIST as UserInfo[];

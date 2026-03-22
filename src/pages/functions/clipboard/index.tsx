@@ -1,11 +1,11 @@
+import { faker } from "@faker-js/faker";
+import { type ChangeEvent, useState } from "react";
 import { Icon } from "@/components/icon";
 import { useCopyToClipboard } from "@/hooks";
 import { Button } from "@/ui/button";
 import { Card, CardContent } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/ui/tooltip";
-import { faker } from "@faker-js/faker";
-import { type ChangeEvent, useState } from "react";
 
 export default function ClipboardPage() {
 	const { copyFn } = useCopyToClipboard();

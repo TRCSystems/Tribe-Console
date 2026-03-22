@@ -1,3 +1,4 @@
+//original author : Marcellas
 // src/pages/analytics/daily-sales/index.tsx - UPDATED VERSION
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";

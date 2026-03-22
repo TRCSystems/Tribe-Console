@@ -1,12 +1,13 @@
+//original author : Marcellas
 import { useQuery } from "@tanstack/react-query";
 import { creditService } from "@/api/services/creditService";
 import { Icon } from "@/components/icon";
+import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useAuthCheck } from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Skeleton } from "@/ui/skeleton";
 import { Text, Title } from "@/ui/typography";
-import { UserRoleIndicator } from "@/components/user-role-indicator";
 
 const SCORE_RANGES = [
 	{ min: 900, max: 1000, grade: "A+", color: "#10b981", label: "Excellent" },
@@ -23,7 +24,7 @@ const getScoreRange = (score: number) => {
 };
 
 const GaugeIndicator = ({ score }: { score: number }) => {
-	const scoreRange = getScoreRange(score);
+	const _scoreRange = getScoreRange(score);
 
 	const minScore = 200;
 	const maxScore = 900;
@@ -139,13 +140,13 @@ const ScoreDetails = ({ creditScore }: { creditScore: any }) => {
 			<CardContent className="space-y-4">
 				<div className="grid grid-cols-2 gap-4">
 					<div className="bg-gray-50 p-4 rounded-lg">
-						<Text variant="muted" className="text-xs font-medium mb-1">
+						<Text variant="caption" className="text-xs font-medium mb-1">
 							Total Score
 						</Text>
 						<div className="text-2xl font-bold text-gray-900 dark:text-white">{creditScore.score}</div>
 					</div>
 					<div className="bg-gray-50 p-4 rounded-lg">
-						<Text variant="muted" className="text-xs font-medium mb-1">
+						<Text variant="caption" className="text-xs font-medium mb-1">
 							Grade
 						</Text>
 						<div className="text-2xl font-bold" style={{ color: scoreRange.color }}>
@@ -156,7 +157,7 @@ const ScoreDetails = ({ creditScore }: { creditScore: any }) => {
 
 				<div className="space-y-3 pt-2">
 					<div className="flex justify-between items-center p-2">
-						<Text variant="muted" className="text-sm">
+						<Text variant="caption" className="text-sm">
 							Status
 						</Text>
 						<Badge
@@ -216,7 +217,7 @@ const PerformanceInsights = ({ score }: { score: number }) => {
 						</div>
 						<Badge
 							variant="outline"
-							className={insight.color.replace("text-", "bg-").replace("-600", "-100") + " " + insight.color}
+							className={`${insight.color.replace("text-", "bg-").replace("-600", "-100")} ${insight.color}`}
 						>
 							{insight.status}
 						</Badge>
@@ -224,7 +225,7 @@ const PerformanceInsights = ({ score }: { score: number }) => {
 				))}
 
 				<div className="pt-4 border-t">
-					<Text variant="muted" className="text-sm">
+					<Text variant="caption" className="text-sm">
 						{score > 700
 							? "Your credit score is in excellent standing. Maintain current financial practices."
 							: score > 500
@@ -398,7 +399,7 @@ export default function CreditScorePage() {
 						Credit Score Overview
 					</Title>
 
-					<Text variant="muted" className="mt-1">
+					<Text variant="caption" className="mt-1">
 						{isPlaceholder ? "Credit assessment pending" : "Complete credit assessment and financial health analysis"}
 					</Text>
 				</div>
@@ -441,7 +442,7 @@ export default function CreditScorePage() {
 						{isPlaceholder ? (
 							<div className="flex flex-col items-center justify-center py-12">
 								<Icon icon="lucide:bar-chart" className="h-24 w-24 text-gray-300 mb-6" />
-								<Text variant="muted" className="text-center mb-4">
+								<Text variant="caption" className="text-center mb-4">
 									Your credit score is being calculated
 								</Text>
 							</div>
@@ -470,7 +471,7 @@ export default function CreditScorePage() {
 										<Text variant="body2" className="font-medium">
 											Make Transactions
 										</Text>
-										<Text variant="muted" className="text-sm">
+										<Text variant="caption" className="text-sm">
 											Complete transactions to generate your score
 										</Text>
 									</div>
@@ -481,7 +482,7 @@ export default function CreditScorePage() {
 										<Text variant="body2" className="font-medium">
 											Tribe User
 										</Text>
-										<Text variant="muted" className="text-sm">
+										<Text variant="caption" className="text-sm">
 											Your score will be calculated after sufficient data
 										</Text>
 									</div>
