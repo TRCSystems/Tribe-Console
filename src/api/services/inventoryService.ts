@@ -194,6 +194,33 @@ export interface SoldItemsResponse {
 	date: string;
 }
 
+// Product defaults (template) interfaces
+export interface ProductDefault {
+	productName: string;
+	productCode: string;
+	volumeMl: number;
+}
+
+export interface BatchAddDefaultsSelection {
+	productName: string;
+	productCode: string;
+	volumeMl: number;
+	startingStock: number;
+	unitPrice: number;
+}
+
+export interface BatchAddDefaultsRequest {
+	merchantId: string;
+	selections: BatchAddDefaultsSelection[];
+}
+
+export interface BatchAddDefaultsResponse {
+	status?: string;
+	message?: string;
+	respObject?: any;
+	success?: boolean;
+}
+
 export interface MerchantDetails {
 	id: number;
 	businessPhone: string;
@@ -335,6 +362,82 @@ class InventoryService {
 				message: error.message,
 			});
 			console.groupEnd();
+			throw error;
+		}
+	}
+
+	// Fetch product templates (defaults)
+	async getProductDefaults(): Promise<ProductDefault[]> {
+		console.group("📦 Get Product Defaults API Call");
+		try {
+			const response = await loyaltyApiClient.get<{ data?: ProductDefault[] } | ProductDefault[]>({
+				url: "/inventory/product-defaults",
+			});
+
+			let defaults: ProductDefault[] = [];
+			if (Array.isArray(response)) {
+				defaults = response as ProductDefault[];
+			} else if (response && Array.isArray((response as any).data)) {
+				defaults = (response as any).data as ProductDefault[];
+			}
+
+			console.log("✅ Product defaults:", defaults.length);
+			console.groupEnd();
+			return defaults;
+		} catch (error: any) {
+			console.error("❌ Product defaults fetch failed:", error);
+			console.error("Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+			throw error;
+		}
+	}
+
+	// Batch add selected defaults for a merchant
+	async batchAddDefaults(data: Omit<BatchAddDefaultsRequest, "merchantId">): Promise<BatchAddDefaultsResponse> {
+		const merchantId = getMerchantId();
+
+		console.group("🛒 Batch Add Defaults API Call");
+		console.log("Request selections:", data?.selections?.length || 0);
+
+		if (!data?.selections || data.selections.length === 0) {
+			throw new Error("Please select at least one product template");
+		}
+
+		const requestBody: BatchAddDefaultsRequest = {
+			merchantId,
+			selections: data.selections.map((item) => ({
+				...item,
+				startingStock: Number(item.startingStock),
+				unitPrice: Number(item.unitPrice),
+			})),
+		};
+
+		try {
+			const response = await loyaltyApiClient.post<BatchAddDefaultsResponse>({
+				url: "/inventory/batch-add-defaults",
+				data: requestBody,
+			});
+			console.log("✅ Batch add defaults response:", response);
+			console.groupEnd();
+			return response;
+		} catch (error: any) {
+			console.error("❌ Batch add defaults error:", error);
+			console.error("Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+
+			if (error.response?.data?.message) {
+				throw new Error(error.response.data.message);
+			} else if (error.response?.data?.error) {
+				throw new Error(error.response.data.error);
+			}
 			throw error;
 		}
 	}

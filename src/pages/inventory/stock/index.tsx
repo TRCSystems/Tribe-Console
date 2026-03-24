@@ -4,10 +4,12 @@ import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import inventoryService, {
+	type BatchAddDefaultsSelection,
 	type InventoryItem,
 	type InvoiceUploadResponse,
-	type StockItemRequest,
+	type ProductDefault,
 } from "@/api/services/inventoryService";
+import { useBatchAddDefaults, useProductDefaults } from "@/api/hooks/useProductDefaults";
 import { Icon } from "@/components/icon";
 import { LockModal } from "@/components/lock-modal";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
@@ -331,8 +333,11 @@ const EditInventoryModal = ({
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
-						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Item Name</label>
+						<label htmlFor="edit-item-name" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+							Item Name
+						</label>
 						<Input
+							id="edit-item-name"
 							value={formData.itemName}
 							onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
 							placeholder="Enter item name"
@@ -340,8 +345,11 @@ const EditInventoryModal = ({
 						/>
 					</div>
 					<div>
-						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Quantity</label>
+						<label htmlFor="edit-item-quantity" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+							Quantity
+						</label>
 						<Input
+							id="edit-item-quantity"
 							type="number"
 							value={formData.quantity}
 							onChange={(e) => {
@@ -366,8 +374,11 @@ const EditInventoryModal = ({
 						)}
 					</div>
 					<div>
-						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Price (KShs)</label>
+						<label htmlFor="edit-item-price" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+							Price (KShs)
+						</label>
 						<Input
+							id="edit-item-price"
 							type="number"
 							step="0.01"
 							value={formData.unitPrice}
@@ -494,6 +505,17 @@ export default function StockManagementPage() {
 	);
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+	const [templateModalOpen, setTemplateModalOpen] = useState(false);
+	const [templateSearch, setTemplateSearch] = useState("");
+	const [selectedTemplates, setSelectedTemplates] = useState<
+		Array<
+			Omit<BatchAddDefaultsSelection, "startingStock" | "unitPrice"> & {
+				tempId: string;
+				startingStock: number | null;
+				unitPrice: number | null;
+			}
+		>
+	>([]);
 	const [showTemplateNotification, setShowTemplateNotification] = useState(false);
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
@@ -572,9 +594,14 @@ export default function StockManagementPage() {
 		error,
 	} = useQuery({
 		queryKey: ["inventory", merchantId],
-		queryFn: () => inventoryService.getAllItems(merchantId!),
+		queryFn: () => (merchantId ? inventoryService.getAllItems(merchantId) : Promise.resolve([])),
 		enabled: !!merchantId && isAuthenticated && !isLocked,
 	});
+	const {
+		data: productDefaults = [],
+		isLoading: defaultsLoading,
+		error: defaultsError,
+	} = useProductDefaults(templateModalOpen && canPerformActions && !isLocked);
 
 	// 6. All useMutation hooks
 	const addStockMutation = useMutation({
@@ -621,6 +648,8 @@ export default function StockManagementPage() {
 			message.error(`Import failed: ${error.message}`);
 		},
 	});
+
+	const batchAddDefaultsMutation = useBatchAddDefaults();
 
 	const editItemMutation = useMutation({
 		mutationFn: async ({
@@ -691,7 +720,8 @@ export default function StockManagementPage() {
 			if (!invoicePreviewData?.invoiceSubmissionId || !invoicePreviewData.data?.items) {
 				throw new Error("Missing required data for approval");
 			}
-			return inventoryService.approveInvoice(invoicePreviewData.invoiceSubmissionId!, invoicePreviewData.data.items);
+			const { invoiceSubmissionId, data } = invoicePreviewData;
+			return inventoryService.approveInvoice(invoiceSubmissionId, data.items);
 		},
 		onSuccess: (result) => {
 			message.success(result.message);
@@ -902,6 +932,14 @@ export default function StockManagementPage() {
 		approveInvoiceMutation.mutate();
 	};
 
+	const openTemplateModal = () => {
+		if (!canPerformActions) {
+			message.error("Please login to add templates");
+			return;
+		}
+		setTemplateModalOpen(true);
+	};
+
 	const handleAddStock = (item: InventoryItem) => {
 		if (!canPerformActions) {
 			message.error("Please login to add stock");
@@ -960,6 +998,87 @@ export default function StockManagementPage() {
 		}
 	};
 
+	const handleSelectTemplate = (item: ProductDefault) => {
+		const exists = selectedTemplates.some((t) => t.productCode === item.productCode);
+		if (exists) return;
+
+		setSelectedTemplates((prev) => [
+			...prev,
+			{
+				tempId: `${item.productCode}-${Date.now()}`,
+				productName: item.productName,
+				productCode: item.productCode,
+				volumeMl: item.volumeMl,
+				startingStock: null,
+				unitPrice: null,
+			},
+		]);
+	};
+
+	const handleRemoveTemplate = (tempId: string) => {
+		setSelectedTemplates((prev) => prev.filter((t) => t.tempId !== tempId));
+	};
+
+	const updateTemplateField = (tempId: string, field: "startingStock" | "unitPrice", rawValue: string) => {
+		setSelectedTemplates((prev) =>
+			prev.map((t) => {
+				if (t.tempId !== tempId) return t;
+				if (rawValue === "") {
+					return { ...t, [field]: null };
+				}
+				const num = Number(rawValue);
+				if (Number.isNaN(num)) return t;
+				return { ...t, [field]: Math.max(0, num) };
+			}),
+		);
+	};
+
+	const handleSubmitTemplates = () => {
+		if (!canPerformActions) {
+			message.error("Please login to add templates");
+			return;
+		}
+		if (selectedTemplates.length === 0) {
+			message.error("Please select at least one product");
+			return;
+		}
+
+		const hasInvalid = selectedTemplates.some(
+			(t) =>
+				t.startingStock === null ||
+				t.startingStock <= 0 ||
+				t.unitPrice === null ||
+				t.unitPrice === undefined ||
+				t.unitPrice < 0,
+		);
+
+		if (hasInvalid) {
+			message.error("Starting stock must be > 0 and unit price must be set");
+			return;
+		}
+
+		batchAddDefaultsMutation.mutate(
+			{
+				selections: selectedTemplates.map(({ tempId, ...rest }) => ({
+					...rest,
+					startingStock: Number(rest.startingStock),
+					unitPrice: Number(rest.unitPrice),
+				})),
+			},
+			{
+				onSuccess: () => {
+					message.success("Templates added to inventory");
+					setSelectedTemplates([]);
+					setTemplateModalOpen(false);
+					queryClient.invalidateQueries({ queryKey: ["inventory"] });
+				},
+				onError: (err: Error) => {
+					message.error(err.message || "Failed to add templates");
+				},
+			},
+		);
+	};
+
 	const handleImportCSV = () => {
 		if (!canPerformActions) {
 			message.error("Please login to import CSV");
@@ -993,6 +1112,20 @@ export default function StockManagementPage() {
 			fileInputRef.current.value = "";
 		}
 	};
+
+	const selectedCodes = new Set(selectedTemplates.map((t) => t.productCode));
+	const existingInventoryCodes = new Set(
+		processedInventory.map((item) => item.itemCode?.toLowerCase()).filter(Boolean),
+	);
+	const filteredProductDefaults = productDefaults.filter((item) => {
+		const term = templateSearch.toLowerCase().trim();
+		if (!term) return true;
+		return (
+			item.productName.toLowerCase().includes(term) ||
+			item.productCode.toLowerCase().includes(term) ||
+			item.volumeMl.toString().includes(term)
+		);
+	});
 
 	const totalItems = processedInventory.length;
 	const lowStockItems = processedInventory.filter((item) => item.availableStock < 10 && item.availableStock > 0).length;
@@ -1068,6 +1201,171 @@ export default function StockManagementPage() {
 								>
 									{addStockMutation.isPending ? "Adding..." : "Add Stock"}
 								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* Product Templates Modal */}
+			{templateModalOpen && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+					<Card className="w-full max-w-5xl max-h-[90vh] overflow-hidden">
+						<CardHeader className="flex flex-row items-start justify-between gap-4">
+							<div>
+								<CardTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2">
+									<Icon icon="lucide:library" className="h-5 w-5 text-blue-500" />
+									Add From Templates
+								</CardTitle>
+								<CardDescription>
+									Select liquor templates, enter starting stock &amp; unit price, then batch add to inventory.
+								</CardDescription>
+							</div>
+							<div className="flex items-center gap-2">
+								<Button variant="outline" size="sm" onClick={() => setTemplateModalOpen(false)}>
+									Close
+								</Button>
+								<Button
+									size="sm"
+									onClick={handleSubmitTemplates}
+									disabled={batchAddDefaultsMutation.isPending || selectedTemplates.length === 0}
+								>
+									{batchAddDefaultsMutation.isPending ? "Adding..." : "Add Selected"}
+								</Button>
+							</div>
+						</CardHeader>
+						<CardContent className="grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-y-auto">
+							<div className="lg:col-span-2 space-y-4">
+								<div className="flex items-center gap-3">
+									<div className="flex-1">
+										<Input
+											placeholder="Search templates by name, code, or volume"
+											value={templateSearch}
+											onChange={(e) => setTemplateSearch(e.target.value)}
+										/>
+									</div>
+									{defaultsLoading && <Badge variant="secondary">Loading...</Badge>}
+									{defaultsError && <Badge variant="destructive">Failed to load templates</Badge>}
+								</div>
+
+								<div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+									<table className="w-full min-w-max">
+										<thead className="bg-gray-50 dark:bg-gray-800">
+											<tr>
+												<th className="p-3 text-left">Name</th>
+												<th className="p-3 text-left">Code</th>
+												<th className="p-3 text-left">Volume (ml)</th>
+												<th className="p-3 text-left">Action</th>
+											</tr>
+										</thead>
+										<tbody>
+											{filteredProductDefaults.map((item) => {
+												const isSelected = selectedCodes.has(item.productCode);
+												const alreadyInInventory = existingInventoryCodes.has(item.productCode.toLowerCase());
+												return (
+													<tr
+														key={item.productCode}
+														className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/60"
+													>
+														<td className="p-3 font-medium text-gray-900 dark:text-gray-100">{item.productName}</td>
+														<td className="p-3 text-sm text-gray-600 dark:text-gray-300 font-mono">
+															{item.productCode}
+														</td>
+														<td className="p-3 text-sm text-gray-700 dark:text-gray-200">{item.volumeMl}</td>
+														<td className="p-3">
+															<Button
+																size="sm"
+																variant={isSelected ? "outline" : "default"}
+																onClick={() => handleSelectTemplate(item)}
+																disabled={isSelected || alreadyInInventory || batchAddDefaultsMutation.isPending}
+															>
+																{alreadyInInventory ? "In Inventory" : isSelected ? "Selected" : "Select"}
+															</Button>
+														</td>
+													</tr>
+												);
+											})}
+											{!defaultsLoading && filteredProductDefaults.length === 0 && (
+												<tr>
+													<td colSpan={4} className="p-4 text-center text-muted-foreground">
+														No templates match your search.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
+							</div>
+
+							<div className="space-y-4">
+								<div className="flex items-center justify-between">
+									<h4 className="font-semibold text-gray-900 dark:text-gray-100">
+										Selected ({selectedTemplates.length})
+									</h4>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => setSelectedTemplates([])}
+										disabled={selectedTemplates.length === 0}
+									>
+										Clear
+									</Button>
+								</div>
+
+								<div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+									{selectedTemplates.length === 0 && (
+										<div className="text-sm text-muted-foreground">
+											Pick templates on the left to set stock and price.
+										</div>
+									)}
+
+									{selectedTemplates.map((item) => (
+										<Card key={item.tempId} className="border border-gray-200 dark:border-gray-700">
+											<CardContent className="p-3 space-y-2">
+												<div className="flex items-center justify-between gap-2">
+													<div>
+														<p className="font-semibold text-gray-900 dark:text-gray-100">{item.productName}</p>
+														<p className="text-xs text-muted-foreground font-mono">{item.productCode}</p>
+													</div>
+													<Button
+														size="icon"
+														variant="ghost"
+														onClick={() => handleRemoveTemplate(item.tempId)}
+														disabled={batchAddDefaultsMutation.isPending}
+													>
+														<Icon icon="lucide:x" className="h-4 w-4" />
+													</Button>
+												</div>
+												<div className="grid grid-cols-2 gap-3">
+													<div className="space-y-1">
+														<p className="text-xs text-muted-foreground">Starting Stock</p>
+														<Input
+															type="number"
+															min={1}
+															value={item.startingStock ?? ""}
+															onChange={(e) => updateTemplateField(item.tempId, "startingStock", e.target.value)}
+														/>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs text-muted-foreground">Unit Price (KSh)</p>
+														<Input
+															type="number"
+															min={0}
+															step="0.01"
+															value={
+																item.unitPrice === null || Number.isNaN(item.unitPrice)
+																	? ""
+																	: Number(item.unitPrice).toFixed(2)
+															}
+															onChange={(e) => updateTemplateField(item.tempId, "unitPrice", e.target.value)}
+														/>
+													</div>
+												</div>
+												<p className="text-xs text-muted-foreground">Volume: {item.volumeMl} ml</p>
+											</CardContent>
+										</Card>
+									))}
+								</div>
 							</div>
 						</CardContent>
 					</Card>
@@ -1161,6 +1459,22 @@ export default function StockManagementPage() {
 						<Icon icon="lucide:lock" className="h-4 w-4" />
 						<span className="text-xs font-bold">Re-lock</span>
 					</Button>
+
+					{/* Add From Templates Button */}
+					<div className="flex flex-col items-center gap-1">
+						<Button
+							onClick={openTemplateModal}
+							disabled={!canPerformActions}
+							className="w-12 h-12 rounded-full bg-purple-500 hover:bg-purple-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+							variant="default"
+							title="Add products from templates"
+						>
+							<Icon icon="lucide:library" className="h-5 w-5" />
+						</Button>
+						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+							TEMPLATES
+						</span>
+					</div>
 
 					{/* CSV Template Download Button */}
 					<div className="flex flex-col items-center gap-1">
