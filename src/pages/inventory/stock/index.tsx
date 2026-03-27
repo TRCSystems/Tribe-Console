@@ -8,6 +8,7 @@ import inventoryService, {
 	type InventoryItem,
 	type InvoiceUploadResponse,
 	type ProductDefault,
+	type StockItemRequest,
 } from "@/api/services/inventoryService";
 import { useBatchAddDefaults, useProductDefaults } from "@/api/hooks/useProductDefaults";
 import { Icon } from "@/components/icon";
@@ -605,7 +606,7 @@ export default function StockManagementPage() {
 
 	// 6. All useMutation hooks
 	const addStockMutation = useMutation({
-		mutationFn: async (data: { merchantId: string; items: StockItem[] }) => {
+		mutationFn: async (data: { merchantId: string; items: StockItemRequest[] }) => {
 			if (!canPerformActions) {
 				throw new Error("User not authenticated or missing merchant ID");
 			}
@@ -721,7 +722,9 @@ export default function StockManagementPage() {
 				throw new Error("Missing required data for approval");
 			}
 			const { invoiceSubmissionId, data } = invoicePreviewData;
-			return inventoryService.approveInvoice(invoiceSubmissionId, data.items);
+			// items existence already checked above; non-null assertion satisfies TS
+			const items = data.items!;
+			return inventoryService.approveInvoice(invoiceSubmissionId, items);
 		},
 		onSuccess: (result) => {
 			message.success(result.message);
@@ -1472,7 +1475,7 @@ export default function StockManagementPage() {
 							<Icon icon="lucide:library" className="h-5 w-5" />
 						</Button>
 						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
-							TEMPLATES
+							ADD STOCK
 						</span>
 					</div>
 
