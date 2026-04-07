@@ -15,18 +15,12 @@ import { Icon } from "@/components/icon";
 import { LockModal } from "@/components/lock-modal";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useAuthCheck, useMerchantId, useUserToken } from "@/store/userStore";
-import { Badge } from "@/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog";
+import { getMerchantNameFromToken } from "@/utils/jwt";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
-import { getMerchantNameFromToken } from "@/utils/jwt";
-
-// CSV Template Content
-const CSV_TEMPLATE_CONTENT = `ITEM,UNIT_PRICE,STARTING_STOCK
-Product 1,2000,30
-Product 2,1500,20
-Product 3,1200,40
-Product 4,30,200`;
+import { Badge } from "@/ui/badge";
 
 // SIMPLIFIED Invoice Upload Modal - Shows only extracted items
 const InvoiceUploadModal = ({
@@ -525,6 +519,14 @@ export default function StockManagementPage() {
 	const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 	const [invoicePreviewData, setInvoicePreviewData] = useState<InvoiceUploadResponse | null>(null);
 
+	// Contact Supplier states
+	const [contactSupplierModalOpen, setContactSupplierModalOpen] = useState(false);
+	const [contactFormData, setContactFormData] = useState({
+		supplierName: "",
+		missingItems: [] as Array<{ name: string; expected: number; received: number }>,
+		message: "",
+	});
+
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const invoiceFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -702,7 +704,7 @@ export default function StockManagementPage() {
 			return inventoryService.uploadInvoice(file);
 		},
 		onSuccess: (response) => {
-			if (response.success) {
+			if (response.success && response.data?.items) {
 				setInvoicePreviewData(response);
 				setInvoiceModalOpen(true);
 				message.success("Invoice uploaded successfully!");
@@ -933,6 +935,84 @@ export default function StockManagementPage() {
 	const handleApproveInvoice = () => {
 		if (!invoicePreviewData) return;
 		approveInvoiceMutation.mutate();
+	};
+
+	// Contact Supplier handlers
+	const handleOpenContactSupplier = () => {
+		setContactFormData({
+			supplierName: "",
+			missingItems: [{ name: "", expected: 0, received: 0 }],
+			message: "",
+		});
+		setContactSupplierModalOpen(true);
+	};
+
+	const handleAddMissingItem = () => {
+		setContactFormData((prev) => ({
+			...prev,
+			missingItems: [...prev.missingItems, { name: "", expected: 0, received: 0 }],
+		}));
+	};
+
+	const handleUpdateMissingItem = (index: number, field: string, value: string | number) => {
+		setContactFormData((prev) => ({
+			...prev,
+			missingItems: prev.missingItems.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+		}));
+	};
+
+	const handleRemoveMissingItem = (index: number) => {
+		setContactFormData((prev) => ({
+			...prev,
+			missingItems: prev.missingItems.filter((_, i) => i !== index),
+		}));
+	};
+
+	const handleSendContactMessage = async () => {
+		// Validate form
+		if (!contactFormData.supplierName.trim()) {
+			message.error("Please enter supplier name");
+			return;
+		}
+
+		const validItems = contactFormData.missingItems.filter((item) => item.name.trim() && item.expected > 0);
+
+		if (validItems.length === 0) {
+			message.error("Please add at least one missing item");
+			return;
+		}
+
+		try {
+			const response = await inventoryService.contactSupplier({
+				supplierName: contactFormData.supplierName,
+				missingItems: validItems,
+				message: contactFormData.message,
+			});
+
+			if (response.success) {
+				message.success(response.message || "Message sent to supplier successfully!");
+				setContactSupplierModalOpen(false);
+				setContactFormData({
+					supplierName: "",
+					missingItems: [],
+					message: "",
+				});
+			} else {
+				message.error(response.message || "Failed to send message to supplier");
+			}
+		} catch (error: any) {
+			console.error("Contact supplier error:", error);
+
+			// Check if it's an authentication error
+			if (error.response?.status === 401 || error.response?.status === 403) {
+				message.error("Authentication failed. Please log in again.");
+				// The auth system should handle logout automatically
+				return;
+			}
+
+			// For other errors, show a generic message
+			message.error("Failed to send message. Please try again later.");
+		}
 	};
 
 	const openTemplateModal = () => {
@@ -1479,20 +1559,6 @@ export default function StockManagementPage() {
 						</span>
 					</div>
 
-					{/* CSV Template Download Button */}
-					<div className="flex flex-col items-center gap-1">
-						<Button
-							onClick={downloadCSVTemplate}
-							disabled={!canPerformActions}
-							className="w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
-							variant="default"
-							title="Download CSV Template"
-						>
-							<Icon icon="lucide:download" className="h-5 w-5" />
-						</Button>
-						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">TEMPLATE</span>
-					</div>
-
 					{/* Import CSV Button */}
 					<div className="flex flex-col items-center gap-1">
 						<Button
@@ -1536,6 +1602,22 @@ export default function StockManagementPage() {
 									: "INVOICE"}
 						</span>
 					</div>
+
+					{/* Contact Supplier Button - Moved to floating position */}
+					{/* <div className="flex flex-col items-center gap-1">
+						<Button
+							onClick={handleOpenContactSupplier}
+							disabled={!canPerformActions}
+							className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+							variant="default"
+							title="Contact Supplier"
+						>
+							<Icon icon="lucide:message-circle" className="h-5 w-5" />
+						</Button>
+						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+							CONTACT SUPPLIER
+						</span>
+					</div> */}
 				</div>
 			</div>
 
@@ -1722,6 +1804,144 @@ export default function StockManagementPage() {
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>
 			</footer>
+
+			{/* Contact Supplier Modal */}
+			<Dialog open={contactSupplierModalOpen} onOpenChange={setContactSupplierModalOpen}>
+				<DialogContent className="z-[9999] max-h-[90vh] w-full max-w-2xl overflow-y-auto p-0">
+					<DialogHeader className="border-b bg-gradient-to-r from-orange-50 to-red-50 px-6 py-5 text-left dark:from-orange-900/20 dark:to-red-900/20">
+						<DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+							<Icon icon="lucide:message-circle" className="h-5 w-5 text-orange-600" />
+							Contact Supplier
+						</DialogTitle>
+						<DialogDescription className="text-gray-600 dark:text-gray-400">
+							Report missing or damaged items from delivery
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="p-6 space-y-6">
+						{/* Supplier Name */}
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Supplier Name *</label>
+							<Input
+								value={contactFormData.supplierName}
+								onChange={(e) => setContactFormData((prev) => ({ ...prev, supplierName: e.target.value }))}
+								placeholder="Enter supplier name"
+								className="w-full"
+							/>
+						</div>
+
+						{/* Missing Items */}
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
+								<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Missing/Damaged Items *</label>
+								<Button onClick={handleAddMissingItem} variant="outline" size="sm" className="text-xs">
+									<Icon icon="lucide:plus" className="h-3 w-3 mr-1" />
+									Add Item
+								</Button>
+							</div>
+
+							<div className="space-y-3">
+								{contactFormData.missingItems.map((item, index) => (
+									<div key={index} className="border rounded-lg p-4 space-y-3">
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Item {index + 1}</span>
+											{contactFormData.missingItems.length > 1 && (
+												<Button
+													onClick={() => handleRemoveMissingItem(index)}
+													variant="ghost"
+													size="sm"
+													className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+												>
+													<Icon icon="lucide:trash-2" className="h-3 w-3" />
+												</Button>
+											)}
+										</div>
+
+										<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+											<div>
+												<label className="text-xs text-gray-600 dark:text-gray-400">Item Name</label>
+												<Input
+													value={item.name}
+													onChange={(e) => handleUpdateMissingItem(index, "name", e.target.value)}
+													placeholder="Item name"
+													className="mt-1"
+												/>
+											</div>
+											<div>
+												<label className="text-xs text-gray-600 dark:text-gray-400">Expected Qty</label>
+												<Input
+													type="number"
+													value={item.expected}
+													onChange={(e) => handleUpdateMissingItem(index, "expected", parseInt(e.target.value) || 0)}
+													placeholder="0"
+													className="mt-1"
+													min="0"
+												/>
+											</div>
+											<div>
+												<label className="text-xs text-gray-600 dark:text-gray-400">Received Qty</label>
+												<Input
+													type="number"
+													value={item.received}
+													onChange={(e) => handleUpdateMissingItem(index, "received", parseInt(e.target.value) || 0)}
+													placeholder="0"
+													className="mt-1"
+													min="0"
+												/>
+											</div>
+										</div>
+
+										{item.expected > item.received && (
+											<div className="bg-red-50 border border-red-200 rounded p-2">
+												<p className="text-xs text-red-800">⚠️ Missing {item.expected - item.received} unit(s)</p>
+											</div>
+										)}
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* Additional Message */}
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">
+								Additional Message (Optional)
+							</label>
+							<textarea
+								value={contactFormData.message}
+								onChange={(e) => setContactFormData((prev) => ({ ...prev, message: e.target.value }))}
+								placeholder="Any additional details about the delivery issue..."
+								className="w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-md resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+								rows={3}
+							/>
+						</div>
+
+						{/* Action Buttons */}
+						<div className="flex flex-col sm:flex-row gap-4 justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
+							<Button variant="outline" onClick={() => setContactSupplierModalOpen(false)}>
+								Cancel
+							</Button>
+							<Button onClick={handleSendContactMessage} className="bg-orange-600 hover:bg-orange-700 text-white">
+								<Icon icon="lucide:send" className="mr-2 h-4 w-4" />
+								Send Message
+							</Button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			{/* Floating Contact Supplier Button - Chatbot Style */}
+			<div className="fixed bottom-6 right-6 z-50">
+				<Button
+					onClick={handleOpenContactSupplier}
+					disabled={!canPerformActions}
+					className="h-12 px-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 rounded-lg border-2 border-orange-400 hover:border-orange-300"
+					variant="default"
+					title="Contact Supplier"
+				>
+					<Icon icon="lucide:message-circle" className="h-5 w-5" />
+					<span className="text-sm font-medium">Contact Supplier</span>
+				</Button>
+			</div>
 		</div>
 	);
 }
