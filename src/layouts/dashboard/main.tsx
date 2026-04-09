@@ -38,7 +38,7 @@ const Main = () => {
 			<main
 				data-slot="slash-layout-main"
 				className={cn(
-					"relative z-0 flex w-full flex-auto flex-col",
+					"relative flex w-full flex-auto flex-col",
 					"transition-[max-width] duration-300 ease-in-out",
 					"mx-auto px-4 py-5 sm:px-6 sm:py-6 md:px-8",
 					{
