@@ -1506,9 +1506,6 @@ export default function PointOfSalePage() {
 										</div>
 										<div className="space-y-1">
 											<p className="font-semibold text-emerald-900">Wholesale pricing is active</p>
-											<p className="text-sm text-emerald-800">
-												Using wholesale prices from the backend response for the current catalogue.
-											</p>
 											{missingWholesalePriceCount > 0 && (
 												<p className="text-xs font-medium text-amber-700">
 													{missingWholesalePriceCount} item(s) do not yet have wholesale prices and cannot be sold in
