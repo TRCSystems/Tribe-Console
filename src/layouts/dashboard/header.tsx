@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/utils";
+import Logo from "@/components/logo";
 import AccountDropdown from "../components/account-dropdown";
 import SearchBar from "../components/search-bar";
 import SettingButton from "../components/setting-button";
@@ -24,8 +25,11 @@ export default function Header({ leftSlot }: HeaderProps) {
 
 			<div className="relative flex min-w-0 items-center gap-3">
 				{leftSlot}
-				<div className="hidden min-w-0 flex-col sm:flex">
-					<span className="truncate text-sm font-semibold tracking-[0.18em] text-foreground">TRIBE</span>
+				<div className="flex min-w-0 items-center gap-2">
+					<Logo size={35} />
+					<div className="hidden min-w-0 flex-col sm:flex">
+						<span className="truncate text-sm font-semibold tracking-[0.18em] text-foreground">TRIBE</span>
+					</div>
 				</div>
 			</div>
 
