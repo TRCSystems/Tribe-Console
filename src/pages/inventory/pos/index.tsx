@@ -1419,31 +1419,31 @@ export default function PointOfSalePage() {
 							</p>
 						</div>
 						<div className="flex flex-col gap-3 xl:items-end">
-							<div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50 p-1 shadow-sm">
+							<div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50 p-0.5 shadow-sm">
 								<div className="grid grid-cols-2 gap-1">
 									<Button
 										type="button"
 										onClick={() => setPricingMode("retail")}
-										className={`h-12 rounded-xl px-4 text-sm font-semibold transition-all ${
+										className={`h-9 rounded-lg px-3 text-xs font-semibold transition-all ${
 											pricingMode === "retail"
 												? "bg-slate-900 text-white shadow-md hover:bg-slate-800"
 												: "bg-transparent text-slate-600 shadow-none hover:bg-white"
 										}`}
 									>
-										<Icon icon="lucide:store" className="mr-2 h-4 w-4" />
-										Retail Mode
+										<Icon icon="lucide:store" className="mr-1.5 h-3.5 w-3.5" />
+										Retail <span className="hidden sm:inline">Mode</span>
 									</Button>
 									<Button
 										type="button"
 										onClick={() => setPricingMode("wholesale")}
-										className={`h-12 rounded-xl px-4 text-sm font-semibold transition-all ${
+										className={`h-9 rounded-lg px-3 text-xs font-semibold transition-all ${
 											pricingMode === "wholesale"
 												? "bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
 												: "bg-transparent text-slate-600 shadow-none hover:bg-white"
 										}`}
 									>
-										<Icon icon="lucide:warehouse" className="mr-2 h-4 w-4" />
-										Wholesale Mode
+										<Icon icon="lucide:warehouse" className="mr-1.5 h-3.5 w-3.5" />
+										Wholesale <span className="hidden sm:inline">Mode</span>
 									</Button>
 								</div>
 							</div>
