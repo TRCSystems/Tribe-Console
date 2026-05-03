@@ -18,6 +18,7 @@ export interface UserInfo {
 	permissions?: Permission[];
 	menu?: MenuTree[];
 	merchantId?: string; // ADDED: For merchant-specific data
+	isWholesaler?: boolean; // ADDED: For wholesale mode access control
 }
 
 export interface Permission_Old {

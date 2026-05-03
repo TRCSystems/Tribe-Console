@@ -15,6 +15,7 @@ import { Checkbox } from "@/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/ui/form";
 import { Input } from "@/ui/input";
 import { cn } from "@/utils";
+import { decodeToken, getIsWholesalerFromToken } from "@/utils/jwt";
 import { LoginStateEnum, useLoginStateContext } from "./providers/login-provider";
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
@@ -75,8 +76,16 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 				refreshToken: "",
 			});
 
+			// Extract user info from token
+			const decodedToken = decodeToken(accessToken);
+			const isWholesaler = getIsWholesalerFromToken(accessToken);
+
 			setUserInfo({
 				username: values.username,
+				id: decodedToken?.id?.toString() || "",
+				email: decodedToken?.email || "",
+				role: decodedToken?.role || "MERCHANT",
+				isWholesaler: isWholesaler,
 			} as UserInfo);
 
 			// Wait for state persistence

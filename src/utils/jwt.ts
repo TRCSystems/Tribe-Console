@@ -11,6 +11,7 @@ export interface JwtPayload {
 	email?: string;
 	role?: UserRole;
 	merchantId?: string;
+	isWholesaler?: boolean;
 	exp: number;
 	iat: number;
 	sub?: string;
@@ -305,5 +306,29 @@ export const getMerchantNameFromToken = (token: string): string | null => {
 	} catch (_error) {
 		console.error("Failed to extract merchant name from token");
 		return null;
+	}
+};
+
+/**
+ * Original Author: Marcellas
+ * Extract isWholesaler flag from JWT token
+ */
+export const getIsWholesalerFromToken = (token: string): boolean => {
+	try {
+		const decoded = decodeToken(token);
+		console.debug("🔍 Decoded token in getIsWholesalerFromToken:", {
+			hasIsWholesaler: decoded?.isWholesaler !== undefined,
+			isWholesaler: decoded?.isWholesaler,
+			type: typeof decoded?.isWholesaler,
+			allKeys: Object.keys(decoded || {}),
+		});
+		const isWholesaler = decoded?.isWholesaler ?? false;
+
+		console.log(`✅ IsWholesaler extracted: ${isWholesaler}`);
+
+		return isWholesaler;
+	} catch (_error) {
+		console.error("❌ Failed to extract isWholesaler from token");
+		return false;
 	}
 };

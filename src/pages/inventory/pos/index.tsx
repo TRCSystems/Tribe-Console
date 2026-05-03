@@ -826,6 +826,15 @@ export default function PointOfSalePage() {
 		}
 	}, [merchantDetailsData]);
 
+	// ADDED: Check if user has wholesale access and reset mode if they don't
+	useEffect(() => {
+		if (!userInfo?.isWholesaler && pricingMode === "wholesale") {
+			console.log("🔒 User does not have wholesale access. Resetting to retail mode.");
+			setPricingMode("retail");
+			window.localStorage.setItem("pos_pricing_mode", "retail");
+		}
+	}, [userInfo?.isWholesaler]);
+
 	useEffect(() => {
 		if (typeof window !== "undefined") {
 			window.localStorage.setItem("pos_pricing_mode", pricingMode);
@@ -859,6 +868,23 @@ export default function PointOfSalePage() {
 			details,
 		});
 		setShowCloseDayToast(true);
+	};
+
+	// Handler for switching to wholesale mode
+	const handleWholesaleModeClick = () => {
+		console.log("🔍 Wholesale button clicked, checking userInfo:", {
+			hasUserInfo: !!userInfo,
+			isWholesaler: userInfo?.isWholesaler,
+			type: typeof userInfo?.isWholesaler,
+			fullUserInfo: userInfo,
+		});
+		if (!userInfo?.isWholesaler) {
+			message.error(
+				"Sorry your business type is not allowed for this mode...Contact the TRIBE_Admin for the privileges",
+			);
+			return;
+		}
+		setPricingMode("wholesale");
 	};
 
 	const initiateCloseDayMutation = useMutation({
@@ -1435,7 +1461,7 @@ export default function PointOfSalePage() {
 									</Button>
 									<Button
 										type="button"
-										onClick={() => setPricingMode("wholesale")}
+										onClick={handleWholesaleModeClick}
 										className={`h-9 rounded-lg px-3 text-xs font-semibold transition-all ${
 											pricingMode === "wholesale"
 												? "bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
