@@ -4,8 +4,8 @@ import { message } from "antd";
 import { useEffect, useState } from "react";
 import inventoryService, {
 	type InventoryItem,
-	type SaleItemRequest,
 	type SaleRequest,
+	type SaleItemRequest,
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { OTPModal } from "@/components/otp-modal";
@@ -26,10 +26,10 @@ interface PosInventoryItem extends InventoryItem {
 }
 
 const SPECIAL_USER_IDS = ["25", "30"]; // Both user 25 and 30 get special pricing
-const SPECIAL_PRICING_RULES: Record<string, { basePrice: number; extra: number }> = {
-	pork: { basePrice: 120, extra: 10 },
-	beef: { basePrice: 120, extra: 30 },
-	matumbo: { basePrice: 100, extra: 20 },
+const SPECIAL_PRICING_RULES: Record<string, { extra: number }> = {
+	pork: { extra: 10 },
+	beef: { extra: 30 },
+	matumbo: { extra: 20 },
 };
 
 const getSpecialPricingRule = (itemName: string, userId: string | null) => {
@@ -62,11 +62,12 @@ const calculateSpecialPriceInfo = (
 	}
 
 	// Calculate special price according to rules
+	// First item at basePrice (from DB), additional items at basePrice + extra
 	let specialTotalPrice = 0;
 	if (quantity === 1) {
-		specialTotalPrice = rule.basePrice;
+		specialTotalPrice = unitPriceFromDB;
 	} else {
-		specialTotalPrice = rule.basePrice + (rule.basePrice + rule.extra) * (quantity - 1);
+		specialTotalPrice = unitPriceFromDB + (unitPriceFromDB + rule.extra) * (quantity - 1);
 	}
 
 	// Calculate what normal price would be
@@ -704,7 +705,7 @@ const ThermalPrintReceipt = ({
 	);
 };
 
-const validateSaleData = (saleData: ProcessSaleRequest): string | null => {
+const validateSaleData = (saleData: SaleRequest): string | null => {
 	if (!saleData.merchantId || saleData.merchantId.trim() === "") {
 		return "Merchant ID is required";
 	}
@@ -794,11 +795,7 @@ export default function PointOfSalePage() {
 	const merchantName = userInfo?.username || "My Business";
 
 	// Merchant Details Query - FIXED: This will fetch merchant details including businessPhone
-	const {
-		data: merchantDetailsData,
-		isLoading: _isLoadingMerchantDetails,
-		error: merchantDetailsError,
-	} = useQuery({
+	const { data: merchantDetailsData, isLoading: _isLoadingMerchantDetails } = useQuery({
 		queryKey: ["merchant-details", merchantId],
 		queryFn: () => inventoryService.getMerchantDetails(),
 		enabled: !!merchantId && isAuthenticated,
@@ -833,7 +830,7 @@ export default function PointOfSalePage() {
 			setPricingMode("retail");
 			window.localStorage.setItem("pos_pricing_mode", "retail");
 		}
-	}, [userInfo?.isWholesaler]);
+	}, [userInfo?.isWholesaler, pricingMode]);
 
 	useEffect(() => {
 		if (typeof window !== "undefined") {
@@ -1131,14 +1128,14 @@ export default function PointOfSalePage() {
 		if (removedItemsCount > 0) {
 			message.warning(`${removedItemsCount} item(s) were removed because wholesale prices are missing.`);
 		}
-	}, [pricingMode, inventory, merchantId]);
+	}, [pricingMode, posInventory, orderItems.length, buildOrderItem]);
 
 	const generateTransactionId = () => {
 		return `TXN-${Date.now().toString().slice(-8)}`;
 	};
 
 	const processSaleMutation = useMutation({
-		mutationFn: (saleData: ProcessSaleRequest) => inventoryService.processSale(saleData),
+		mutationFn: (saleData: Omit<SaleRequest, "merchantId">) => inventoryService.processSale(saleData),
 		onSuccess: (data, _variables) => {
 			console.log("✅ Sale processed successfully:", data);
 
@@ -1345,7 +1342,7 @@ export default function PointOfSalePage() {
 		}
 
 		// Send extra amount as POSITIVE discount
-		const saleItems: SaleItem[] = orderItems.map((item) => ({
+		const saleItems: SaleItemRequest[] = orderItems.map((item) => ({
 			inventoryId: item.id,
 			quantity: item.orderQuantity,
 			discount: item.extraAmount || 0, // Send POSITIVE extra as discount
