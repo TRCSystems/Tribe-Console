@@ -4,26 +4,23 @@ import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import inventoryService, {
+	type BatchAddDefaultsSelection,
 	type InventoryItem,
 	type InvoiceUploadResponse,
+	type ProductDefault,
 	type StockItemRequest,
 } from "@/api/services/inventoryService";
+import { useBatchAddDefaults, useProductDefaults } from "@/api/hooks/useProductDefaults";
 import { Icon } from "@/components/icon";
 import { LockModal } from "@/components/lock-modal";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useAuthCheck, useMerchantId, useUserToken } from "@/store/userStore";
-import { Badge } from "@/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog";
+import { getMerchantNameFromToken } from "@/utils/jwt";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
-import { getMerchantNameFromToken } from "@/utils/jwt";
-
-// CSV Template Content
-const CSV_TEMPLATE_CONTENT = `ITEM,UNIT_PRICE,STARTING_STOCK
-Product 1,2000,30
-Product 2,1500,20
-Product 3,1200,40
-Product 4,30,200`;
+import { Badge } from "@/ui/badge";
 
 // SIMPLIFIED Invoice Upload Modal - Shows only extracted items
 const InvoiceUploadModal = ({
@@ -331,8 +328,11 @@ const EditInventoryModal = ({
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
-						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Item Name</label>
+						<label htmlFor="edit-item-name" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+							Item Name
+						</label>
 						<Input
+							id="edit-item-name"
 							value={formData.itemName}
 							onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
 							placeholder="Enter item name"
@@ -340,8 +340,11 @@ const EditInventoryModal = ({
 						/>
 					</div>
 					<div>
-						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Quantity</label>
+						<label htmlFor="edit-item-quantity" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+							Quantity
+						</label>
 						<Input
+							id="edit-item-quantity"
 							type="number"
 							value={formData.quantity}
 							onChange={(e) => {
@@ -366,8 +369,11 @@ const EditInventoryModal = ({
 						)}
 					</div>
 					<div>
-						<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Price (KShs)</label>
+						<label htmlFor="edit-item-price" className="text-sm font-medium text-gray-900 dark:text-gray-100">
+							Price (KShs)
+						</label>
 						<Input
+							id="edit-item-price"
 							type="number"
 							step="0.01"
 							value={formData.unitPrice}
@@ -494,6 +500,17 @@ export default function StockManagementPage() {
 	);
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
+	const [templateModalOpen, setTemplateModalOpen] = useState(false);
+	const [templateSearch, setTemplateSearch] = useState("");
+	const [selectedTemplates, setSelectedTemplates] = useState<
+		Array<
+			Omit<BatchAddDefaultsSelection, "startingStock" | "unitPrice"> & {
+				tempId: string;
+				startingStock: number | null;
+				unitPrice: number | null;
+			}
+		>
+	>([]);
 	const [showTemplateNotification, setShowTemplateNotification] = useState(false);
 	const [deleteModalOpen, setDeleteModalOpen] = useState(false);
 	const [itemToDelete, setItemToDelete] = useState<InventoryItem | null>(null);
@@ -501,6 +518,14 @@ export default function StockManagementPage() {
 	// Invoice upload states
 	const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);
 	const [invoicePreviewData, setInvoicePreviewData] = useState<InvoiceUploadResponse | null>(null);
+
+	// Contact Supplier states
+	const [contactSupplierModalOpen, setContactSupplierModalOpen] = useState(false);
+	const [contactFormData, setContactFormData] = useState({
+		supplierName: "",
+		missingItems: [] as Array<{ name: string; expected: number; received: number }>,
+		message: "",
+	});
 
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const invoiceFileInputRef = useRef<HTMLInputElement>(null);
@@ -572,13 +597,18 @@ export default function StockManagementPage() {
 		error,
 	} = useQuery({
 		queryKey: ["inventory", merchantId],
-		queryFn: () => inventoryService.getAllItems(merchantId!),
+		queryFn: () => (merchantId ? inventoryService.getAllItems(merchantId) : Promise.resolve([])),
 		enabled: !!merchantId && isAuthenticated && !isLocked,
 	});
+	const {
+		data: productDefaults = [],
+		isLoading: defaultsLoading,
+		error: defaultsError,
+	} = useProductDefaults(templateModalOpen && canPerformActions && !isLocked);
 
 	// 6. All useMutation hooks
 	const addStockMutation = useMutation({
-		mutationFn: async (data: { merchantId: string; items: StockItem[] }) => {
+		mutationFn: async (data: { merchantId: string; items: StockItemRequest[] }) => {
 			if (!canPerformActions) {
 				throw new Error("User not authenticated or missing merchant ID");
 			}
@@ -621,6 +651,8 @@ export default function StockManagementPage() {
 			message.error(`Import failed: ${error.message}`);
 		},
 	});
+
+	const batchAddDefaultsMutation = useBatchAddDefaults();
 
 	const editItemMutation = useMutation({
 		mutationFn: async ({
@@ -672,7 +704,7 @@ export default function StockManagementPage() {
 			return inventoryService.uploadInvoice(file);
 		},
 		onSuccess: (response) => {
-			if (response.success) {
+			if (response.success && response.data?.items) {
 				setInvoicePreviewData(response);
 				setInvoiceModalOpen(true);
 				message.success("Invoice uploaded successfully!");
@@ -691,7 +723,10 @@ export default function StockManagementPage() {
 			if (!invoicePreviewData?.invoiceSubmissionId || !invoicePreviewData.data?.items) {
 				throw new Error("Missing required data for approval");
 			}
-			return inventoryService.approveInvoice(invoicePreviewData.invoiceSubmissionId!, invoicePreviewData.data.items);
+			const { invoiceSubmissionId, data } = invoicePreviewData;
+			// items existence already checked above; non-null assertion satisfies TS
+			const items = data.items!;
+			return inventoryService.approveInvoice(invoiceSubmissionId, items);
 		},
 		onSuccess: (result) => {
 			message.success(result.message);
@@ -902,6 +937,92 @@ export default function StockManagementPage() {
 		approveInvoiceMutation.mutate();
 	};
 
+	// Contact Supplier handlers
+	const handleOpenContactSupplier = () => {
+		setContactFormData({
+			supplierName: "",
+			missingItems: [{ name: "", expected: 0, received: 0 }],
+			message: "",
+		});
+		setContactSupplierModalOpen(true);
+	};
+
+	const handleAddMissingItem = () => {
+		setContactFormData((prev) => ({
+			...prev,
+			missingItems: [...prev.missingItems, { name: "", expected: 0, received: 0 }],
+		}));
+	};
+
+	const handleUpdateMissingItem = (index: number, field: string, value: string | number) => {
+		setContactFormData((prev) => ({
+			...prev,
+			missingItems: prev.missingItems.map((item, i) => (i === index ? { ...item, [field]: value } : item)),
+		}));
+	};
+
+	const handleRemoveMissingItem = (index: number) => {
+		setContactFormData((prev) => ({
+			...prev,
+			missingItems: prev.missingItems.filter((_, i) => i !== index),
+		}));
+	};
+
+	const handleSendContactMessage = async () => {
+		// Validate form
+		if (!contactFormData.supplierName.trim()) {
+			message.error("Please enter supplier name");
+			return;
+		}
+
+		const validItems = contactFormData.missingItems.filter((item) => item.name.trim() && item.expected > 0);
+
+		if (validItems.length === 0) {
+			message.error("Please add at least one missing item");
+			return;
+		}
+
+		try {
+			const response = await inventoryService.contactSupplier({
+				supplierName: contactFormData.supplierName,
+				missingItems: validItems,
+				message: contactFormData.message,
+			});
+
+			if (response.success) {
+				message.success(response.message || "Message sent to supplier successfully!");
+				setContactSupplierModalOpen(false);
+				setContactFormData({
+					supplierName: "",
+					missingItems: [],
+					message: "",
+				});
+			} else {
+				message.error(response.message || "Failed to send message to supplier");
+			}
+		} catch (error: any) {
+			console.error("Contact supplier error:", error);
+
+			// Check if it's an authentication error
+			if (error.response?.status === 401 || error.response?.status === 403) {
+				message.error("Authentication failed. Please log in again.");
+				// The auth system should handle logout automatically
+				return;
+			}
+
+			// For other errors, show a generic message
+			message.error("Failed to send message. Please try again later.");
+		}
+	};
+
+	const openTemplateModal = () => {
+		if (!canPerformActions) {
+			message.error("Please login to add templates");
+			return;
+		}
+		setTemplateModalOpen(true);
+	};
+
 	const handleAddStock = (item: InventoryItem) => {
 		if (!canPerformActions) {
 			message.error("Please login to add stock");
@@ -960,6 +1081,87 @@ export default function StockManagementPage() {
 		}
 	};
 
+	const handleSelectTemplate = (item: ProductDefault) => {
+		const exists = selectedTemplates.some((t) => t.productCode === item.productCode);
+		if (exists) return;
+
+		setSelectedTemplates((prev) => [
+			...prev,
+			{
+				tempId: `${item.productCode}-${Date.now()}`,
+				productName: item.productName,
+				productCode: item.productCode,
+				volumeMl: item.volumeMl,
+				startingStock: null,
+				unitPrice: null,
+			},
+		]);
+	};
+
+	const handleRemoveTemplate = (tempId: string) => {
+		setSelectedTemplates((prev) => prev.filter((t) => t.tempId !== tempId));
+	};
+
+	const updateTemplateField = (tempId: string, field: "startingStock" | "unitPrice", rawValue: string) => {
+		setSelectedTemplates((prev) =>
+			prev.map((t) => {
+				if (t.tempId !== tempId) return t;
+				if (rawValue === "") {
+					return { ...t, [field]: null };
+				}
+				const num = Number(rawValue);
+				if (Number.isNaN(num)) return t;
+				return { ...t, [field]: Math.max(0, num) };
+			}),
+		);
+	};
+
+	const handleSubmitTemplates = () => {
+		if (!canPerformActions) {
+			message.error("Please login to add templates");
+			return;
+		}
+		if (selectedTemplates.length === 0) {
+			message.error("Please select at least one product");
+			return;
+		}
+
+		const hasInvalid = selectedTemplates.some(
+			(t) =>
+				t.startingStock === null ||
+				t.startingStock <= 0 ||
+				t.unitPrice === null ||
+				t.unitPrice === undefined ||
+				t.unitPrice < 0,
+		);
+
+		if (hasInvalid) {
+			message.error("Starting stock must be > 0 and unit price must be set");
+			return;
+		}
+
+		batchAddDefaultsMutation.mutate(
+			{
+				selections: selectedTemplates.map(({ tempId, ...rest }) => ({
+					...rest,
+					startingStock: Number(rest.startingStock),
+					unitPrice: Number(rest.unitPrice),
+				})),
+			},
+			{
+				onSuccess: () => {
+					message.success("Templates added to inventory");
+					setSelectedTemplates([]);
+					setTemplateModalOpen(false);
+					queryClient.invalidateQueries({ queryKey: ["inventory"] });
+				},
+				onError: (err: Error) => {
+					message.error(err.message || "Failed to add templates");
+				},
+			},
+		);
+	};
+
 	const handleImportCSV = () => {
 		if (!canPerformActions) {
 			message.error("Please login to import CSV");
@@ -993,6 +1195,20 @@ export default function StockManagementPage() {
 			fileInputRef.current.value = "";
 		}
 	};
+
+	const selectedCodes = new Set(selectedTemplates.map((t) => t.productCode));
+	const existingInventoryCodes = new Set(
+		processedInventory.map((item) => item.itemCode?.toLowerCase()).filter(Boolean),
+	);
+	const filteredProductDefaults = productDefaults.filter((item) => {
+		const term = templateSearch.toLowerCase().trim();
+		if (!term) return true;
+		return (
+			item.productName.toLowerCase().includes(term) ||
+			item.productCode.toLowerCase().includes(term) ||
+			item.volumeMl.toString().includes(term)
+		);
+	});
 
 	const totalItems = processedInventory.length;
 	const lowStockItems = processedInventory.filter((item) => item.availableStock < 10 && item.availableStock > 0).length;
@@ -1068,6 +1284,171 @@ export default function StockManagementPage() {
 								>
 									{addStockMutation.isPending ? "Adding..." : "Add Stock"}
 								</Button>
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* Product Templates Modal */}
+			{templateModalOpen && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+					<Card className="w-full max-w-5xl max-h-[90vh] overflow-hidden">
+						<CardHeader className="flex flex-row items-start justify-between gap-4">
+							<div>
+								<CardTitle className="text-gray-900 dark:text-gray-100 flex items-center gap-2">
+									<Icon icon="lucide:library" className="h-5 w-5 text-blue-500" />
+									Add From Templates
+								</CardTitle>
+								<CardDescription>
+									Select liquor templates, enter starting stock &amp; unit price, then batch add to inventory.
+								</CardDescription>
+							</div>
+							<div className="flex items-center gap-2">
+								<Button variant="outline" size="sm" onClick={() => setTemplateModalOpen(false)}>
+									Close
+								</Button>
+								<Button
+									size="sm"
+									onClick={handleSubmitTemplates}
+									disabled={batchAddDefaultsMutation.isPending || selectedTemplates.length === 0}
+								>
+									{batchAddDefaultsMutation.isPending ? "Adding..." : "Add Selected"}
+								</Button>
+							</div>
+						</CardHeader>
+						<CardContent className="grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-y-auto">
+							<div className="lg:col-span-2 space-y-4">
+								<div className="flex items-center gap-3">
+									<div className="flex-1">
+										<Input
+											placeholder="Search templates by name, code, or volume"
+											value={templateSearch}
+											onChange={(e) => setTemplateSearch(e.target.value)}
+										/>
+									</div>
+									{defaultsLoading && <Badge variant="secondary">Loading...</Badge>}
+									{defaultsError && <Badge variant="destructive">Failed to load templates</Badge>}
+								</div>
+
+								<div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
+									<table className="w-full min-w-max">
+										<thead className="bg-gray-50 dark:bg-gray-800">
+											<tr>
+												<th className="p-3 text-left">Name</th>
+												<th className="p-3 text-left">Code</th>
+												<th className="p-3 text-left">Volume (ml)</th>
+												<th className="p-3 text-left">Action</th>
+											</tr>
+										</thead>
+										<tbody>
+											{filteredProductDefaults.map((item) => {
+												const isSelected = selectedCodes.has(item.productCode);
+												const alreadyInInventory = existingInventoryCodes.has(item.productCode.toLowerCase());
+												return (
+													<tr
+														key={item.productCode}
+														className="border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/60"
+													>
+														<td className="p-3 font-medium text-gray-900 dark:text-gray-100">{item.productName}</td>
+														<td className="p-3 text-sm text-gray-600 dark:text-gray-300 font-mono">
+															{item.productCode}
+														</td>
+														<td className="p-3 text-sm text-gray-700 dark:text-gray-200">{item.volumeMl}</td>
+														<td className="p-3">
+															<Button
+																size="sm"
+																variant={isSelected ? "outline" : "default"}
+																onClick={() => handleSelectTemplate(item)}
+																disabled={isSelected || alreadyInInventory || batchAddDefaultsMutation.isPending}
+															>
+																{alreadyInInventory ? "In Inventory" : isSelected ? "Selected" : "Select"}
+															</Button>
+														</td>
+													</tr>
+												);
+											})}
+											{!defaultsLoading && filteredProductDefaults.length === 0 && (
+												<tr>
+													<td colSpan={4} className="p-4 text-center text-muted-foreground">
+														No templates match your search.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
+							</div>
+
+							<div className="space-y-4">
+								<div className="flex items-center justify-between">
+									<h4 className="font-semibold text-gray-900 dark:text-gray-100">
+										Selected ({selectedTemplates.length})
+									</h4>
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => setSelectedTemplates([])}
+										disabled={selectedTemplates.length === 0}
+									>
+										Clear
+									</Button>
+								</div>
+
+								<div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+									{selectedTemplates.length === 0 && (
+										<div className="text-sm text-muted-foreground">
+											Pick templates on the left to set stock and price.
+										</div>
+									)}
+
+									{selectedTemplates.map((item) => (
+										<Card key={item.tempId} className="border border-gray-200 dark:border-gray-700">
+											<CardContent className="p-3 space-y-2">
+												<div className="flex items-center justify-between gap-2">
+													<div>
+														<p className="font-semibold text-gray-900 dark:text-gray-100">{item.productName}</p>
+														<p className="text-xs text-muted-foreground font-mono">{item.productCode}</p>
+													</div>
+													<Button
+														size="icon"
+														variant="ghost"
+														onClick={() => handleRemoveTemplate(item.tempId)}
+														disabled={batchAddDefaultsMutation.isPending}
+													>
+														<Icon icon="lucide:x" className="h-4 w-4" />
+													</Button>
+												</div>
+												<div className="grid grid-cols-2 gap-3">
+													<div className="space-y-1">
+														<p className="text-xs text-muted-foreground">Starting Stock</p>
+														<Input
+															type="number"
+															min={1}
+															value={item.startingStock ?? ""}
+															onChange={(e) => updateTemplateField(item.tempId, "startingStock", e.target.value)}
+														/>
+													</div>
+													<div className="space-y-1">
+														<p className="text-xs text-muted-foreground">Unit Price (KSh)</p>
+														<Input
+															type="number"
+															min={0}
+															step="0.01"
+															value={
+																item.unitPrice === null || Number.isNaN(item.unitPrice)
+																	? ""
+																	: Number(item.unitPrice).toFixed(2)
+															}
+															onChange={(e) => updateTemplateField(item.tempId, "unitPrice", e.target.value)}
+														/>
+													</div>
+												</div>
+												<p className="text-xs text-muted-foreground">Volume: {item.volumeMl} ml</p>
+											</CardContent>
+										</Card>
+									))}
+								</div>
 							</div>
 						</CardContent>
 					</Card>
@@ -1162,18 +1543,20 @@ export default function StockManagementPage() {
 						<span className="text-xs font-bold">Re-lock</span>
 					</Button>
 
-					{/* CSV Template Download Button */}
+					{/* Add From Templates Button */}
 					<div className="flex flex-col items-center gap-1">
 						<Button
-							onClick={downloadCSVTemplate}
+							onClick={openTemplateModal}
 							disabled={!canPerformActions}
-							className="w-12 h-12 rounded-full bg-blue-500 hover:bg-blue-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+							className="w-12 h-12 rounded-full bg-purple-500 hover:bg-purple-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
 							variant="default"
-							title="Download CSV Template"
+							title="Add products from templates"
 						>
-							<Icon icon="lucide:download" className="h-5 w-5" />
+							<Icon icon="lucide:library" className="h-5 w-5" />
 						</Button>
-						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">TEMPLATE</span>
+						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+							ADD STOCK
+						</span>
 					</div>
 
 					{/* Import CSV Button */}
@@ -1219,6 +1602,22 @@ export default function StockManagementPage() {
 									: "INVOICE"}
 						</span>
 					</div>
+
+					{/* Contact Supplier Button - Moved to floating position */}
+					{/* <div className="flex flex-col items-center gap-1">
+						<Button
+							onClick={handleOpenContactSupplier}
+							disabled={!canPerformActions}
+							className="w-12 h-12 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+							variant="default"
+							title="Contact Supplier"
+						>
+							<Icon icon="lucide:message-circle" className="h-5 w-5" />
+						</Button>
+						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+							CONTACT SUPPLIER
+						</span>
+					</div> */}
 				</div>
 			</div>
 
@@ -1405,6 +1804,144 @@ export default function StockManagementPage() {
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>
 			</footer>
+
+			{/* Contact Supplier Modal */}
+			<Dialog open={contactSupplierModalOpen} onOpenChange={setContactSupplierModalOpen}>
+				<DialogContent className="z-[9999] max-h-[90vh] w-full max-w-2xl overflow-y-auto p-0">
+					<DialogHeader className="border-b bg-gradient-to-r from-orange-50 to-red-50 px-6 py-5 text-left dark:from-orange-900/20 dark:to-red-900/20">
+						<DialogTitle className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
+							<Icon icon="lucide:message-circle" className="h-5 w-5 text-orange-600" />
+							Contact Supplier
+						</DialogTitle>
+						<DialogDescription className="text-gray-600 dark:text-gray-400">
+							Report missing or damaged items from delivery
+						</DialogDescription>
+					</DialogHeader>
+
+					<div className="p-6 space-y-6">
+						{/* Supplier Name */}
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Supplier Name *</label>
+							<Input
+								value={contactFormData.supplierName}
+								onChange={(e) => setContactFormData((prev) => ({ ...prev, supplierName: e.target.value }))}
+								placeholder="Enter supplier name"
+								className="w-full"
+							/>
+						</div>
+
+						{/* Missing Items */}
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
+								<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Missing/Damaged Items *</label>
+								<Button onClick={handleAddMissingItem} variant="outline" size="sm" className="text-xs">
+									<Icon icon="lucide:plus" className="h-3 w-3 mr-1" />
+									Add Item
+								</Button>
+							</div>
+
+							<div className="space-y-3">
+								{contactFormData.missingItems.map((item, index) => (
+									<div key={index} className="border rounded-lg p-4 space-y-3">
+										<div className="flex items-center justify-between">
+											<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Item {index + 1}</span>
+											{contactFormData.missingItems.length > 1 && (
+												<Button
+													onClick={() => handleRemoveMissingItem(index)}
+													variant="ghost"
+													size="sm"
+													className="h-6 w-6 p-0 text-red-500 hover:text-red-700"
+												>
+													<Icon icon="lucide:trash-2" className="h-3 w-3" />
+												</Button>
+											)}
+										</div>
+
+										<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+											<div>
+												<label className="text-xs text-gray-600 dark:text-gray-400">Item Name</label>
+												<Input
+													value={item.name}
+													onChange={(e) => handleUpdateMissingItem(index, "name", e.target.value)}
+													placeholder="Item name"
+													className="mt-1"
+												/>
+											</div>
+											<div>
+												<label className="text-xs text-gray-600 dark:text-gray-400">Expected Qty</label>
+												<Input
+													type="number"
+													value={item.expected}
+													onChange={(e) => handleUpdateMissingItem(index, "expected", parseInt(e.target.value) || 0)}
+													placeholder="0"
+													className="mt-1"
+													min="0"
+												/>
+											</div>
+											<div>
+												<label className="text-xs text-gray-600 dark:text-gray-400">Received Qty</label>
+												<Input
+													type="number"
+													value={item.received}
+													onChange={(e) => handleUpdateMissingItem(index, "received", parseInt(e.target.value) || 0)}
+													placeholder="0"
+													className="mt-1"
+													min="0"
+												/>
+											</div>
+										</div>
+
+										{item.expected > item.received && (
+											<div className="bg-red-50 border border-red-200 rounded p-2">
+												<p className="text-xs text-red-800">⚠️ Missing {item.expected - item.received} unit(s)</p>
+											</div>
+										)}
+									</div>
+								))}
+							</div>
+						</div>
+
+						{/* Additional Message */}
+						<div className="space-y-2">
+							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">
+								Additional Message (Optional)
+							</label>
+							<textarea
+								value={contactFormData.message}
+								onChange={(e) => setContactFormData((prev) => ({ ...prev, message: e.target.value }))}
+								placeholder="Any additional details about the delivery issue..."
+								className="w-full h-24 p-3 border border-gray-300 dark:border-gray-600 rounded-md resize-none bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+								rows={3}
+							/>
+						</div>
+
+						{/* Action Buttons */}
+						<div className="flex flex-col sm:flex-row gap-4 justify-end pt-6 border-t border-gray-200 dark:border-gray-700">
+							<Button variant="outline" onClick={() => setContactSupplierModalOpen(false)}>
+								Cancel
+							</Button>
+							<Button onClick={handleSendContactMessage} className="bg-orange-600 hover:bg-orange-700 text-white">
+								<Icon icon="lucide:send" className="mr-2 h-4 w-4" />
+								Send Message
+							</Button>
+						</div>
+					</div>
+				</DialogContent>
+			</Dialog>
+
+			{/* Floating Contact Supplier Button - Chatbot Style */}
+			<div className="fixed bottom-6 right-6 z-50">
+				<Button
+					onClick={handleOpenContactSupplier}
+					disabled={!canPerformActions}
+					className="h-12 px-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg hover:shadow-xl transition-all duration-300 flex items-center gap-2 rounded-lg border-2 border-orange-400 hover:border-orange-300"
+					variant="default"
+					title="Contact Supplier"
+				>
+					<Icon icon="lucide:message-circle" className="h-5 w-5" />
+					<span className="text-sm font-medium">Contact Supplier</span>
+				</Button>
+			</div>
 		</div>
 	);
 }

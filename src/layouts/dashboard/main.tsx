@@ -38,22 +38,24 @@ const Main = () => {
 			<main
 				data-slot="slash-layout-main"
 				className={cn(
-					"flex-auto w-full flex flex-col",
+					"relative flex w-full flex-auto flex-col",
 					"transition-[max-width] duration-300 ease-in-out",
-					"px-4 sm:px-6 py-4 sm:py-6 md:px-8 mx-auto",
+					"mx-auto px-4 py-5 sm:px-6 sm:py-6 md:px-8",
 					{
 						"max-w-full": themeStretch,
-						"xl:max-w-screen-xl": !themeStretch,
+						"xl:max-w-[1480px]": !themeStretch,
 					},
 				)}
 				style={{
 					willChange: "max-width",
 				}}
 			>
-				<Suspense fallback={<LineLoading />}>
-					<Outlet />
-					<ScrollRestoration />
-				</Suspense>
+				<div className="relative min-h-[calc(100vh-var(--layout-header-height)-2rem)]">
+					<Suspense fallback={<LineLoading />}>
+						<Outlet />
+						<ScrollRestoration />
+					</Suspense>
+				</div>
 			</main>
 		</AuthGuard>
 	);

@@ -10,6 +10,7 @@ import type { UserInfo, UserRole, UserToken } from "#/entity";
 import userService, { type SignInReq } from "@/api/services/userService";
 import {
 	decodeToken,
+	getIsWholesalerFromToken,
 	getMerchantIdFromToken,
 	getRoleFromToken,
 	getUserIdFromToken,
@@ -50,6 +51,7 @@ const useUserStore = create<UserStore>()(
 						has_email: !!userInfo.email,
 						has_role: !!userInfo.role,
 						has_merchantId: !!userInfo.merchantId,
+						isWholesaler: userInfo.isWholesaler,
 					});
 
 					// Set merchantId directly and update auth state
@@ -60,7 +62,7 @@ const useUserStore = create<UserStore>()(
 						merchantId,
 						isAuthenticated: hasValidData,
 					});
-					console.log("✅ User info set");
+					console.log("✅ User info set", { isWholesaler: userInfo.isWholesaler });
 				},
 				setUserToken: (userToken) => {
 					// PRIVACY: Remove token preview from logs
@@ -70,25 +72,31 @@ const useUserStore = create<UserStore>()(
 						token_length: userToken?.accessToken ? userToken.accessToken.length : 0,
 					});
 
-					// Extract merchant ID from token immediately
+					// Extract merchant ID and isWholesaler flag from token immediately
 					let merchantId: string | null = null;
+					let isWholesaler = false;
 					if (userToken?.accessToken) {
 						try {
 							const decoded = decodeToken(userToken.accessToken);
 							merchantId = decoded?.id ? decoded.id.toString() : null;
-							console.debug("Extracted merchant ID from token");
+							isWholesaler = getIsWholesalerFromToken(userToken.accessToken);
+							console.debug("Extracted merchant ID and isWholesaler from token");
 						} catch (_error) {
-							console.error("❌ Failed to decode token for merchant ID");
+							console.error("❌ Failed to decode token for merchant ID or isWholesaler");
 						}
 					}
 
 					// Set authentication state based on token presence AND merchant ID
 					const hasValidToken = !!userToken?.accessToken;
-					set({
+					set((state) => ({
 						userToken,
 						merchantId,
+						userInfo: {
+							...state.userInfo,
+							isWholesaler,
+						},
 						isAuthenticated: hasValidToken, // Will be updated when userInfo is set
-					});
+					}));
 					console.log("✅ Token set");
 				},
 				clearUserInfoAndToken() {
@@ -100,6 +108,14 @@ const useUserStore = create<UserStore>()(
 						console.log("🔐 Cleared stock page password on logout");
 					} catch (error) {
 						console.error("Failed to clear stock page password:", error);
+					}
+
+					// ADDED: Clear POS pricing mode on logout
+					try {
+						localStorage.removeItem("pos_pricing_mode");
+						console.log("🔐 Cleared POS pricing mode on logout");
+					} catch (error) {
+						console.error("Failed to clear POS pricing mode:", error);
 					}
 
 					set({
@@ -398,6 +414,7 @@ export const useSignIn = () => {
 				const username = getUsernameFromToken(token) || data.username;
 				const userId = getUserIdFromToken(token) || decodedToken.sub || "";
 				const userRole = (decodedToken.role as UserRole) || "ADMIN";
+				const isWholesaler = getIsWholesalerFromToken(token);
 
 				if (!username) {
 					console.error("🛠️ No username found in token or request");
@@ -410,6 +427,7 @@ export const useSignIn = () => {
 					email: decodedToken.email || "",
 					role: userRole,
 					merchantId: merchantId,
+					isWholesaler: isWholesaler,
 				};
 
 				console.log("🛠️ Setting user info");
@@ -429,6 +447,7 @@ export const useSignIn = () => {
 						hasToken: !!currentState.userToken?.accessToken,
 						hasUserInfo: !!currentState.userInfo?.username,
 						isAuthenticated: currentState.isAuthenticated,
+						isWholesaler: currentState.userInfo?.isWholesaler,
 					});
 				}, 100);
 

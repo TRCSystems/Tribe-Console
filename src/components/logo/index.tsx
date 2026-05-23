@@ -1,15 +1,20 @@
 import { NavLink } from "react-router";
 import { cn } from "@/utils";
-import { Icon } from "../icon";
 
 interface Props {
 	size?: number | string;
 	className?: string;
 }
 function Logo({ size = 50, className }: Props) {
+	const resolvedSize = typeof size === "number" ? `${size}px` : size;
 	return (
-		<NavLink to="/" className={cn(className)}>
-			<Icon icon="local:ic-logo-badge" size={size} color="var(--colors-palette-primary-default)" />
+		<NavLink to="/" className={cn("inline-flex items-center", className)} aria-label="TRIBE">
+			<img
+				src="/logo.png"
+				alt="TRIBE logo"
+				style={{ width: resolvedSize, height: resolvedSize }}
+				className="shrink-0 object-contain"
+			/>
 		</NavLink>
 	);
 }

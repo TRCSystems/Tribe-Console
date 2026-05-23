@@ -97,10 +97,16 @@ const SearchBar = () => {
 
 	return (
 		<>
-			<Button variant="ghost" className="bg-action-selected px-2 rounded-lg" size="sm" onClick={() => setOpen(true)}>
-				<div className="flex items-center justify-center gap-4">
-					<Icon icon="local:ic-search" size="20" />
-					<kbd className="flex items-center justify-center rounded-md bg-primary/80 text-common-white px-1.5 py-0.5 text-sm font-semibold">
+			<Button
+				variant="ghost"
+				className="h-10 rounded-xl border border-border/70 bg-background/70 px-3 text-muted-foreground shadow-sm transition-colors hover:bg-background hover:text-foreground"
+				size="sm"
+				onClick={() => setOpen(true)}
+			>
+				<div className="flex items-center justify-center gap-3">
+					<Icon icon="local:ic-search" size="18" />
+					<span className="hidden text-sm font-medium sm:inline">Search</span>
+					<kbd className="flex items-center justify-center rounded-md border border-border/70 bg-muted/70 px-1.5 py-0.5 text-xs font-semibold text-foreground">
 						<Icon icon="qlementine-icons:key-cmd-16" />
 						<span>K</span>
 					</kbd>

@@ -40,21 +40,21 @@ const getApiBaseUrl = () => {
 	if (isElectron()) {
 		return "http://38.242.155.236:8080/api/v1";
 	}
-	return import.meta.env.VITE_APP_API_BASE_URL || "http://38.242.155.236:8080/api/v1";
+	return import.meta.env.VITE_APP_API_BASE_URL || "https://tribessystems.co.ke/api";
 };
 
 const getLoyaltyApiBaseUrl = () => {
 	if (isElectron()) {
 		return "http://38.242.155.236:8085/api/v1";
 	}
-	return import.meta.env.VITE_APP_LOYALTY_API_BASE_URL || "http://38.242.155.236:8085/api/v1";
+	return import.meta.env.VITE_APP_LOYALTY_API_BASE_URL || "https://tribessystems.co.ke/api";
 };
 
 const getLoyaltyEngineUrl = () => {
 	if (isElectron()) {
 		return "http://38.242.155.236:8085";
 	}
-	return import.meta.env.VITE_APP_LOYALTY_ENGINE_URL || "http://38.242.155.236:8085";
+	return import.meta.env.VITE_APP_LOYALTY_ENGINE_URL || "https://tribessystems.co.ke";
 };
 
 export const GLOBAL_CONFIG: GlobalConfig = {

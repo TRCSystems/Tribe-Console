@@ -4,8 +4,8 @@ import { message } from "antd";
 import { useEffect, useState } from "react";
 import inventoryService, {
 	type InventoryItem,
-	type SaleItemRequest,
 	type SaleRequest,
+	type SaleItemRequest,
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { OTPModal } from "@/components/otp-modal";
@@ -17,11 +17,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
 
+type PricingMode = "retail" | "wholesale";
+
+interface PosInventoryItem extends InventoryItem {
+	wholesaleUnitPrice: number | null;
+	activeUnitPrice: number | null;
+	hasWholesalePrice: boolean;
+}
+
 const SPECIAL_USER_IDS = ["25", "30"]; // Both user 25 and 30 get special pricing
-const SPECIAL_PRICING_RULES: Record<string, { basePrice: number; extra: number }> = {
-	pork: { basePrice: 120, extra: 10 },
-	beef: { basePrice: 120, extra: 30 },
-	matumbo: { basePrice: 100, extra: 20 },
+const SPECIAL_PRICING_RULES: Record<string, { extra: number }> = {
+	pork: { extra: 10 },
+	beef: { extra: 30 },
+	matumbo: { extra: 20 },
 };
 
 const getSpecialPricingRule = (itemName: string, userId: string | null) => {
@@ -54,11 +62,12 @@ const calculateSpecialPriceInfo = (
 	}
 
 	// Calculate special price according to rules
+	// First item at basePrice (from DB), additional items at basePrice + extra
 	let specialTotalPrice = 0;
 	if (quantity === 1) {
-		specialTotalPrice = rule.basePrice;
+		specialTotalPrice = unitPriceFromDB;
 	} else {
-		specialTotalPrice = rule.basePrice + (rule.basePrice + rule.extra) * (quantity - 1);
+		specialTotalPrice = unitPriceFromDB + (unitPriceFromDB + rule.extra) * (quantity - 1);
 	}
 
 	// Calculate what normal price would be
@@ -86,6 +95,52 @@ interface OrderItem extends InventoryItem {
 	extraAmount?: number; // POSITIVE extra to send as discount
 	displayPrice?: number; // Price per unit to display
 }
+
+const WHOLESALE_PRICE_PATHS = [
+	["wholesalePrice"],
+	["wholeSalePrice"],
+	["wholesaleUnitPrice"],
+	["wholeSaleUnitPrice"],
+	["unitWholesalePrice"],
+	["priceWholesale"],
+	["prices", "wholesale"],
+	["pricing", "wholesale"],
+	["pricing", "wholesalePrice"],
+	["productPricing", "wholesale"],
+];
+
+const readNumberAtPath = (source: unknown, path: string[]): number | null => {
+	let current: any = source;
+
+	for (const key of path) {
+		if (!current || typeof current !== "object" || !(key in current)) {
+			return null;
+		}
+		current = current[key];
+	}
+
+	if (typeof current === "number" && Number.isFinite(current)) {
+		return current;
+	}
+
+	if (typeof current === "string") {
+		const parsed = Number(current);
+		return Number.isFinite(parsed) ? parsed : null;
+	}
+
+	return null;
+};
+
+const getWholesaleUnitPrice = (item: unknown): number | null => {
+	for (const path of WHOLESALE_PRICE_PATHS) {
+		const price = readNumberAtPath(item, path);
+		if (price !== null) {
+			return price;
+		}
+	}
+
+	return null;
+};
 
 type PaymentMethod = "mpesa" | "cash" | null;
 
@@ -650,7 +705,7 @@ const ThermalPrintReceipt = ({
 	);
 };
 
-const validateSaleData = (saleData: ProcessSaleRequest): string | null => {
+const validateSaleData = (saleData: SaleRequest): string | null => {
 	if (!saleData.merchantId || saleData.merchantId.trim() === "") {
 		return "Merchant ID is required";
 	}
@@ -683,6 +738,14 @@ export default function PointOfSalePage() {
 	const queryClient = useQueryClient();
 	const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
 	const [searchTerm, setSearchTerm] = useState("");
+	const [pricingMode, setPricingMode] = useState<PricingMode>(() => {
+		if (typeof window === "undefined") {
+			return "retail";
+		}
+
+		const savedMode = window.localStorage.getItem("pos_pricing_mode");
+		return savedMode === "wholesale" ? "wholesale" : "retail";
+	});
 	const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<PaymentMethod>(null);
 	const [customerContact, setCustomerContact] = useState("");
 	const [customerName, setCustomerName] = useState("");
@@ -732,11 +795,7 @@ export default function PointOfSalePage() {
 	const merchantName = userInfo?.username || "My Business";
 
 	// Merchant Details Query - FIXED: This will fetch merchant details including businessPhone
-	const {
-		data: merchantDetailsData,
-		isLoading: _isLoadingMerchantDetails,
-		error: merchantDetailsError,
-	} = useQuery({
+	const { data: merchantDetailsData, isLoading: _isLoadingMerchantDetails } = useQuery({
 		queryKey: ["merchant-details", merchantId],
 		queryFn: () => inventoryService.getMerchantDetails(),
 		enabled: !!merchantId && isAuthenticated,
@@ -763,6 +822,21 @@ export default function PointOfSalePage() {
 			}
 		}
 	}, [merchantDetailsData]);
+
+	// ADDED: Check if user has wholesale access and reset mode if they don't
+	useEffect(() => {
+		if (!userInfo?.isWholesaler && pricingMode === "wholesale") {
+			console.log("🔒 User does not have wholesale access. Resetting to retail mode.");
+			setPricingMode("retail");
+			window.localStorage.setItem("pos_pricing_mode", "retail");
+		}
+	}, [userInfo?.isWholesaler, pricingMode]);
+
+	useEffect(() => {
+		if (typeof window !== "undefined") {
+			window.localStorage.setItem("pos_pricing_mode", pricingMode);
+		}
+	}, [pricingMode]);
 
 	const {
 		data: inventory = [],
@@ -791,6 +865,23 @@ export default function PointOfSalePage() {
 			details,
 		});
 		setShowCloseDayToast(true);
+	};
+
+	// Handler for switching to wholesale mode
+	const handleWholesaleModeClick = () => {
+		console.log("🔍 Wholesale button clicked, checking userInfo:", {
+			hasUserInfo: !!userInfo,
+			isWholesaler: userInfo?.isWholesaler,
+			type: typeof userInfo?.isWholesaler,
+			fullUserInfo: userInfo,
+		});
+		if (!userInfo?.isWholesaler) {
+			message.error(
+				"Sorry your business type is not allowed for this mode...Contact the TRIBE_Admin for the privileges",
+			);
+			return;
+		}
+		setPricingMode("wholesale");
 	};
 
 	const initiateCloseDayMutation = useMutation({
@@ -955,18 +1046,96 @@ export default function PointOfSalePage() {
 		};
 	};
 
-	const filteredInventory = inventory.filter((item: any) => {
+	const getPosInventoryItem = (item: any): PosInventoryItem => {
 		const itemData = getItemData(item);
+		const wholesaleUnitPrice = getWholesaleUnitPrice(item);
+		const activeUnitPrice = pricingMode === "wholesale" ? wholesaleUnitPrice : itemData.unitPrice;
+
+		return {
+			...itemData,
+			wholesaleUnitPrice,
+			activeUnitPrice,
+			hasWholesalePrice: wholesaleUnitPrice !== null,
+		};
+	};
+
+	const buildOrderItem = (item: PosInventoryItem, quantity: number): OrderItem => {
+		const activeUnitPrice = item.activeUnitPrice ?? item.unitPrice;
+
+		if (pricingMode === "wholesale") {
+			return {
+				...item,
+				unitPrice: activeUnitPrice,
+				orderQuantity: quantity,
+				totalPrice: activeUnitPrice * quantity,
+				isSpecialPrice: false,
+				extraAmount: 0,
+				displayPrice: activeUnitPrice,
+			};
+		}
+
+		const { isSpecial, extraAmount, totalPrice, displayPrice } = calculateSpecialPriceInfo(
+			item.itemName,
+			quantity,
+			item.unitPrice,
+			merchantId,
+		);
+
+		return {
+			...item,
+			unitPrice: item.unitPrice,
+			orderQuantity: quantity,
+			totalPrice,
+			isSpecialPrice: isSpecial,
+			extraAmount,
+			displayPrice,
+		};
+	};
+
+	const posInventory = inventory.map((item: any) => getPosInventoryItem(item));
+
+	const filteredInventory = posInventory.filter((itemData) => {
 		const name = itemData.itemName.toLowerCase();
 		return name.includes(searchTerm.toLowerCase());
 	});
+
+	const missingWholesalePriceCount = posInventory.filter((item) => !item.hasWholesalePrice).length;
+
+	useEffect(() => {
+		if (orderItems.length === 0) {
+			return;
+		}
+
+		let removedItemsCount = 0;
+
+		setOrderItems((prevOrderItems) =>
+			prevOrderItems.flatMap((orderItem) => {
+				const latestItem = posInventory.find((inventoryItem) => inventoryItem.id === orderItem.id);
+
+				if (!latestItem) {
+					return [];
+				}
+
+				if (pricingMode === "wholesale" && latestItem.activeUnitPrice === null) {
+					removedItemsCount += 1;
+					return [];
+				}
+
+				return [buildOrderItem(latestItem, orderItem.orderQuantity)];
+			}),
+		);
+
+		if (removedItemsCount > 0) {
+			message.warning(`${removedItemsCount} item(s) were removed because wholesale prices are missing.`);
+		}
+	}, [pricingMode, posInventory, orderItems.length, buildOrderItem]);
 
 	const generateTransactionId = () => {
 		return `TXN-${Date.now().toString().slice(-8)}`;
 	};
 
 	const processSaleMutation = useMutation({
-		mutationFn: (saleData: ProcessSaleRequest) => inventoryService.processSale(saleData),
+		mutationFn: (saleData: Omit<SaleRequest, "merchantId">) => inventoryService.processSale(saleData),
 		onSuccess: (data, _variables) => {
 			console.log("✅ Sale processed successfully:", data);
 
@@ -1093,8 +1262,14 @@ export default function PointOfSalePage() {
 
 	// FIXED: Calculate and store extra amount as POSITIVE discount
 	const addToOrder = (item: any) => {
-		const itemData = getItemData(item);
+		const itemData = getPosInventoryItem(item);
 		const availableQuantity = itemData.availableStock;
+		const activeUnitPrice = itemData.activeUnitPrice;
+
+		if (pricingMode === "wholesale" && activeUnitPrice === null) {
+			message.warning("This item does not have a wholesale price from the backend yet");
+			return;
+		}
 
 		if (availableQuantity === 0) {
 			message.warning("This item is out of stock");
@@ -1111,46 +1286,11 @@ export default function PointOfSalePage() {
 				}
 
 				const newQuantity = existingItem.orderQuantity + 1;
-				// Calculate special price info
-				const { isSpecial, extraAmount, totalPrice, displayPrice } = calculateSpecialPriceInfo(
-					itemData.itemName,
-					newQuantity,
-					itemData.unitPrice,
-					merchantId,
-				);
-
 				return prevOrder.map((orderItem) =>
-					orderItem.id === itemData.id
-						? {
-								...orderItem,
-								orderQuantity: newQuantity,
-								totalPrice: totalPrice,
-								isSpecialPrice: isSpecial,
-								extraAmount: extraAmount, // POSITIVE extra (10, 20, 30)
-								displayPrice: displayPrice,
-							}
-						: orderItem,
+					orderItem.id === itemData.id ? buildOrderItem(itemData, newQuantity) : orderItem,
 				);
 			} else {
-				// Calculate special price info for new item
-				const { isSpecial, extraAmount, totalPrice, displayPrice } = calculateSpecialPriceInfo(
-					itemData.itemName,
-					1,
-					itemData.unitPrice,
-					merchantId,
-				);
-
-				return [
-					...prevOrder,
-					{
-						...itemData,
-						orderQuantity: 1,
-						totalPrice: totalPrice,
-						isSpecialPrice: isSpecial,
-						extraAmount: extraAmount, // POSITIVE extra (10, 20, 30)
-						displayPrice: displayPrice,
-					},
-				];
+				return [...prevOrder, buildOrderItem(itemData, 1)];
 			}
 		});
 	};
@@ -1160,37 +1300,22 @@ export default function PointOfSalePage() {
 		if (quantity === 0) {
 			removeFromOrder(itemId);
 		} else {
-			const item = inventory.find((i: any) => getItemData(i).id === itemId);
+			const item = posInventory.find((inventoryItem) => inventoryItem.id === itemId);
 			if (!item) return;
-
-			const itemData = getItemData(item);
+			const itemData = item;
 
 			if (quantity > itemData.availableStock) {
 				message.warning("Not enough stock available");
 				return;
 			}
 
-			// Calculate special price info
-			const { isSpecial, extraAmount, totalPrice, displayPrice } = calculateSpecialPriceInfo(
-				itemData.itemName,
-				quantity,
-				itemData.unitPrice,
-				merchantId,
-			);
+			if (pricingMode === "wholesale" && itemData.activeUnitPrice === null) {
+				message.warning("This item does not have a wholesale price from the backend yet");
+				return;
+			}
 
 			setOrderItems((prevOrder) =>
-				prevOrder.map((orderItem) =>
-					orderItem.id === itemId
-						? {
-								...orderItem,
-								orderQuantity: quantity,
-								totalPrice: totalPrice,
-								isSpecialPrice: isSpecial,
-								extraAmount: extraAmount, // POSITIVE extra (10, 20, 30)
-								displayPrice: displayPrice,
-							}
-						: orderItem,
-				),
+				prevOrder.map((orderItem) => (orderItem.id === itemId ? buildOrderItem(itemData, quantity) : orderItem)),
 			);
 		}
 	};
@@ -1217,7 +1342,7 @@ export default function PointOfSalePage() {
 		}
 
 		// Send extra amount as POSITIVE discount
-		const saleItems: SaleItem[] = orderItems.map((item) => ({
+		const saleItems: SaleItemRequest[] = orderItems.map((item) => ({
 			inventoryId: item.id,
 			quantity: item.orderQuantity,
 			discount: item.extraAmount || 0, // Send POSITIVE extra as discount
@@ -1307,43 +1432,117 @@ export default function PointOfSalePage() {
 	return (
 		<>
 			<div className="space-y-6">
-				<div className="flex items-center justify-between">
-					<div>
-						<h1 className="text-2xl font-bold">Point Of Sale</h1>
-						<p className="text-muted-foreground">Process orders and manage transactions</p>
-					</div>
-					<div className="flex items-center gap-4">
-						<UserRoleIndicator />
+				<div className="relative z-10 overflow-hidden rounded-3xl border border-white/50 bg-background/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] backdrop-blur-sm">
+					<div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-sky-500/10 via-transparent to-emerald-500/10" />
+					<div className="relative flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+						<div>
+							<h1 className="text-2xl font-bold">Point Of Sale</h1>
+							<p className="text-muted-foreground">
+								Process orders and manage transactions with {pricingMode === "retail" ? "retail" : "wholesale"} pricing
+							</p>
+						</div>
+						<div className="flex flex-col gap-3 xl:items-end">
+							<div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50 p-0.5 shadow-sm">
+								<div className="grid grid-cols-2 gap-1">
+									<Button
+										type="button"
+										onClick={() => setPricingMode("retail")}
+										className={`h-9 rounded-lg px-3 text-xs font-semibold transition-all ${
+											pricingMode === "retail"
+												? "bg-slate-900 text-white shadow-md hover:bg-slate-800"
+												: "bg-transparent text-slate-600 shadow-none hover:bg-white"
+										}`}
+									>
+										<Icon icon="lucide:store" className="mr-1.5 h-3.5 w-3.5" />
+										Retail <span className="hidden sm:inline">Mode</span>
+									</Button>
+									<Button
+										type="button"
+										onClick={handleWholesaleModeClick}
+										className={`h-9 rounded-lg px-3 text-xs font-semibold transition-all ${
+											pricingMode === "wholesale"
+												? "bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
+												: "bg-transparent text-slate-600 shadow-none hover:bg-white"
+										}`}
+									>
+										<Icon icon="lucide:warehouse" className="mr-1.5 h-3.5 w-3.5" />
+										Wholesale <span className="hidden sm:inline">Mode</span>
+									</Button>
+								</div>
+							</div>
 
-						<Badge variant="secondary" className="text-lg">
-							Total: {formatCurrency(totalAmount)}
-						</Badge>
-						{totalExtra > 0 && (
-							<Badge variant="outline" className="text-lg text-green-600 border-green-500">
-								Extra: +{formatCurrency(totalExtra)}
-							</Badge>
-						)}
-						<Badge variant="outline" className="text-lg">
-							Items: {totalItems}
-						</Badge>
-						{merchantId && (
-							<Badge variant="default" className="text-lg">
-								{merchantName}
-							</Badge>
-						)}
+							<div className="flex flex-wrap items-center gap-4">
+								<UserRoleIndicator />
+
+								<Badge variant="secondary" className="text-lg">
+									Total: {formatCurrency(totalAmount)}
+								</Badge>
+								{totalExtra > 0 && (
+									<Badge variant="outline" className="text-lg text-green-600 border-green-500">
+										Extra: +{formatCurrency(totalExtra)}
+									</Badge>
+								)}
+								<Badge variant="outline" className="text-lg">
+									Items: {totalItems}
+								</Badge>
+								{merchantId && (
+									<Badge variant="default" className="text-lg">
+										{merchantName}
+									</Badge>
+								)}
+							</div>
+						</div>
 					</div>
 				</div>
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-					<Card className="lg:col-span-2">
-						<CardHeader>
-							<CardTitle>Menu Items</CardTitle>
-							<CardDescription>Click on any item to add to order</CardDescription>
+					<Card className="relative overflow-hidden lg:col-span-2">
+						<CardHeader className="relative z-10 border-b border-border/70 bg-background/95 backdrop-blur-sm">
+							<div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+								<div>
+									<CardTitle>{pricingMode === "retail" ? "Retail Menu" : "Wholesale Catalogue"}</CardTitle>
+									<CardDescription>
+										Click on any item to add to order. Prices update instantly when you switch modes.
+									</CardDescription>
+								</div>
+								<div
+									className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
+										pricingMode === "wholesale"
+											? "border-emerald-200 bg-emerald-50 text-emerald-700"
+											: "border-slate-200 bg-slate-50 text-slate-700"
+									}`}
+								>
+									<Icon
+										icon={pricingMode === "wholesale" ? "lucide:warehouse" : "lucide:store"}
+										className="h-3.5 w-3.5"
+									/>
+									{pricingMode}
+								</div>
+							</div>
 						</CardHeader>
-						<CardContent>
+						<CardContent className="relative z-0">
+							{pricingMode === "wholesale" && (
+								<div className="mb-6 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-4">
+									<div className="flex items-start gap-3">
+										<div className="rounded-xl bg-emerald-600 p-2 text-white">
+											<Icon icon="lucide:badge-dollar-sign" className="h-5 w-5" />
+										</div>
+										<div className="space-y-1">
+											<p className="font-semibold text-emerald-900">Wholesale pricing is active</p>
+											{missingWholesalePriceCount > 0 && (
+												<p className="text-xs font-medium text-amber-700">
+													{missingWholesalePriceCount} item(s) do not yet have wholesale prices and cannot be sold in
+													this mode.
+												</p>
+											)}
+										</div>
+									</div>
+								</div>
+							)}
+
 							<div className="mb-6">
 								<Input
-									placeholder="Search menu items..."
+									placeholder={`Search ${pricingMode === "retail" ? "retail" : "wholesale"} items...`}
 									value={searchTerm}
 									onChange={(e) => setSearchTerm(e.target.value)}
 									className="max-w-sm"
@@ -1357,22 +1556,28 @@ export default function PointOfSalePage() {
 								</div>
 							) : (
 								<div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-									{filteredInventory.map((item: any) => {
-										const itemData = getItemData(item);
+									{filteredInventory.map((itemData) => {
+										const isWholesaleUnavailable = pricingMode === "wholesale" && itemData.activeUnitPrice === null;
+										const isDisabled = itemData.availableStock === 0 || isWholesaleUnavailable;
+
 										return (
 											<div
 												key={itemData.id}
 												className={`
-                          cursor-pointer transition-all duration-300 transform hover:scale-110
-                          ${itemData.availableStock === 0 ? "opacity-50 grayscale" : "hover:shadow-2xl"}
+                          transition-all duration-300 transform
+                          ${isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:scale-110 hover:shadow-2xl"}
                           flex flex-col items-center justify-center
                           rounded-3xl border-2 border-black shadow-lg
-                          bg-gradient-to-br from-white to-gray-50
+                          ${isWholesaleUnavailable ? "bg-gradient-to-br from-amber-50 to-white" : "bg-gradient-to-br from-white to-gray-50"}
                           hover:shadow-2xl p-4 min-h-[140px] w-full
-                          hover:border-green-500 hover:from-green-50 hover:to-white
+                          ${isDisabled ? "" : "hover:border-green-500 hover:from-green-50 hover:to-white"}
                           relative overflow-hidden
                         `}
-												onClick={() => addToOrder(item)}
+												onClick={() => {
+													if (!isDisabled) {
+														addToOrder(itemData);
+													}
+												}}
 											>
 												<div className="absolute inset-0 rounded-3xl border border-white/50 shadow-inner"></div>
 
@@ -1383,25 +1588,43 @@ export default function PointOfSalePage() {
 												</div>
 
 												<div className="text-center mb-2 z-10">
-													<p className="text-md font-extrabold text-green-600">{formatCurrency(itemData.unitPrice)}</p>
+													<p
+														className={`text-md font-extrabold ${
+															isWholesaleUnavailable ? "text-amber-700" : "text-green-600"
+														}`}
+													>
+														{itemData.activeUnitPrice !== null
+															? formatCurrency(itemData.activeUnitPrice)
+															: "No wholesale price"}
+													</p>
 												</div>
 
 												<div className="text-center z-10">
 													<Badge
 														variant={
-															itemData.availableStock === 0
-																? "destructive"
-																: itemData.availableStock < 5
-																	? "warning"
-																	: "secondary"
+															isWholesaleUnavailable
+																? "warning"
+																: itemData.availableStock === 0
+																	? "destructive"
+																	: itemData.availableStock < 5
+																		? "warning"
+																		: "secondary"
 														}
 														className="text-xs px-2 py-1 border border-black/20"
 													>
-														{itemData.availableStock === 0 ? "Sold Out" : `${itemData.availableStock} in stock`}
+														{isWholesaleUnavailable
+															? "Missing price"
+															: itemData.availableStock === 0
+																? "Sold Out"
+																: `${itemData.availableStock} in stock`}
 													</Badge>
 												</div>
 
-												<div className="absolute inset-0 rounded-3xl bg-green-500/0 hover:bg-green-500/10 transition-colors duration-300"></div>
+												<div
+													className={`absolute inset-0 rounded-3xl transition-colors duration-300 ${
+														isDisabled ? "bg-transparent" : "bg-green-500/0 hover:bg-green-500/10"
+													}`}
+												></div>
 											</div>
 										);
 									})}
@@ -1418,15 +1641,17 @@ export default function PointOfSalePage() {
 						</CardContent>
 					</Card>
 
-					<Card>
-						<CardHeader>
+					<Card className="relative overflow-hidden">
+						<CardHeader className="relative z-10 border-b border-border/70 bg-background/95 backdrop-blur-sm">
 							<CardTitle className="flex items-center gap-2">
 								<Icon icon="lucide:clipboard-list" className="h-5 w-5" />
 								Current Order
 							</CardTitle>
-							<CardDescription>Items selected for this transaction</CardDescription>
+							<CardDescription>
+								Items selected for this transaction using {pricingMode === "retail" ? "retail" : "wholesale"} pricing
+							</CardDescription>
 						</CardHeader>
-						<CardContent className="space-y-6">
+						<CardContent className="relative z-0 space-y-6">
 							<div className="space-y-3">
 								<div className="flex items-center justify-between">
 									<Label htmlFor="customerName">Customer Name (Optional)</Label>
