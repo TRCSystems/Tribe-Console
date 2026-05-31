@@ -16,11 +16,25 @@ import { LockModal } from "@/components/lock-modal";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useAuthCheck, useMerchantId, useUserToken } from "@/store/userStore";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/ui/dropdown-menu";
 import { getMerchantNameFromToken } from "@/utils/jwt";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Badge } from "@/ui/badge";
+
+const CSV_TEMPLATE_CONTENT = `ITEM,UNIT_PRICE,STARTING_STOCK
+Product 1,2000,30
+Product 2,1500,20
+Product 3,1200,40
+Product 4,30,200`;
 
 // SIMPLIFIED Invoice Upload Modal - Shows only extracted items
 const InvoiceUploadModal = ({
@@ -1559,21 +1573,45 @@ export default function StockManagementPage() {
 						</span>
 					</div>
 
-					{/* Import CSV Button */}
+					{/* Import CSV Dropdown */}
 					<div className="flex flex-col items-center gap-1">
-						<Button
-							onClick={handleImportCSV}
-							disabled={importCSVMutation.isPending || !canPerformActions}
-							className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
-							variant="default"
-							title="Import CSV File"
-						>
-							{importCSVMutation.isPending ? (
-								<Icon icon="eos-icons:loading" className="h-5 w-5" />
-							) : (
-								<Icon icon="lucide:upload" className="h-5 w-5" />
-							)}
-						</Button>
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button
+									onClick={(e) => e.preventDefault()}
+									disabled={importCSVMutation.isPending || !canPerformActions}
+									className="w-12 h-12 rounded-full bg-green-500 hover:bg-green-600 text-white shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center"
+									variant="default"
+									title="Import Options"
+								>
+									{importCSVMutation.isPending ? (
+										<Icon icon="eos-icons:loading" className="h-5 w-5" />
+									) : (
+										<Icon icon="lucide:upload" className="h-5 w-5" />
+									)}
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end" className="w-48">
+								<DropdownMenuLabel>Import Options</DropdownMenuLabel>
+								<DropdownMenuSeparator />
+								<DropdownMenuItem
+									onClick={handleImportCSV}
+									disabled={importCSVMutation.isPending || !canPerformActions}
+									className="cursor-pointer"
+								>
+									<Icon icon="lucide:upload" className="mr-2 h-4 w-4" />
+									Upload File
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={downloadCSVTemplate}
+									disabled={!canPerformActions}
+									className="cursor-pointer"
+								>
+									<Icon icon="lucide:download" className="mr-2 h-4 w-4" />
+									Download Template
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
 						<span className="text-xs font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
 							{importCSVMutation.isPending ? "IMPORTING..." : "IMPORT"}
 						</span>
