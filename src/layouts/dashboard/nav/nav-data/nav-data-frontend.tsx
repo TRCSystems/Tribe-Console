@@ -21,9 +21,14 @@ export const frontendNavData: NavProps["data"] = [
 		name: "sys.nav.pages",
 		items: [
 			{
-				title: "sys.nav.pos",
+				title: "POS",
 				path: "/pos",
 				icon: <Icon icon="lucide:shopping-cart" size="24" />,
+			},
+			{
+				title: "Order Payment",
+				path: "/order-payment",
+				icon: <Icon icon="lucide:credit-card" size="24" />,
 			},
 			/*	{
 				title: "sys.nav.management",
@@ -79,22 +84,22 @@ export const frontendNavData: NavProps["data"] = [
 				],
 			}, */
 			{
-				title: "sys.nav.inventory.index",
+				title: "Inventory Management",
 				path: "/inventory",
 				icon: <Icon icon="lucide:package" size="24" />,
 				children: [
 					{
-						title: "sys.nav.inventory.stock",
+						title: "Stock",
 						path: "/inventory/stock",
 					},
 					{
-						title: "sys.nav.inventory.expenses",
+						title: "Expenses",
 						path: "/inventory/expenses",
 					},
 				],
 			},
 			//	{ title: "marketing", path: "/marketing", icon: <Icon icon="lucide:megaphone" size="24" /> },
-			{ title: "Stock_Finance", path: "/finance", icon: <Icon icon="lucide:coins" size="24" /> },
+			{ title: "Stock Finance", path: "/finance", icon: <Icon icon="lucide:coins" size="24" /> },
 			//{ title: "Features..?", path: "/features", icon: <Icon icon="lucide:help-circle" size="24" /> },
 		],
 	},

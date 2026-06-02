@@ -15,7 +15,12 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 		{ path: "welcome", element: Component("/pages/welcome") },
 		//	{ path: "workbench", element: Component("/pages/dashboard/workbench") },
 		//	{ path: "analysis", element: Component("/pages/dashboard/analysis") },
-		{ path: "pos", element: Component("/pages/inventory/pos") },
+		{
+			path: "pos",
+			children: [{ index: true, element: Component("/pages/inventory/pos") }],
+		},
+		{ path: "order-payment", element: Component("/pages/inventory/order-payment") },
+		{ path: "orders", element: Component("/pages/orders") },
 
 		{
 			path: "management",

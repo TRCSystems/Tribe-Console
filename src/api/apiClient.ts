@@ -30,6 +30,15 @@ const loyaltyApiInstance = axios.create({
 	},
 });
 
+// External API instance (no JWT auth — external APIs don't use Tribe tokens)
+const externalApiInstance = axios.create({
+	timeout: 50000,
+	headers: {
+		"Content-Type": "application/json;charset=utf-8",
+		Accept: "application/json",
+	},
+});
+
 // Enhanced request interceptor with better token handling
 const requestInterceptor = (config: InternalAxiosRequestConfig) => {
 	const token = useUserStore.getState().userToken?.accessToken;
@@ -64,9 +73,16 @@ const responseInterceptor = {
 		console.log("🔍 Response data:", res.data);
 		console.log("🔍 Response data type:", typeof res.data);
 
-		if (res.data && typeof res.data === "object") {
-			console.log("🔍 Response keys:", Object.keys(res.data));
-			console.log("🔍 Response is empty?", Object.keys(res.data).length === 0);
+		if (typeof res.data === "string") {
+			const trimmedResponse = res.data.trim();
+			if (trimmedResponse) {
+				try {
+					res.data = JSON.parse(trimmedResponse);
+					console.log("🔄 Parsed response string as JSON:", res.data);
+				} catch {
+					console.log("🔍 Response string is not valid JSON; leaving as string.");
+				}
+			}
 		}
 
 		// Remove WWW-Authenticate headers to prevent browser auth dialog
@@ -207,12 +223,86 @@ const responseInterceptor = {
 	},
 };
 
-// Apply interceptors
+// Apply interceptors (skip external API — it doesn't use JWT)
 mainApiInstance.interceptors.request.use(requestInterceptor);
 loyaltyApiInstance.interceptors.request.use(requestInterceptor);
 
 mainApiInstance.interceptors.response.use(responseInterceptor.success, responseInterceptor.error);
 loyaltyApiInstance.interceptors.response.use(responseInterceptor.success, responseInterceptor.error);
+
+// External API response handler (no logout on 401 — external APIs don't recognize Tribe tokens)
+const externalResponseInterceptor = {
+	success: (res: AxiosResponse) => {
+		console.log(`✅ External API Success: ${res.status} ${res.config.method?.toUpperCase()} ${res.config.url}`);
+		console.log("🔍 Response data:", res.data);
+
+		if (typeof res.data === "string") {
+			const trimmedResponse = res.data.trim();
+			if (trimmedResponse) {
+				try {
+					res.data = JSON.parse(trimmedResponse);
+					console.log("🔄 Parsed response string as JSON:", res.data);
+				} catch {
+					console.log("🔍 Response string is not valid JSON; leaving as string.");
+				}
+			}
+		}
+
+		return res.data;
+	},
+	error: (error: AxiosError) => {
+		const method = error.config?.method?.toUpperCase() || "REQUEST";
+		const url = error.config?.url || "unknown endpoint";
+		const status = error.response?.status;
+
+		console.error(`❌ External API Error: ${method} ${url}`, {
+			status: status,
+			data: error.response?.data,
+			message: error.message,
+		});
+
+		// Don't log out on 401 from external APIs — they use different auth
+		if (status === 404) {
+			return Promise.reject(new Error("External API endpoint not found (404)."));
+		}
+
+		if (status === 400) {
+			const data = error.response?.data as any;
+			if (data?.errors) {
+				const errorMessages = Object.values(data.errors).flat().join(", ");
+				return Promise.reject(new Error(`Validation error: ${errorMessages}`));
+			}
+		}
+
+		if (status === 500) {
+			return Promise.reject(new Error("External API server error. Please try again later."));
+		}
+
+		let errorMessage = "An external API error occurred";
+		if (error.response?.data) {
+			const data = error.response.data as any;
+			if (data.message) {
+				errorMessage = data.message;
+			} else if (data.error) {
+				errorMessage = data.error;
+			} else if (typeof data === "string") {
+				errorMessage = data;
+			}
+		}
+
+		if (error.message === "Network Error") {
+			errorMessage = "Network error. Please check your internet connection.";
+		}
+
+		if (error.code === "ECONNABORTED") {
+			errorMessage = "Request timeout. Please try again.";
+		}
+
+		return Promise.reject(new Error(errorMessage));
+	},
+};
+
+externalApiInstance.interceptors.response.use(externalResponseInterceptor.success, externalResponseInterceptor.error);
 
 class APIClient {
 	private instance: AxiosInstance;
@@ -242,9 +332,10 @@ class APIClient {
 	}
 }
 
-// Export both API clients
+// Export all API clients
 export const mainApiClient = new APIClient(mainApiInstance);
 export const loyaltyApiClient = new APIClient(loyaltyApiInstance);
+export const externalApiClient = new APIClient(externalApiInstance);
 
 // Default export for backward compatibility (uses main API)
 export default mainApiClient;

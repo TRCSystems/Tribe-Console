@@ -18,6 +18,20 @@ export interface POSOrder {
 	receiptNumber: string;
 }
 
+export interface CreateOrderItem {
+	itemCode: string;
+	itemName: string;
+	quantity: number;
+	wholesalePrice: number;
+}
+
+export interface CreateOrderRequest {
+	distributorId: number;
+	phoneNumber: string;
+	amount: number;
+	items: CreateOrderItem[];
+}
+
 // Updated to match your API schema
 export interface MpesaPaymentRequest {
 	phoneNumber: string;
@@ -30,6 +44,14 @@ export interface MpesaPaymentResponse {
 	success: boolean;
 	transactionId?: string;
 	message: string;
+	checkoutRequestID?: string;
+}
+
+export interface MpesaPaymentStatusResponse {
+	success: boolean;
+	status?: "pending" | "completed" | "failed" | "error" | string;
+	message: string;
+	transactionId?: string;
 	checkoutRequestID?: string;
 }
 
