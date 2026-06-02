@@ -29,8 +29,10 @@ export const TokenRecovery = () => {
 							}
 							console.log("🛠️ TokenRecovery: Token restored successfully");
 						} else {
-							console.warn("🛠️ TokenRecovery: Invalid token in localStorage, clearing");
-							localStorage.removeItem("userStore");
+							// Keep the stored value intact so a transient decode issue does not
+							// wipe out the user's session. The auth flow can recover on the next
+							// successful login or store rehydration.
+							console.warn("🛠️ TokenRecovery: Invalid token found in localStorage");
 						}
 					}
 				} catch (error) {

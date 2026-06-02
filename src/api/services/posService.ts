@@ -1,56 +1,91 @@
-import { mainApiClient } from "@/api/apiClient";
-import type { MpesaPaymentRequest, MpesaPaymentResponse, POSOrder } from "@/types/pos";
+import { externalApiClient } from "@/api/apiClient";
+import useUserStore from "@/store/userStore";
+import type { CreateOrderRequest, POSOrder } from "@/types/pos";
+
+const EXTERNAL_API_BASE = "http://38.242.155.236:8085";
+
+const getAuthHeaders = () => {
+	const token = useUserStore.getState().userToken?.accessToken;
+
+	if (!token) {
+		return {};
+	}
+
+	return {
+		Authorization: `Bearer ${token}`,
+	};
+};
 
 export const posService = {
-	// Initiate M-Pesa STK Push - USING YOUR ACTUAL ENDPOINT
-	initiateMpesaPayment: (paymentData: MpesaPaymentRequest): Promise<MpesaPaymentResponse> => {
-		return mainApiClient.post<MpesaPaymentResponse>("/payments/intiate-payment", {
-			PhoneNumber: paymentData.phoneNumber,
-			Amount: paymentData.amount.toString(),
-			Username: "pos_system", // You might want to make this dynamic or from user context
+	// Create a new order
+	createOrder: (orderData: CreateOrderRequest): Promise<any> => {
+		// Strip amount if present — backend calculates totals
+		const { amount, ...payload } = orderData as any;
+		return externalApiClient
+			.request<any>({
+				method: "post",
+				url: `${EXTERNAL_API_BASE}/api/orders/create`,
+				data: payload,
+				headers: getAuthHeaders(),
+			})
+			.then((res) => {
+				let body = res as any;
+
+				if (typeof body === "string") {
+					const trimmed = body.trim();
+					if (trimmed) {
+						try {
+							body = JSON.parse(trimmed);
+						} catch {
+							const orderIdMatch = trimmed.match(/(?:orderCode|orderId|id)\s*[:=]\s*["']?([\w-]+)["']?/i);
+							if (orderIdMatch) {
+								body = { orderCode: orderIdMatch[1], raw: trimmed };
+							} else {
+								body = { message: trimmed, raw: trimmed };
+							}
+						}
+					}
+				}
+
+				const created = body?.order || body?.data || body;
+				return created;
+			});
+	},
+
+	// Poll payment status by orderCode
+	getOrderPaymentStatus: (orderCode: string): Promise<any> => {
+		return externalApiClient.request<any>({
+			method: "get",
+			url: `${EXTERNAL_API_BASE}/api/orders/${encodeURIComponent(orderCode)}/payment-status`,
+			headers: getAuthHeaders(),
 		});
 	},
 
-	// Confirm payment status - USING YOUR ACTUAL ENDPOINT
-	confirmPayment: (checkoutRequestID: string): Promise<any> => {
-		return mainApiClient.post("/payments/confirm-payment", {
-			checkoutRequestID,
-		});
-	},
-
-	// Create a new order (you might need to create this endpoint)
-	createOrder: (orderData: Omit<POSOrder, "id" | "createdAt" | "receiptNumber">): Promise<POSOrder> => {
-		// For now, we'll create a mock order since this endpoint isn't in your API
-		// You can create this endpoint in your backend later
-		const mockOrder: POSOrder = {
-			id: Math.random().toString(36).substr(2, 9),
-			...orderData,
-			createdAt: new Date().toISOString(),
-			receiptNumber: `REC-${Date.now()}`,
-		};
-
-		return Promise.resolve(mockOrder);
-	},
-
-	// Get order by ID
+	// Get order by ID (optional)
 	getOrder: (orderId: string): Promise<POSOrder> => {
-		// Mock implementation - you can create this endpoint later
+		// Keep a minimal stub to avoid breaking other callers — prefer implementing if needed
 		return Promise.resolve({
 			id: orderId,
-			phoneNumber: "254712656502",
+			phoneNumber: "",
 			items: [],
 			totalAmount: 0,
 			paymentMethod: "cash",
-			status: "completed",
+			status: "pending",
 			createdAt: new Date().toISOString(),
 			receiptNumber: `REC-${orderId}`,
 		});
 	},
 
-	// Get all orders (for merchant view)
-	getOrders: (): Promise<POSOrder[]> => {
-		// Mock implementation
-		return Promise.resolve([]);
+	getOrders: (): Promise<any[]> => {
+		return externalApiClient
+			.request<any[]>({
+				method: "get",
+				url: `${EXTERNAL_API_BASE}/api/orders`,
+				headers: getAuthHeaders(),
+			})
+			.then((res) => {
+				return Array.isArray(res) ? res : res?.data || res || [];
+			});
 	},
 };
 
