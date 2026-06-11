@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { posService } from "@/api/services/posService";
+import { Icon } from "@/components/icon";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import { Icon } from "@/components/icon";
 
 type PaidOrderItem = {
 	itemCode: string;
@@ -25,8 +26,6 @@ type PaidOrder = {
 	paidAt: string;
 };
 
-const LAST_PAID_ORDER_KEY = "lastPaidOrder";
-const PAID_ORDERS_KEY = "paidOrders";
 const ORDER_PAYMENT_RETURN_PATH_KEY = "orderPaymentReturnPath";
 
 const getOrderTotal = (order: PaidOrder) => {
@@ -64,56 +63,51 @@ export default function OrdersPage() {
 	const routeState = location.state as { paidOrder?: PaidOrder } | null;
 
 	const [paidOrders, setPaidOrders] = useState<PaidOrder[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 	const [selectedOrderCode, setSelectedOrderCode] = useState<string | null>(null);
 
 	useEffect(() => {
-		const savedPaidOrdersRaw = localStorage.getItem(PAID_ORDERS_KEY);
-		const savedLastPaidOrderRaw = localStorage.getItem(LAST_PAID_ORDER_KEY);
+		let isMounted = true;
 
-		let loadedOrders: PaidOrder[] = [];
+		const fetchOrders = async () => {
+			setIsLoading(true);
+			setError(null);
 
-		if (savedPaidOrdersRaw) {
 			try {
-				const parsedOrders = JSON.parse(savedPaidOrdersRaw);
-				loadedOrders = Array.isArray(parsedOrders) ? parsedOrders : [];
-			} catch {
-				localStorage.removeItem(PAID_ORDERS_KEY);
-			}
-		}
+				const orders = await posService.getOrders();
 
-		if (routeState?.paidOrder) {
-			loadedOrders = [
-				routeState.paidOrder,
-				...loadedOrders.filter((order) => order.orderCode !== routeState.paidOrder?.orderCode),
-			];
+				if (!isMounted) return;
 
-			localStorage.setItem(LAST_PAID_ORDER_KEY, JSON.stringify(routeState.paidOrder));
-			localStorage.setItem(PAID_ORDERS_KEY, JSON.stringify(loadedOrders));
-		} else if (loadedOrders.length === 0 && savedLastPaidOrderRaw) {
-			try {
-				const lastPaidOrder = JSON.parse(savedLastPaidOrderRaw) as PaidOrder;
-				loadedOrders = [lastPaidOrder];
-				localStorage.setItem(PAID_ORDERS_KEY, JSON.stringify(loadedOrders));
-			} catch {
-				localStorage.removeItem(LAST_PAID_ORDER_KEY);
-			}
-		}
+				// Convert to PaidOrder type if needed
+				const formattedOrders: PaidOrder[] = orders.map((order: any) => ({
+					...order,
+					items: order.items || [],
+				}));
 
-		setPaidOrders(loadedOrders);
+				setPaidOrders(formattedOrders);
 
-		if (loadedOrders.length > 0) {
-			setSelectedOrderCode((currentSelectedOrderCode) => {
-				const selectedOrderStillExists = loadedOrders.some((order) => order.orderCode === currentSelectedOrderCode);
-
-				if (selectedOrderStillExists) {
-					return currentSelectedOrderCode;
+				if (routeState?.paidOrder) {
+					setSelectedOrderCode(routeState.paidOrder.orderCode);
+				} else if (formattedOrders.length > 0) {
+					setSelectedOrderCode(formattedOrders[0].orderCode);
 				}
+			} catch (err) {
+				console.error("Failed to fetch orders:", err);
+				if (!isMounted) return;
+				setError("Failed to load orders. Please try again later.");
+			} finally {
+				if (isMounted) {
+					setIsLoading(false);
+				}
+			}
+		};
 
-				return loadedOrders[0].orderCode;
-			});
-		} else {
-			setSelectedOrderCode(null);
-		}
+		fetchOrders();
+
+		return () => {
+			isMounted = false;
+		};
 	}, [routeState?.paidOrder]);
 
 	const selectedOrder = useMemo(() => {
@@ -137,15 +131,30 @@ export default function OrdersPage() {
 			return;
 		}
 
-		navigate(-1);
+		navigate("/inventory/order-payment");
 	};
 
-	const handleClearPaidOrders = () => {
-		localStorage.removeItem(PAID_ORDERS_KEY);
-		localStorage.removeItem(LAST_PAID_ORDER_KEY);
-		setPaidOrders([]);
-		setSelectedOrderCode(null);
-	};
+	if (isLoading) {
+		return (
+			<div className="flex min-h-[400px] flex-col items-center justify-center space-y-4">
+				<div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-200 border-t-slate-900" />
+				<p className="text-sm text-slate-600">Loading your orders...</p>
+			</div>
+		);
+	}
+
+	if (error) {
+		return (
+			<div className="flex min-h-[400px] flex-col items-center justify-center space-y-4">
+				<div className="grid h-14 w-14 place-items-center rounded-2xl bg-red-50 text-red-600">
+					<Icon icon="lucide:alert-circle" className="h-6 w-6" />
+				</div>
+				<h2 className="text-lg font-semibold text-slate-950">Something went wrong</h2>
+				<p className="max-w-md text-center text-sm text-slate-600">{error}</p>
+				<Button onClick={() => window.location.reload()}>Retry</Button>
+			</div>
+		);
+	}
 
 	return (
 		<div className="space-y-6 pb-10">
@@ -216,10 +225,6 @@ export default function OrdersPage() {
 									<CardTitle>Orders</CardTitle>
 									<CardDescription>Select an order to view its details.</CardDescription>
 								</div>
-
-								<Button type="button" variant="outline" size="sm" onClick={handleClearPaidOrders}>
-									Clear List
-								</Button>
 							</div>
 						</CardHeader>
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { posService } from "@/api/services/posService";
 import { Icon } from "@/components/icon";
@@ -6,8 +6,10 @@ import type { CreateOrderItem, CreateOrderRequest } from "@/types/pos";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/ui/command";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/ui/popover";
 import { Textarea } from "@/ui/textarea";
 import { cn } from "@/utils";
 
@@ -15,9 +17,18 @@ type PaymentMethod = "mpesa";
 type PaymentStatus = "ready" | "initiated" | "confirmed" | "error";
 
 type AvailableOrderItem = {
-	itemCode: string;
-	itemName: string;
-	wholesalePrice: number;
+	productName: string;
+	productCode: string;
+	volumeMl: number;
+};
+
+type LiquorDistributor = {
+	id: number;
+	businessName: string;
+	businessPhone?: string;
+	location?: string;
+	tillNumber?: string;
+	businessType?: string;
 };
 
 type PaidOrder = {
@@ -83,9 +94,131 @@ const getFriendlyPaymentFailureMessage = (message?: string) => {
 	return "The payment could not be completed. Please try again.";
 };
 
+const formatVolume = (volumeMl: number) => {
+	if (!Number.isFinite(volumeMl) || volumeMl <= 0) {
+		return "-";
+	}
+
+	return `${volumeMl} ml`;
+};
+
+type SearchablePickerProps<T> = {
+	id: string;
+	label: string;
+	placeholder: string;
+	searchPlaceholder: string;
+	emptyText: string;
+	loadingText: string;
+	items: T[];
+	value: string;
+	isLoading?: boolean;
+	error?: string | null;
+	disabled?: boolean;
+	getValue: (item: T) => string;
+	getLabel: (item: T) => string;
+	getDescription?: (item: T) => string | null;
+	onSelect: (item: T) => void;
+};
+
+function SearchablePicker<T>({
+	id,
+	label,
+	placeholder,
+	searchPlaceholder,
+	emptyText,
+	loadingText,
+	items,
+	value,
+	isLoading = false,
+	error = null,
+	disabled = false,
+	getValue,
+	getLabel,
+	getDescription,
+	onSelect,
+}: SearchablePickerProps<T>) {
+	const [open, setOpen] = useState(false);
+	const selectedItem = items.find((item) => getValue(item) === value) ?? null;
+	const selectedLabel = selectedItem ? getLabel(selectedItem) : "";
+
+	return (
+		<div className="space-y-2">
+			<Label htmlFor={id} className="text-sm font-medium text-slate-800">
+				{label}
+			</Label>
+
+			<Popover open={open} onOpenChange={setOpen}>
+				<PopoverTrigger asChild>
+					<Button
+						id={id}
+						type="button"
+						variant="outline"
+						role="combobox"
+						aria-expanded={open}
+						disabled={disabled}
+						className="h-10 w-full justify-between border-slate-200 bg-white font-normal text-slate-900"
+					>
+						<span className={cn("truncate", !selectedLabel && "text-slate-500")}>{selectedLabel || placeholder}</span>
+						<Icon icon="lucide:chevrons-up-down" className="h-4 w-4 shrink-0 opacity-50" />
+					</Button>
+				</PopoverTrigger>
+				<PopoverContent
+					align="start"
+					side="bottom"
+					sideOffset={8}
+					collisionPadding={16}
+					className="w-[var(--radix-popper-anchor-width)] overflow-hidden rounded-2xl border border-slate-200 bg-white p-0 shadow-[0_24px_80px_rgba(15,23,42,0.18)]"
+				>
+					<div className="border-b border-slate-100 bg-slate-50 px-3 py-2">
+						<p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{label}</p>
+						<p className="mt-1 text-xs text-slate-600">Type to search and select from the list.</p>
+					</div>
+
+					<Command className="rounded-none border-0 shadow-none">
+						<CommandInput placeholder={searchPlaceholder} />
+						<CommandList>
+							<CommandEmpty>{isLoading ? loadingText : emptyText}</CommandEmpty>
+							<CommandGroup>
+								{items.map((item) => {
+									const itemValue = getValue(item);
+									const itemLabel = getLabel(item);
+									const itemDescription = getDescription?.(item);
+
+									return (
+										<CommandItem
+											key={itemValue}
+											value={`${itemLabel} ${itemDescription ?? ""} ${itemValue}`}
+											onSelect={() => {
+												onSelect(item);
+												setOpen(false);
+											}}
+										>
+											<Icon
+												icon="lucide:check"
+												className={cn("mr-2 h-4 w-4", value === itemValue ? "opacity-100" : "opacity-0")}
+											/>
+											<div className="flex min-w-0 flex-1 flex-col">
+												<span className="truncate">{itemLabel}</span>
+												{itemDescription ? (
+													<span className="truncate text-xs text-slate-500">{itemDescription}</span>
+												) : null}
+											</div>
+										</CommandItem>
+									);
+								})}
+							</CommandGroup>
+						</CommandList>
+					</Command>
+				</PopoverContent>
+			</Popover>
+
+			{error ? <p className="text-xs text-red-600">{error}</p> : null}
+		</div>
+	);
+}
+
 export default function OrderPaymentPage() {
 	const [distributorId, setDistributorId] = useState("");
-	const [productName, setProductName] = useState("");
 	const [comment, setComment] = useState("");
 	const [phoneNumber, setPhoneNumber] = useState("");
 
@@ -96,49 +229,163 @@ export default function OrderPaymentPage() {
 	const [isProcessing, setIsProcessing] = useState(false);
 	const navigate = useNavigate();
 
-	// Populate this array from your real item source or API.
-	const [availableItems] = useState<AvailableOrderItem[]>([]);
+	const [availableItems, setAvailableItems] = useState<AvailableOrderItem[]>([]);
+	const [isLoadingItems, setIsLoadingItems] = useState(false);
+	const [itemsError, setItemsError] = useState<string | null>(null);
+	const [distributors, setDistributors] = useState<LiquorDistributor[]>([]);
+	const [isLoadingDistributors, setIsLoadingDistributors] = useState(false);
+	const [distributorsError, setDistributorsError] = useState<string | null>(null);
 
-	const [selectedItemCode, setSelectedItemCode] = useState("");
+	const [selectedProductCode, setSelectedProductCode] = useState("");
 	const [itemQuantity, setItemQuantity] = useState("1");
+	const [itemWholesalePrice, setItemWholesalePrice] = useState("");
 	const [orderItems, setOrderItems] = useState<CreateOrderItem[]>([]);
 	const [addItemError, setAddItemError] = useState<string | null>(null);
 
 	const distributorIdNumber = Number(distributorId);
-	const selectedItem = availableItems.find((item) => item.itemCode === selectedItemCode) ?? null;
+	const selectedDistributor = distributors.find((distributor) => distributor.id === distributorIdNumber) ?? null;
+	const selectedItem = availableItems.find((item) => item.productCode === selectedProductCode) ?? null;
 
 	const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0);
 	const totalAmount = orderItems.reduce((sum, item) => sum + item.quantity * item.wholesalePrice, 0);
 
 	const canProceed =
-		distributorId.trim().length > 0 &&
+		selectedDistributor !== null &&
 		Number.isFinite(distributorIdNumber) &&
 		distributorIdNumber > 0 &&
 		orderItems.length > 0 &&
 		phoneNumber.trim().length > 0;
 
+	useEffect(() => {
+		let isMounted = true;
+
+		const fetchProductDefaults = async () => {
+			setIsLoadingItems(true);
+			setItemsError(null);
+
+			try {
+				const products = await posService.getProductDefaults();
+
+				console.log("Raw product defaults in UI:", products);
+
+				const normalizedProducts: AvailableOrderItem[] = products
+					.map((product: any) => {
+						const productName = String(product?.productName ?? "").trim();
+						const productCode = String(product?.productCode ?? "").trim();
+						const volumeMl = Number(product?.volumeMl ?? 0);
+
+						return {
+							productName,
+							productCode,
+							volumeMl: Number.isFinite(volumeMl) ? volumeMl : 0,
+						};
+					})
+					.filter((product) => {
+						return product.productName.length > 0 && product.productCode.length > 0;
+					});
+
+				console.log("Normalized product defaults for dropdown:", normalizedProducts);
+
+				if (!isMounted) return;
+
+				setAvailableItems(normalizedProducts);
+
+				if (normalizedProducts.length === 0) {
+					setItemsError("No products are available right now.");
+				}
+			} catch (error) {
+				console.error("Failed to load product defaults:", error);
+
+				if (!isMounted) return;
+
+				setItemsError("We could not load the product list. Please refresh the page.");
+				setAvailableItems([]);
+			} finally {
+				if (isMounted) {
+					setIsLoadingItems(false);
+				}
+			}
+		};
+
+		fetchProductDefaults();
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
+	useEffect(() => {
+		let isMounted = true;
+
+		const fetchDistributors = async () => {
+			setIsLoadingDistributors(true);
+			setDistributorsError(null);
+
+			try {
+				const response = await posService.getLiquorDistributors();
+
+				if (!isMounted) return;
+
+				setDistributors(response);
+
+				if (response.length === 0) {
+					setDistributorsError("No distributors are available right now.");
+				}
+			} catch (error) {
+				console.error("Failed to load distributors:", error);
+
+				if (!isMounted) return;
+
+				setDistributorsError("We could not load the distributor list. Please refresh the page.");
+				setDistributors([]);
+			} finally {
+				if (isMounted) {
+					setIsLoadingDistributors(false);
+				}
+			}
+		};
+
+		fetchDistributors();
+
+		return () => {
+			isMounted = false;
+		};
+	}, []);
+
 	const handleAddOrderItem = () => {
 		const quantity = Number(itemQuantity);
+		const wholesalePrice = Number(itemWholesalePrice);
 
 		if (!selectedItem) {
-			setAddItemError("Please select an item.");
+			setAddItemError("Please select a product.");
 			return;
 		}
 
 		if (!Number.isFinite(quantity) || quantity <= 0) {
-			setAddItemError("Please select a valid quantity.");
+			setAddItemError("Please enter a valid quantity.");
+			return;
+		}
+
+		if (!itemWholesalePrice.trim()) {
+			setAddItemError("Please enter the wholesale price.");
+			return;
+		}
+
+		if (!Number.isFinite(wholesalePrice) || wholesalePrice <= 0) {
+			setAddItemError("Please enter a valid wholesale price.");
 			return;
 		}
 
 		setOrderItems((prevItems) => {
-			const existingItem = prevItems.find((item) => item.itemCode === selectedItem.itemCode);
+			const existingItem = prevItems.find((item) => item.itemCode === selectedItem.productCode);
 
 			if (existingItem) {
 				return prevItems.map((item) =>
-					item.itemCode === selectedItem.itemCode
+					item.itemCode === selectedItem.productCode
 						? {
 								...item,
 								quantity: item.quantity + quantity,
+								wholesalePrice,
 							}
 						: item,
 				);
@@ -147,16 +394,17 @@ export default function OrderPaymentPage() {
 			return [
 				...prevItems,
 				{
-					itemCode: selectedItem.itemCode,
-					itemName: selectedItem.itemName,
+					itemCode: selectedItem.productCode,
+					itemName: selectedItem.productName,
 					quantity,
-					wholesalePrice: selectedItem.wholesalePrice,
+					wholesalePrice,
 				},
 			];
 		});
 
-		setSelectedItemCode("");
+		setSelectedProductCode("");
 		setItemQuantity("1");
+		setItemWholesalePrice("");
 		setAddItemError(null);
 	};
 
@@ -363,15 +611,15 @@ export default function OrderPaymentPage() {
 
 	const handleClearForm = () => {
 		setDistributorId("");
-		setProductName("");
 		setComment("");
 		setPhoneNumber("");
 		setPaymentMethod("mpesa");
 		setPaymentStatus("ready");
 		setCheckoutRequestID(null);
 		setPaymentError(null);
-		setSelectedItemCode("");
+		setSelectedProductCode("");
 		setItemQuantity("1");
+		setItemWholesalePrice("");
 		setOrderItems([]);
 		setAddItemError(null);
 	};
@@ -410,69 +658,90 @@ export default function OrderPaymentPage() {
 					<CardHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5">
 						<div className="space-y-2">
 							<CardTitle className="text-lg">Order Details</CardTitle>
-							<CardDescription>Select the items for this order before continuing to payment.</CardDescription>
+							<CardDescription>Select a product, then enter the quantity and wholesale price.</CardDescription>
 						</div>
 					</CardHeader>
 
 					<CardContent className="space-y-6 px-6 py-6">
-						<div className="space-y-2">
-							<Label htmlFor="distributorId" className="text-sm font-medium text-slate-800">
-								Distributor ID
-							</Label>
-							<Input
-								id="distributorId"
-								type="number"
-								min={1}
-								value={distributorId}
-								onChange={(event) => setDistributorId(event.target.value)}
-								placeholder="Enter distributor ID"
-							/>
-						</div>
+						<SearchablePicker
+							id="distributorId"
+							label="Distributor"
+							placeholder={isLoadingDistributors ? "Loading distributors..." : "Select a distributor"}
+							searchPlaceholder="Search distributor name, phone, location..."
+							emptyText="No distributors match your search."
+							loadingText="Loading distributors..."
+							items={distributors}
+							value={distributorId}
+							isLoading={isLoadingDistributors}
+							error={distributorsError}
+							disabled={isLoadingDistributors || distributors.length === 0}
+							getValue={(item) => String(item.id)}
+							getLabel={(item) => item.businessName}
+							onSelect={(item) => {
+								setDistributorId(String(item.id));
+							}}
+						/>
 
 						<div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-							<div className="grid gap-4 sm:grid-cols-[1.4fr_0.6fr]">
-								<div className="space-y-2">
-									<Label htmlFor="selectedItemCode" className="text-sm font-medium text-slate-800">
-										Select Item
-									</Label>
-
-									<select
-										id="selectedItemCode"
-										value={selectedItemCode}
-										onChange={(event) => setSelectedItemCode(event.target.value)}
-										className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-									>
-										<option value="">Choose an item</option>
-
-										{availableItems.map((item) => (
-											<option key={item.itemCode} value={item.itemCode}>
-												{item.itemName} - {item.itemCode}
-											</option>
-										))}
-									</select>
-
-									{availableItems.length === 0 ? (
-										<p className="text-xs text-slate-500">No items are available for selection yet.</p>
-									) : null}
-								</div>
+							<div className="grid gap-4 sm:grid-cols-[1.4fr_0.6fr_0.8fr]">
+								<SearchablePicker
+									id="selectedProductCode"
+									label="Select Product"
+									placeholder={isLoadingItems ? "Loading products..." : "Choose a product"}
+									searchPlaceholder="Search product name or code..."
+									emptyText="No products match your search."
+									loadingText="Loading products..."
+									items={availableItems}
+									value={selectedProductCode}
+									isLoading={isLoadingItems}
+									error={itemsError}
+									disabled={isLoadingItems || availableItems.length === 0}
+									getValue={(item) => item.productCode}
+									getLabel={(item) => item.productName}
+									getDescription={(item) =>
+										`${item.productCode}${item.volumeMl ? ` · ${formatVolume(item.volumeMl)}` : ""}`
+									}
+									onSelect={(item) => {
+										setSelectedProductCode(item.productCode);
+										setAddItemError(null);
+									}}
+								/>
 
 								<div className="space-y-2">
 									<Label htmlFor="itemQuantity" className="text-sm font-medium text-slate-800">
 										Quantity
 									</Label>
 
-									<select
+									<Input
 										id="itemQuantity"
+										type="number"
+										min={1}
 										value={itemQuantity}
-										onChange={(event) => setItemQuantity(event.target.value)}
-										className="h-10 w-full rounded-md border border-slate-200 bg-white px-3 text-sm text-slate-900 shadow-sm outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200"
-									>
-										{Array.from({ length: 50 }, (_, index) => index + 1).map((quantity) => (
-											<option key={quantity} value={quantity}>
-												{quantity}
-											</option>
-										))}
-									</select>
+										onChange={(event) => {
+											setItemQuantity(event.target.value);
+											setAddItemError(null);
+										}}
+										placeholder="Qty"
+									/>
+								</div>
+
+								<div className="space-y-2">
+									<Label htmlFor="itemWholesalePrice" className="text-sm font-medium text-slate-800">
+										Wholesale Price
+									</Label>
+
+									<Input
+										id="itemWholesalePrice"
+										type="number"
+										min={0}
+										step={0.01}
+										value={itemWholesalePrice}
+										onChange={(event) => {
+											setItemWholesalePrice(event.target.value);
+											setAddItemError(null);
+										}}
+										placeholder="Price"
+									/>
 								</div>
 							</div>
 
@@ -480,18 +749,18 @@ export default function OrderPaymentPage() {
 								<div className="rounded-xl border border-slate-200 bg-white p-4">
 									<div className="grid gap-3 text-sm sm:grid-cols-3">
 										<div>
-											<p className="text-slate-500">Item Code</p>
-											<p className="font-medium text-slate-950">{selectedItem.itemCode}</p>
+											<p className="text-slate-500">Product Code</p>
+											<p className="font-medium text-slate-950">{selectedItem.productCode}</p>
 										</div>
 
 										<div>
-											<p className="text-slate-500">Item Name</p>
-											<p className="font-medium text-slate-950">{selectedItem.itemName}</p>
+											<p className="text-slate-500">Product Name</p>
+											<p className="font-medium text-slate-950">{selectedItem.productName}</p>
 										</div>
 
 										<div>
-											<p className="text-slate-500">Wholesale Price</p>
-											<p className="font-medium text-slate-950">KSh {Number(selectedItem.wholesalePrice).toFixed(2)}</p>
+											<p className="text-slate-500">Volume</p>
+											<p className="font-medium text-slate-950">{formatVolume(selectedItem.volumeMl)}</p>
 										</div>
 									</div>
 								</div>
@@ -503,8 +772,13 @@ export default function OrderPaymentPage() {
 								</div>
 							) : null}
 
-							<Button type="button" onClick={handleAddOrderItem} className="w-full">
-								Add Selected Item
+							<Button
+								type="button"
+								onClick={handleAddOrderItem}
+								disabled={isLoadingItems || availableItems.length === 0}
+								className="w-full"
+							>
+								Add Product
 							</Button>
 						</div>
 
@@ -518,24 +792,31 @@ export default function OrderPaymentPage() {
 								<p className="text-sm text-slate-500">No items added yet.</p>
 							) : (
 								<div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
-									{orderItems.map((item, index) => (
-										<div
-											key={`${item.itemCode}-${index}`}
-											className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"
-										>
-											<div className="space-y-1">
-												<p className="font-semibold text-slate-900">{item.itemName}</p>
-												<p className="text-sm text-slate-500">{item.itemCode}</p>
-												<p className="text-sm text-slate-600">
-													Qty: {item.quantity} · KSh {item.wholesalePrice.toFixed(2)}
-												</p>
-											</div>
+									{orderItems.map((item, index) => {
+										const product = availableItems.find((productItem) => productItem.productCode === item.itemCode);
 
-											<Button type="button" variant="outline" size="sm" onClick={() => handleRemoveOrderItem(index)}>
-												Remove
-											</Button>
-										</div>
-									))}
+										return (
+											<div
+												key={`${item.itemCode}-${index}`}
+												className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"
+											>
+												<div className="space-y-1">
+													<p className="font-semibold text-slate-900">{item.itemName}</p>
+													<p className="text-sm text-slate-500">
+														{item.itemCode}
+														{product?.volumeMl ? ` · ${formatVolume(product.volumeMl)}` : ""}
+													</p>
+													<p className="text-sm text-slate-600">
+														Qty: {item.quantity} · KSh {item.wholesalePrice.toFixed(2)}
+													</p>
+												</div>
+
+												<Button type="button" variant="outline" size="sm" onClick={() => handleRemoveOrderItem(index)}>
+													Remove
+												</Button>
+											</div>
+										);
+									})}
 								</div>
 							)}
 						</div>
@@ -598,13 +879,10 @@ export default function OrderPaymentPage() {
 						<CardContent className="space-y-4 px-6 py-6">
 							<div className="space-y-3">
 								<div className="flex items-center justify-between text-sm text-slate-600">
-									<span>Order Title</span>
-									<span className="font-medium text-slate-900">{productName || "-"}</span>
-								</div>
-
-								<div className="flex items-center justify-between text-sm text-slate-600">
-									<span>Distributor ID</span>
-									<span className="font-medium text-slate-900">{distributorId || "-"}</span>
+									<span>Distributor</span>
+									<span className="font-medium text-slate-900">
+										{selectedDistributor ? selectedDistributor.businessName : "-"}
+									</span>
 								</div>
 
 								<div className="flex items-center justify-between text-sm text-slate-600">
