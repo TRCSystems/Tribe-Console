@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { posService } from "@/api/services/posService";
+import useUserStore from "@/store/userStore";
 import { Icon } from "@/components/icon";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
@@ -75,11 +76,10 @@ export default function OrdersPage() {
 			setError(null);
 
 			try {
-				const orders = await posService.getOrders();
+				const orders = await posService.getMerchantOrders("PAID");
 
 				if (!isMounted) return;
 
-				// Convert to PaidOrder type if needed
 				const formattedOrders: PaidOrder[] = orders.map((order: any) => ({
 					...order,
 					items: order.items || [],

@@ -154,12 +154,22 @@ const responseInterceptor = {
 
 		// Handle specific HTTP status codes
 		if (status === 401) {
-			console.log("🔐 Unauthorized - clearing user store");
-			useUserStore.getState().actions.clearUserInfoAndToken();
+			// Skip logout/redirect for payment-status polling and stock page endpoints
+			const isPaymentPolling = url?.includes("/payment-status");
+			const isStockPage = url?.includes("/stock");
+			const isOrdersEndpoint = url?.includes("/orders");
+			const shouldPreserveSession = isPaymentPolling || isStockPage || isOrdersEndpoint;
 
-			// Only redirect if not already on login page
-			if (!window.location.pathname.includes("/login")) {
-				window.location.href = "/login";
+			if (!shouldPreserveSession) {
+				console.log("🔐 Unauthorized - clearing user store");
+				useUserStore.getState().actions.clearUserInfoAndToken();
+
+				// Only redirect if not already on login page
+				if (!window.location.pathname.includes("/auth/login")) {
+					window.location.href = "/auth/login";
+				}
+			} else {
+				console.warn("🔐 Unauthorized on non-critical endpoint (preserving session):", url);
 			}
 
 			return Promise.reject(new Error("Session expired. Please login again."));

@@ -417,7 +417,22 @@ export default function OrderPaymentPage() {
 		const intervalMs = 5000;
 
 		for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-			const statusResponse = await posService.getOrderPaymentStatus(orderCode);
+			let statusResponse;
+			try {
+				statusResponse = await posService.getOrderPaymentStatus(orderCode);
+			} catch (err: any) {
+				// If we get a 401/unauthorized during polling, treat as still processing
+				// (token may have expired during long polling)
+				if (err?.message?.includes("401") || err?.message?.includes("Unauthorized")) {
+					console.warn("Payment poll: Got 401 during polling, continuing...", { attempt: attempt + 1 });
+					if (attempt < maxAttempts - 1) {
+						await new Promise((resolve) => setTimeout(resolve, intervalMs));
+						continue;
+					}
+					break;
+				}
+				throw err;
+			}
 
 			const payload = statusResponse?.data ?? {};
 			const paymentResponse = payload?.paymentResponse ?? {};
