@@ -1,20 +1,6 @@
-import { externalApiClient, loyaltyApiClient } from "@/api/apiClient";
+import { loyaltyApiClient } from "@/api/apiClient";
 import useUserStore from "@/store/userStore";
-import type { CreateOrderRequest, POSOrder } from "@/types/pos";
-
-const EXTERNAL_API_BASE = "https://tribessystems.co.ke";
-
-const getAuthHeaders = () => {
-	const token = useUserStore.getState().userToken?.accessToken;
-
-	if (!token) {
-		return {};
-	}
-
-	return {
-		Authorization: `Bearer ${token}`,
-	};
-};
+import type { CreateOrderRequest } from "@/types/pos";
 
 const parseJsonIfString = (value: any) => {
 	if (typeof value !== "string") {
@@ -260,44 +246,40 @@ export const posService = {
 		});
 	},
 
+	fulfillOrder: (orderCode: string): Promise<any> => {
+		return loyaltyApiClient.post<any>({
+			url: `/orders/${encodeURIComponent(orderCode)}/fulfill`,
+		});
+	},
+
+	getMerchantOrders: (status: string): Promise<any[]> => {
+		return loyaltyApiClient
+			.get<any>({
+				url: `/orders/merchant/status/${encodeURIComponent(status)}`,
+			})
+			.then((res) => responseToArray(res));
+	},
+
+	getDistributorOrders: (status: string): Promise<any[]> => {
+		return loyaltyApiClient
+			.get<any>({
+				url: `/orders/distributor/status/${encodeURIComponent(status)}`,
+			})
+			.then((res) => responseToArray(res));
+	},
+
 	getProductDefaults: async (): Promise<ProductDefault[]> => {
 		try {
-			const merchantId = useUserStore.getState().merchantId;
 			console.group("📦 POS: Fetching Product Defaults");
 
-			const attempts = [
-				// Try 1: Redundant /api prefix (relative to /api baseURL)
-				{ name: "Redundant /api", fn: () => loyaltyApiClient.get({ url: "/api/inventory/product-defaults" }) },
-				// Try 2: Standard (relative to /api baseURL)
-				{ name: "Standard GET", fn: () => loyaltyApiClient.get({ url: "/inventory/product-defaults" }) },
-				// Try 3: POST (some Tribe endpoints require POST for getters)
-				{
-					name: "Standard POST",
-					fn: () => loyaltyApiClient.post({ url: "/inventory/product-defaults", data: { merchantId } }),
-				},
-				// Try 4: Real items fallback
-				{ name: "Inventory All", fn: () => loyaltyApiClient.get({ url: "/inventory/all", params: { merchantId } }) },
-			];
+			const response = await loyaltyApiClient.get<any>({
+				url: "/inventory/product-defaults",
+			});
 
-			let res: any = "";
-			for (const attempt of attempts) {
-				console.log(`Probing: ${attempt.name}...`);
-				try {
-					const result = await attempt.fn();
-					if (result && result !== "" && !(Array.isArray(result) && result.length === 0)) {
-						console.log(`✅ Success with ${attempt.name}`);
-						res = result;
-						break;
-					}
-				} catch (e) {
-					console.log(`❌ Failed ${attempt.name}`);
-				}
-			}
-
-			console.log("Final Probe Response:", res);
+			console.log("Product defaults response:", response);
 			console.groupEnd();
 
-			const body = findFirstArray(res);
+			const body = findFirstArray(response);
 
 			const products = body
 				.map(normalizeProductDefault)
@@ -314,55 +296,16 @@ export const posService = {
 
 	getLiquorDistributors: async (): Promise<LiquorDistributor[]> => {
 		try {
-			const merchantId = useUserStore.getState().merchantId;
 			console.group("🚚 POS: Fetching Liquor Distributors");
 
-			const attempts = [
-				// Try 1: Redundant /api prefix (as requested by user /api/orders/wholesalers/liquor)
-				{ name: "Redundant /api", fn: () => loyaltyApiClient.get({ url: "/api/orders/wholesalers/liquor" }) },
-				// Try 2: Standard GET
-				{
-					name: "Standard GET",
-					fn: () => loyaltyApiClient.get({ url: "/orders/wholesalers/liquor", params: { merchantId } }),
-				},
-				// Try 3: Standard POST (mirroring credit score pattern)
-				{
-					name: "Standard POST",
-					fn: () =>
-						loyaltyApiClient.post({ url: "/orders/wholesalers/liquor", data: { merchantId, merchant_id: merchantId } }),
-				},
-				// Try 4: Absolute URL via External (no v1)
-				{
-					name: "Absolute URL",
-					fn: () =>
-						externalApiClient.get({
-							url: "https://tribessystems.co.ke/api/orders/wholesalers/liquor",
-							headers: getAuthHeaders(),
-						}),
-				},
-				// Try 5: No /orders prefix
-				{ name: "Short GET", fn: () => loyaltyApiClient.get({ url: "/wholesalers/liquor" }) },
-			];
+			const response = await loyaltyApiClient.get<any>({
+				url: "/orders/wholesalers/liquor",
+			});
 
-			let res: any = "";
-			for (const attempt of attempts) {
-				console.log(`Probing: ${attempt.name}...`);
-				try {
-					const result = await attempt.fn();
-					if (result && result !== "" && !(Array.isArray(result) && result.length === 0)) {
-						console.log(`✅ Success with ${attempt.name}`);
-						res = result;
-						break;
-					}
-				} catch (e) {
-					console.log(`❌ Failed ${attempt.name}`);
-				}
-			}
-
-			console.log("Final Probe Response:", res);
+			console.log("Liquor distributors response:", response);
 			console.groupEnd();
 
-			const body = findFirstArray(res);
+			const body = findFirstArray(response);
 
 			const distributors = body
 				.map(normalizeLiquorDistributor)
