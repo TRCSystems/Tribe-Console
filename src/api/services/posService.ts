@@ -223,7 +223,7 @@ const normalizeOrder = (item: any): any | null => {
 
 export const posService = {
 	createOrder: (orderData: CreateOrderRequest): Promise<any> => {
-		const { amount, ...payload } = orderData as any;
+		const { ...payload } = orderData as any;
 		const merchantId = useUserStore.getState().merchantId;
 
 		return loyaltyApiClient

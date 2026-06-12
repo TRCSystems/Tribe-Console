@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { posService } from "@/api/services/posService";
-import useUserStore from "@/store/userStore";
 import { Icon } from "@/components/icon";
+import useUserStore from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/ui/select";
 
 type PaidOrderItem = {
 	itemCode: string;
@@ -57,12 +58,43 @@ const formatDate = (date?: string) => {
 	return parsedDate.toLocaleString();
 };
 
+const getStatusBadgeVariant = (statusValue: string) => {
+	switch (statusValue) {
+		case "PAID":
+			return "bg-green-100 text-green-800 hover:bg-green-100";
+		case "PENDING":
+			return "bg-yellow-100 text-yellow-800 hover:bg-yellow-100";
+		case "CANCELLED":
+			return "bg-red-100 text-red-800 hover:bg-red-100";
+		case "RECEIVED":
+			return "bg-blue-100 text-blue-800 hover:bg-blue-100";
+		default:
+			return "bg-slate-100 text-slate-800 hover:bg-slate-100";
+	}
+};
+
+const formatStatusLabel = (statusValue: string) => {
+	switch (statusValue) {
+		case "PAID":
+			return "Paid Orders";
+		case "PENDING":
+			return "Pending Orders";
+		case "CANCELLED":
+			return "Cancelled Orders";
+		case "RECEIVED":
+			return "Received Orders";
+		default:
+			return "Orders";
+	}
+};
+
 export default function OrdersPage() {
 	const navigate = useNavigate();
 	const location = useLocation();
 
 	const routeState = location.state as { paidOrder?: PaidOrder } | null;
 
+	const [status, setStatus] = useState("PAID");
 	const [paidOrders, setPaidOrders] = useState<PaidOrder[]>([]);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -76,7 +108,7 @@ export default function OrdersPage() {
 			setError(null);
 
 			try {
-				const orders = await posService.getMerchantOrders("PAID");
+				const orders = await posService.getMerchantOrders(status);
 
 				if (!isMounted) return;
 
@@ -108,7 +140,7 @@ export default function OrdersPage() {
 		return () => {
 			isMounted = false;
 		};
-	}, [routeState?.paidOrder]);
+	}, [routeState?.paidOrder, status]);
 
 	const selectedOrder = useMemo(() => {
 		if (!selectedOrderCode) return paidOrders[0] ?? null;
@@ -132,6 +164,11 @@ export default function OrdersPage() {
 		}
 
 		navigate("/inventory/order-payment");
+	};
+
+	const handleStatusChange = (newStatus: string) => {
+		setStatus(newStatus);
+		setSelectedOrderCode(null);
 	};
 
 	if (isLoading) {
@@ -160,17 +197,29 @@ export default function OrdersPage() {
 		<div className="space-y-6 pb-10">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<h1 className="text-3xl font-semibold tracking-tight text-slate-950">Paid Orders</h1>
-					<p className="mt-2 text-sm text-slate-600">View confirmed order payments and their order details.</p>
+					<h1 className="text-3xl font-semibold tracking-tight text-slate-950">Orders</h1>
+					<p className="mt-2 text-sm text-slate-600">View order payments and their details.</p>
 				</div>
 
 				<div className="flex flex-col gap-3 sm:flex-row">
+					<Select value={status} onValueChange={handleStatusChange}>
+						<SelectTrigger className="w-[180px]">
+							<SelectValue placeholder="Select status" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="PAID">Paid Orders</SelectItem>
+							<SelectItem value="PENDING">Pending Orders</SelectItem>
+							<SelectItem value="CANCELLED">Cancelled Orders</SelectItem>
+							<SelectItem value="RECEIVED">Received Orders</SelectItem>
+						</SelectContent>
+					</Select>
+
 					<Button type="button" onClick={handleCreateAnotherOrder}>
 						Create Order
 					</Button>
 
-					<Button type="button" variant="outline" onClick={() => navigate("/dashboard")}>
-						Go to Dashboard
+					<Button type="button" variant="outline" onClick={() => navigate("/pos")}>
+						Back To POS
 					</Button>
 				</div>
 			</div>
@@ -183,7 +232,7 @@ export default function OrdersPage() {
 						</div>
 
 						<div>
-							<p className="text-sm text-slate-500">Paid Orders</p>
+							<p className="text-sm text-slate-500">{formatStatusLabel(status)}</p>
 							<p className="text-2xl font-semibold text-slate-950">{paidOrders.length}</p>
 						</div>
 					</CardContent>
@@ -238,11 +287,7 @@ export default function OrdersPage() {
 										key={order.orderCode}
 										type="button"
 										onClick={() => setSelectedOrderCode(order.orderCode)}
-										className={`w-full rounded-2xl border p-4 text-left transition ${
-											isSelected
-												? "border-green-300 bg-green-50"
-												: "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
-										}`}
+										className={`w-full rounded-2xl border p-4 text-left transition ${isSelected ? "border-green-300 bg-green-50" : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"}`}
 									>
 										<div className="flex items-start justify-between gap-3">
 											<div>
@@ -250,7 +295,9 @@ export default function OrdersPage() {
 												<p className="mt-1 text-sm text-slate-500">{order.items.length} item(s)</p>
 											</div>
 
-											<Badge className="bg-green-100 text-green-800 hover:bg-green-100">Paid</Badge>
+											<Badge className={getStatusBadgeVariant(order.orderStatus || status)}>
+												{order.orderStatus || status}
+											</Badge>
 										</div>
 
 										<div className="mt-4 flex items-center justify-between text-sm">
@@ -274,7 +321,11 @@ export default function OrdersPage() {
 								</div>
 
 								{selectedOrder ? (
-									<Badge className="w-fit bg-green-100 text-green-800 hover:bg-green-100">Payment Confirmed</Badge>
+									<Badge className={`w-fit ${getStatusBadgeVariant(selectedOrder.orderStatus || status)}`}>
+										{(selectedOrder.orderStatus || status) === "PAID"
+											? "Payment Confirmed"
+											: selectedOrder.orderStatus || status}
+									</Badge>
 								) : null}
 							</div>
 						</CardHeader>
@@ -376,22 +427,24 @@ export default function OrdersPage() {
 										</div>
 									</div>
 
-									<div className="rounded-2xl border border-green-200 bg-green-50 p-4">
-										<div className="flex items-start gap-3">
-											<Icon icon="lucide:check-circle-2" className="mt-0.5 h-5 w-5 text-green-700" />
-											<div>
-												<p className="font-semibold text-green-900">Payment Confirmed</p>
-												<p className="mt-1 text-sm text-green-800">
-													This order has been paid successfully and is ready for processing.
-												</p>
+									{status === "PAID" && (
+										<div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+											<div className="flex items-start gap-3">
+												<Icon icon="lucide:check-circle-2" className="mt-0.5 h-5 w-5 text-green-700" />
+												<div>
+													<p className="font-semibold text-green-900">Payment Confirmed</p>
+													<p className="mt-1 text-sm text-green-800">
+														This order has been paid successfully and is ready for processing.
+													</p>
+												</div>
 											</div>
 										</div>
-									</div>
+									)}
 								</>
 							) : (
 								<div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
 									<p className="font-medium text-slate-900">No order selected</p>
-									<p className="mt-1 text-sm text-slate-500">Select a paid order to view its details.</p>
+									<p className="mt-1 text-sm text-slate-500">Select an order to view its details.</p>
 								</div>
 							)}
 						</CardContent>
@@ -404,7 +457,7 @@ export default function OrdersPage() {
 							<Icon icon="lucide:receipt-text" className="h-6 w-6" />
 						</div>
 
-						<h2 className="mt-4 text-lg font-semibold text-slate-950">No paid orders yet</h2>
+						<h2 className="mt-4 text-lg font-semibold text-slate-950">No orders yet</h2>
 						<p className="mt-2 max-w-md text-sm text-slate-600">
 							Once an order payment is confirmed, it will appear here with its payment and item details.
 						</p>

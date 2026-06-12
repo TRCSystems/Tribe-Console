@@ -26,9 +26,19 @@ export const frontendNavData: NavProps["data"] = [
 				icon: <Icon icon="lucide:shopping-cart" size="24" />,
 			},
 			{
-				title: "Order Payment",
-				path: "/order-payment",
-				icon: <Icon icon="lucide:credit-card" size="24" />,
+				title: "Orders",
+				path: "/orders",
+				icon: <Icon icon="lucide:shopping-bag" size="24" />,
+				children: [
+					{
+						title: "Create Order",
+						path: "/order-payment",
+					},
+					{
+						title: "Paid Orders",
+						path: "/orders",
+					},
+				],
 			},
 			/*	{
 				title: "sys.nav.management",
