@@ -22,6 +22,7 @@ export interface SaleItemRequest {
 export interface SaleRequest {
 	merchantId: string;
 	customerPhone?: string;
+	orderType?: "RETAIL" | "WHOLESALE";
 	items: SaleItemRequest[];
 }
 
@@ -701,10 +702,11 @@ class InventoryService {
 			const requestData: SaleRequest = {
 				merchantId,
 				customerPhone: customerPhone,
+				orderType: data.orderType,
 				items: data.items.map((item) => ({
 					inventoryId: item.inventoryId,
 					quantity: item.quantity,
-					discount: item.discount || 0, // Include discount field
+					discount: item.discount || 0,
 				})),
 			};
 

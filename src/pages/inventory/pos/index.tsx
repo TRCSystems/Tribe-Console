@@ -1341,16 +1341,16 @@ export default function PointOfSalePage() {
 			return;
 		}
 
-		// Send extra amount as POSITIVE discount
 		const saleItems: SaleItemRequest[] = orderItems.map((item) => ({
 			inventoryId: item.id,
 			quantity: item.orderQuantity,
-			discount: item.extraAmount || 0, // Send POSITIVE extra as discount
+			discount: item.extraAmount || 0,
 		}));
 
-		console.log("🛒 Sale Request Data (Extra as Discount):", {
+		console.log("🛒 Sale Request Data:", {
 			merchantId: merchantId,
 			customerPhone: customerContact || "Not provided (optional)",
+			orderType: pricingMode === "wholesale" ? "WHOLESALE" : "RETAIL",
 			items: saleItems,
 			totalExtra: orderItems.reduce((sum, item) => sum + (item.extraAmount || 0), 0),
 		});
@@ -1358,6 +1358,7 @@ export default function PointOfSalePage() {
 		const validationError = validateSaleData({
 			merchantId: merchantId,
 			customerPhone: customerContact,
+			orderType: pricingMode === "wholesale" ? "WHOLESALE" : "RETAIL",
 			items: saleItems,
 		});
 
@@ -1371,6 +1372,7 @@ export default function PointOfSalePage() {
 		processSaleMutation.mutate({
 			merchantId: merchantId,
 			customerPhone: customerContact,
+			orderType: pricingMode === "wholesale" ? "WHOLESALE" : "RETAIL",
 			items: saleItems,
 		});
 	};
