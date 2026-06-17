@@ -121,7 +121,7 @@ export default function SoldItemsPage() {
 	const queryParams = new URLSearchParams(location.search);
 	const initialDate = queryParams.get("date") || new Date().toISOString().split("T")[0];
 
-	const [selectedDate, _setSelectedDate] = useState(initialDate);
+	const [selectedDate, setSelectedDate] = useState(initialDate);
 	const [printMode, setPrintMode] = useState(false);
 
 	const {
@@ -185,6 +185,20 @@ export default function SoldItemsPage() {
 		navigate("/analytics/daily-sales");
 	};
 
+	// Handle date change
+	const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const newDate = e.target.value;
+		if (newDate) {
+			setSelectedDate(newDate);
+			// Update URL parameter
+			const params = new URLSearchParams(location.search);
+			params.set("date", newDate);
+			navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+			// Refetch data with new date
+			refetch();
+		}
+	};
+
 	if (!merchantId) {
 		return (
 			<div className="space-y-6">
@@ -222,10 +236,16 @@ export default function SoldItemsPage() {
 					</div>
 				</div>
 				<div className="flex items-center gap-4">
-					<Badge variant="outline" className="px-3 py-1">
-						<Icon icon="lucide:calendar" className="h-3 w-3 mr-1" />
-						{new Date(selectedDate).toLocaleDateString()}
-					</Badge>
+					<div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background">
+						<Icon icon="lucide:calendar" className="h-4 w-4 text-muted-foreground" />
+						<input
+							type="date"
+							value={selectedDate}
+							onChange={handleDateChange}
+							className="border-0 bg-transparent focus:outline-none focus:ring-0 p-0 text-sm"
+							max={new Date().toISOString().split("T")[0]}
+						/>
+					</div>
 					<UserRoleIndicator />
 				</div>
 			</div>
@@ -433,7 +453,6 @@ export default function SoldItemsPage() {
 									<tr className="bg-gray-100">
 										<th className="border p-2 text-left">Item Name</th>
 										<th className="border p-2 text-left">Times Sold</th>
-										{/*<th className="border p-2 text-right">Total Quantity</th>*/}
 										<th className="border p-2 text-right">Total Amount</th>
 									</tr>
 								</thead>
@@ -442,7 +461,6 @@ export default function SoldItemsPage() {
 										<tr key={item.itemCode} className="border-b hover:bg-gray-50">
 											<td className="border p-2 font-medium">{item.itemName}</td>
 											<td className="border p-2">{item.timesSold}</td>
-											{/*<td className="border p-2 text-right font-bold">{item.totalQuantity}</td>*/}
 											<td className="border p-2 text-right font-bold text-green-600">
 												{formatCurrency(item.totalAmount)}
 											</td>
@@ -454,7 +472,6 @@ export default function SoldItemsPage() {
 										<td colSpan={2} className="border p-2 font-bold">
 											Totals
 										</td>
-										{/*<td className="border p-2 text-right font-bold">{totals.totalItemsSold}</td>*/}
 										<td className="border p-2 text-right font-bold text-green-600">
 											{formatCurrency(totals.totalSalesAmount)}
 										</td>

@@ -1,8 +1,8 @@
 //original author : Marcellas
-// src/pages/analytics/daily-sales/index.tsx - UPDATED VERSION
+// src/pages/analytics/daily-sales/index.tsx - UPDATED VERSION WITH DATE PICKER
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
@@ -11,9 +11,15 @@ import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 
 export default function DailySalesPage() {
-	const [selectedDate, _setSelectedDate] = useState(new Date().toISOString().split("T")[0]);
+	const location = useLocation();
+	const navigate = useNavigate();
 	const merchantId = useMerchantId();
-	const navigate = useNavigate(); // ADD NAVIGATION HOOK
+
+	// Get date from URL query parameter or default to today
+	const queryParams = new URLSearchParams(location.search);
+	const initialDate = queryParams.get("date") || new Date().toISOString().split("T")[0];
+
+	const [selectedDate, setSelectedDate] = useState(initialDate);
 
 	const {
 		data: dailySummary,
@@ -29,6 +35,20 @@ export default function DailySalesPage() {
 	// Function to navigate to sold items page
 	const handleViewSoldItems = () => {
 		navigate(`/analytics/sold-items?date=${selectedDate}`);
+	};
+
+	// Handle date change
+	const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		const newDate = e.target.value;
+		if (newDate) {
+			setSelectedDate(newDate);
+			// Update URL parameter
+			const params = new URLSearchParams(location.search);
+			params.set("date", newDate);
+			navigate(`${location.pathname}?${params.toString()}`, { replace: true });
+			// Refetch data with new date
+			refetch();
+		}
 	};
 
 	// SIMPLIFIED: Directly use the API response
@@ -98,8 +118,17 @@ export default function DailySalesPage() {
 					<p className="text-muted-foreground">View daily sales performance for your merchant account</p>
 				</div>
 				<div className="flex items-center gap-4">
+					<div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background">
+						<Icon icon="lucide:calendar" className="h-4 w-4 text-muted-foreground" />
+						<input
+							type="date"
+							value={selectedDate}
+							onChange={handleDateChange}
+							className="border-0 bg-transparent focus:outline-none focus:ring-0 p-0 text-sm"
+							max={new Date().toISOString().split("T")[0]}
+						/>
+					</div>
 					<UserRoleIndicator />
-					{/* <Input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-40" /> */}
 				</div>
 			</div>
 
@@ -115,24 +144,16 @@ export default function DailySalesPage() {
 							<Icon icon="lucide:list" className="h-4 w-4" />
 							View Sold Items
 						</Button>
-						{/*  <Button 
-              onClick={() => refetch()}
-              className="flex items-center gap-2"
-              variant="secondary"
-            >
-              <Icon icon="lucide:refresh-cw" className="h-4 w-4" />
-              Refresh Data
-            </Button> */}
-						{/*{transformedData && (
-              <Button 
-                onClick={() => window.print()}
-                className="flex items-center gap-2"
-                variant="outline"
-              >
-                <Icon icon="lucide:printer" className="h-4 w-4" />
-                Print Summary
-              </Button> 
-            )}*/}
+						<Button onClick={() => refetch()} className="flex items-center gap-2" variant="secondary">
+							<Icon icon="lucide:refresh-cw" className="h-4 w-4" />
+							Refresh Data
+						</Button>
+						{transformedData && (
+							<Button onClick={() => window.print()} className="flex items-center gap-2" variant="outline">
+								<Icon icon="lucide:printer" className="h-4 w-4" />
+								Print Summary
+							</Button>
+						)}
 					</div>
 					<p className="text-sm text-muted-foreground mt-3">
 						Click "View Sold Items" to see detailed list of items sold on {new Date(selectedDate).toLocaleDateString()}
