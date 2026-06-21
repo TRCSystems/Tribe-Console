@@ -16,6 +16,8 @@ import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
+import { useUserToken } from "@/store/userStore";
+import { getBusinessPhoneFromToken, getTillNumberFromToken, getLocationFromToken } from "@/utils/jwt";
 
 type PricingMode = "retail" | "wholesale";
 
@@ -355,6 +357,8 @@ const ThermalPrintReceipt = ({
 	transactionId,
 	merchantName,
 	merchantPhone,
+	tillNumber,
+	location,
 }: {
 	isOpen: boolean;
 	onClose: () => void;
@@ -366,6 +370,8 @@ const ThermalPrintReceipt = ({
 	transactionId: string;
 	merchantName: string;
 	merchantPhone: string;
+	tillNumber?: string;
+	location?: string;
 }) => {
 	if (!isOpen) return null;
 
@@ -476,7 +482,25 @@ const ThermalPrintReceipt = ({
 					displayMerchantPhone
 						? `
         <div class="merchant-info">
-            Tel: ${displayMerchantPhone}
+            Business Phone: ${displayMerchantPhone}
+        </div>
+        `
+						: ""
+				}
+        ${
+					tillNumber
+						? `
+        <div class="merchant-info">
+            Business Till: ${tillNumber}
+        </div>
+        `
+						: ""
+				}
+        ${
+					location
+						? `
+        <div class="merchant-info">
+            Location: ${location}
         </div>
         `
 						: ""
@@ -623,7 +647,9 @@ const ThermalPrintReceipt = ({
 					<div className="border-2 border-gray-300 p-4 rounded-lg bg-white">
 						<div className="text-center mb-3">
 							<h3 className="font-bold text-lg">{merchantName.toUpperCase()}</h3>
-							{displayMerchantPhone && <p className="text-sm text-gray-600">Tel: {displayMerchantPhone}</p>}
+							{displayMerchantPhone && <p className="text-sm text-gray-600">Business Phone: {displayMerchantPhone}</p>}
+							{tillNumber && <p className="text-sm text-gray-600">Business Till: {tillNumber}</p>}
+							{location && <p className="text-sm text-gray-600">Location: {location}</p>}
 							<p>SALES RECEIPT</p>
 							<p className="text-sm">
 								{formattedDate} at {formattedTime}
@@ -774,6 +800,8 @@ export default function PointOfSalePage() {
 	const [showOTPModal, setShowOTPModal] = useState(false);
 	const [closeDayStep, setCloseDayStep] = useState<"idle" | "initiated" | "verifying">("idle");
 	const [merchantPhone, setMerchantPhone] = useState<string>("");
+	const [tillNumber, setTillNumber] = useState<string>("");
+	const [location, setLocation] = useState<string>("");
 
 	const [showCloseDayToast, setShowCloseDayToast] = useState(false);
 	const [closeDayToastConfig, setCloseDayToastConfig] = useState<{
@@ -822,6 +850,23 @@ export default function PointOfSalePage() {
 			}
 		}
 	}, [merchantDetailsData]);
+
+	// Extract till number, location, and business phone from token
+	const { accessToken } = useUserToken();
+	useEffect(() => {
+		if (accessToken) {
+			try {
+				const till = getTillNumberFromToken(accessToken);
+				const loc = getLocationFromToken(accessToken);
+				const phone = getBusinessPhoneFromToken(accessToken);
+				if (till) setTillNumber(till);
+				if (loc) setLocation(loc);
+				if (phone && !merchantPhone) setMerchantPhone(phone);
+			} catch (error) {
+				console.warn("Could not extract till/location from token");
+			}
+		}
+	}, [accessToken, merchantPhone]);
 
 	// ADDED: Check if user has wholesale access and reset mode if they don't
 	useEffect(() => {
@@ -1967,6 +2012,8 @@ export default function PointOfSalePage() {
 				transactionId={lastTransaction?.transactionId || generateTransactionId()}
 				merchantName={merchantName}
 				merchantPhone={merchantPhone}
+				tillNumber={tillNumber}
+				location={location}
 			/>
 
 			<footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">

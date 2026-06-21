@@ -22,6 +22,9 @@ export interface JwtPayload {
 	preferred_username?: string;
 	name?: string;
 	businessName?: string;
+	businessPhone?: string;
+	tillNumber?: string;
+	location?: string;
 }
 
 /**
@@ -330,5 +333,44 @@ export const getIsWholesalerFromToken = (token: string): boolean => {
 	} catch (_error) {
 		console.error("❌ Failed to extract isWholesaler from token");
 		return false;
+	}
+};
+
+export const getBusinessPhoneFromToken = (token: string): string | null => {
+	try {
+		const decoded = decodeToken(token);
+		const phone = decoded?.businessPhone || null;
+
+		console.debug(`Business phone extracted: ${phone ? "[REDACTED]" : "Not found"}`);
+		return phone;
+	} catch (_error) {
+		console.error("❌ Failed to extract businessPhone from token");
+		return null;
+	}
+};
+
+export const getTillNumberFromToken = (token: string): string | null => {
+	try {
+		const decoded = decodeToken(token);
+		const till = decoded?.tillNumber || null;
+
+		console.debug(`Till number extracted: ${till ? "[REDACTED]" : "Not found"}`);
+		return till;
+	} catch (_error) {
+		console.error("❌ Failed to extract tillNumber from token");
+		return null;
+	}
+};
+
+export const getLocationFromToken = (token: string): string | null => {
+	try {
+		const decoded = decodeToken(token);
+		const location = decoded?.location || null;
+
+		console.debug(`Location extracted: ${location ? "[REDACTED]" : "Not found"}`);
+		return location;
+	} catch (_error) {
+		console.error("❌ Failed to extract location from token");
+		return null;
 	}
 };
