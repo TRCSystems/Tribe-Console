@@ -93,8 +93,17 @@ export default function DailySalesPage() {
 					<CardContent className="p-6 text-center">
 						<Icon icon="lucide:alert-circle" className="h-12 w-12 text-destructive mx-auto mb-4" />
 						<h3 className="text-lg font-semibold mb-2">Failed to load daily sales data</h3>
-						<p className="text-muted-foreground mb-4">{(error || marginError as Error)?.message || "Unknown error"}</p>
-						<Button onClick={() => { refetchDailySummary(); refetchMarginReport(); }}>Retry</Button>
+						<p className="text-muted-foreground mb-4">
+							{(error || (marginError as Error))?.message || "Unknown error"}
+						</p>
+						<Button
+							onClick={() => {
+								refetchDailySummary();
+								refetchMarginReport();
+							}}
+						>
+							Retry
+						</Button>
 					</CardContent>
 				</Card>
 			</div>
@@ -135,11 +144,22 @@ export default function DailySalesPage() {
 							<Icon icon="lucide:list" className="h-4 w-4" />
 							View Sold Items
 						</Button>
-						<Button onClick={() => navigate(`/analytics/reconciliation?date=${selectedDate}`)} className="flex items-center gap-2" variant="outline">
+						<Button
+							onClick={() => navigate(`/analytics/reconciliation?date=${selectedDate}`)}
+							className="flex items-center gap-2"
+							variant="outline"
+						>
 							<Icon icon="lucide:file-text" className="h-4 w-4" />
 							View Reconciliation
 						</Button>
-						<Button onClick={() => { refetchDailySummary(); refetchMarginReport(); }} className="flex items-center gap-2" variant="secondary">
+						<Button
+							onClick={() => {
+								refetchDailySummary();
+								refetchMarginReport();
+							}}
+							className="flex items-center gap-2"
+							variant="secondary"
+						>
 							<Icon icon="lucide:refresh-cw" className="h-4 w-4" />
 							Refresh Data
 						</Button>
@@ -155,73 +175,79 @@ export default function DailySalesPage() {
 			</Card>
 
 			{/* Overview Cards */}
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">Gross Revenue</p>
-								<p className="text-2xl font-bold text-green-600">
-									{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.grossRevenue || 0)}
-								</p>
-							</div>
-							<Icon icon="lucide:banknote" className="h-8 w-8 text-green-500 opacity-60" />
+			<div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+				<Card className="p-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-medium text-muted-foreground">Gross Revenue</p>
+							<p className="text-lg font-bold text-green-600">
+								{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.grossRevenue || 0)}
+							</p>
 						</div>
-					</CardContent>
+						<Icon icon="lucide:banknote" className="h-6 w-6 text-green-500 opacity-60" />
+					</div>
 				</Card>
 
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">Total Cost</p>
-								<p className="text-2xl font-bold text-red-600">
-									{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.totalCost || 0)}
-								</p>
-							</div>
-							<Icon icon="lucide:trending-down" className="h-8 w-8 text-red-500 opacity-60" />
+				<Card className="p-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-medium text-muted-foreground">Total Cost</p>
+							<p className="text-lg font-bold text-red-600">
+								{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.totalCost || 0)}
+							</p>
 						</div>
-					</CardContent>
+						<Icon icon="lucide:trending-down" className="h-6 w-6 text-red-500 opacity-60" />
+					</div>
 				</Card>
 
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">Gross Margin</p>
-								<p className="text-2xl font-bold text-blue-600">
-									{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.grossMargin || 0)}
-								</p>
-							</div>
-							<Icon icon="lucide:trending-up" className="h-8 w-8 text-blue-500 opacity-60" />
+				<Card className="p-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-medium text-muted-foreground">Gross Margin</p>
+							<p className="text-lg font-bold text-blue-600">
+								{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.grossMargin || 0)}
+							</p>
 						</div>
-					</CardContent>
+						<Icon icon="lucide:trending-up" className="h-6 w-6 text-blue-500 opacity-60" />
+					</div>
+				</Card>
+
+				<Card className="p-4">
+					<div className="flex items-center justify-between">
+						<div>
+							<p className="text-xs font-medium text-muted-foreground">Deductions</p>
+							<p className="text-lg font-bold text-orange-600">
+								{isLoading ? "..." : formatCurrency(dailySummary?.deductions || 0)}
+							</p>
+						</div>
+						<Icon icon="lucide:minus-circle" className="h-6 w-6 text-orange-500 opacity-60" />
+					</div>
 				</Card>
 			</div>
 
 			{/* Margin Percentage Row */}
-			{marginReport?.dailyTotal && (
-				<div className="grid grid-cols-1 gap-4 max-w-xs">
-					<Card>
-						<CardContent className="p-6">
-							<div className="flex items-center justify-between">
-								<div>
-									<p className="text-sm font-medium text-muted-foreground">Margin %</p>
-									<p className="text-2xl font-bold text-purple-600">
-										{marginReport.dailyTotal.marginPercentage.toFixed(2)}%
-									</p>
-								</div>
-								<Icon icon="lucide:percent" className="h-8 w-8 text-purple-500 opacity-60" />
+			{/*	{marginReport?.dailyTotal && (
+				<div className="grid grid-cols-1 gap-3 max-w-xs">
+					<Card className="p-4">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-xs font-medium text-muted-foreground">Margin %</p>
+								<p className="text-lg font-bold text-purple-600">
+									{marginReport.dailyTotal.marginPercentage.toFixed(2)}%
+								</p>
 							</div>
-						</CardContent>
+							<Icon icon="lucide:percent" className="h-6 w-6 text-purple-500 opacity-60" />
+						</div>
 					</Card>
 				</div>
-			)}
+			)} */}
 
 			{/* Units Sold */}
 			{marginReport?.dailyTotal && (
-				<div className="pt-4">
-					<p className="text-lg font-semibold">Units Sold: <span className="text-blue-600">{marginReport.dailyTotal.unitsSold}</span></p>
+				<div className="pt-2">
+					<p className="text-sm font-semibold">
+						Units Sold: <span className="text-blue-600">{marginReport.dailyTotal.unitsSold}</span>
+					</p>
 				</div>
 			)}
 
@@ -249,7 +275,9 @@ export default function DailySalesPage() {
 								<h3 className="font-semibold text-lg mb-4">Margin Report</h3>
 								<div className="flex justify-between items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
 									<span className="font-medium">Gross Revenue</span>
-									<span className="font-bold text-green-600">{formatCurrency(marginReport.dailyTotal.grossRevenue)}</span>
+									<span className="font-bold text-green-600">
+										{formatCurrency(marginReport.dailyTotal.grossRevenue)}
+									</span>
 								</div>
 								<div className="flex justify-between items-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
 									<span className="font-medium">Total Cost</span>
@@ -286,7 +314,9 @@ export default function DailySalesPage() {
 
 								<div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
 									<p className="text-sm text-muted-foreground">Margin Percentage</p>
-									<p className="text-xl font-bold text-purple-600">{marginReport.dailyTotal.marginPercentage.toFixed(2)}%</p>
+									<p className="text-xl font-bold text-purple-600">
+										{marginReport.dailyTotal.marginPercentage.toFixed(2)}%
+									</p>
 								</div>
 
 								<div className="text-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
