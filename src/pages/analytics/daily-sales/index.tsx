@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import inventoryService from "@/api/services/inventoryService";
+import inventoryService, { type MarginReportResponse } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useMerchantId } from "@/store/userStore";
@@ -15,7 +15,6 @@ export default function DailySalesPage() {
 	const navigate = useNavigate();
 	const merchantId = useMerchantId();
 
-	// Get date from URL query parameter or default to today
 	const queryParams = new URLSearchParams(location.search);
 	const initialDate = queryParams.get("date") || new Date().toISOString().split("T")[0];
 
@@ -25,45 +24,37 @@ export default function DailySalesPage() {
 		data: dailySummary,
 		isLoading,
 		error,
-		refetch,
+		refetch: refetchDailySummary,
 	} = useQuery({
 		queryKey: ["daily-sales", merchantId, selectedDate],
 		queryFn: () => inventoryService.getDailySalesSummary(selectedDate),
 		enabled: !!merchantId,
 	});
 
-	// Function to navigate to sold items page
+	const {
+		data: marginReport,
+		isLoading: marginLoading,
+		error: marginError,
+		refetch: refetchMarginReport,
+	} = useQuery({
+		queryKey: ["margin-report", merchantId, selectedDate],
+		queryFn: () => inventoryService.getMarginReport(selectedDate),
+		enabled: !!merchantId,
+	});
+
 	const handleViewSoldItems = () => {
 		navigate(`/analytics/sold-items?date=${selectedDate}`);
 	};
 
-	// Handle date change
 	const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const newDate = e.target.value;
 		if (newDate) {
 			setSelectedDate(newDate);
-			// Update URL parameter
 			const params = new URLSearchParams(location.search);
 			params.set("date", newDate);
 			navigate(`${location.pathname}?${params.toString()}`, { replace: true });
-			// Refetch data with new date
-			refetch();
 		}
 	};
-
-	// SIMPLIFIED: Directly use the API response
-	const getTransformedData = () => {
-		if (!dailySummary) return null;
-
-		// API returns object with additionalProperties, so we extract what we need
-		return {
-			grossSales: dailySummary.grossSales || dailySummary.totalSales || 0,
-			deductions: dailySummary.deductions || dailySummary.totalExpenses || 0,
-			netSales: dailySummary.netSales || dailySummary.netProfit || 0,
-		};
-	};
-
-	const transformedData = getTransformedData();
 
 	const formatCurrency = (amount: number) => {
 		return `KShs ${amount?.toFixed(2) || "0.00"}`;
@@ -89,7 +80,7 @@ export default function DailySalesPage() {
 		);
 	}
 
-	if (error) {
+	if (error || marginError) {
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
@@ -102,8 +93,8 @@ export default function DailySalesPage() {
 					<CardContent className="p-6 text-center">
 						<Icon icon="lucide:alert-circle" className="h-12 w-12 text-destructive mx-auto mb-4" />
 						<h3 className="text-lg font-semibold mb-2">Failed to load daily sales data</h3>
-						<p className="text-muted-foreground mb-4">{(error as Error).message}</p>
-						<Button onClick={() => refetch()}>Retry</Button>
+						<p className="text-muted-foreground mb-4">{(error || marginError as Error)?.message || "Unknown error"}</p>
+						<Button onClick={() => { refetchDailySummary(); refetchMarginReport(); }}>Retry</Button>
 					</CardContent>
 				</Card>
 			</div>
@@ -144,16 +135,18 @@ export default function DailySalesPage() {
 							<Icon icon="lucide:list" className="h-4 w-4" />
 							View Sold Items
 						</Button>
-						<Button onClick={() => refetch()} className="flex items-center gap-2" variant="secondary">
+						<Button onClick={() => navigate(`/analytics/reconciliation?date=${selectedDate}`)} className="flex items-center gap-2" variant="outline">
+							<Icon icon="lucide:file-text" className="h-4 w-4" />
+							View Reconciliation
+						</Button>
+						<Button onClick={() => { refetchDailySummary(); refetchMarginReport(); }} className="flex items-center gap-2" variant="secondary">
 							<Icon icon="lucide:refresh-cw" className="h-4 w-4" />
 							Refresh Data
 						</Button>
-						{transformedData && (
-							<Button onClick={() => window.print()} className="flex items-center gap-2" variant="outline">
-								<Icon icon="lucide:printer" className="h-4 w-4" />
-								Print Summary
-							</Button>
-						)}
+						<Button onClick={() => window.print()} className="flex items-center gap-2" variant="outline">
+							<Icon icon="lucide:printer" className="h-4 w-4" />
+							Print Summary
+						</Button>
 					</div>
 					<p className="text-sm text-muted-foreground mt-3">
 						Click "View Sold Items" to see detailed list of items sold on {new Date(selectedDate).toLocaleDateString()}
@@ -167,9 +160,9 @@ export default function DailySalesPage() {
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Gross Sales</p>
+								<p className="text-sm font-medium text-muted-foreground">Gross Revenue</p>
 								<p className="text-2xl font-bold text-green-600">
-									{isLoading ? "..." : formatCurrency(transformedData?.grossSales || 0)}
+									{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.grossRevenue || 0)}
 								</p>
 							</div>
 							<Icon icon="lucide:banknote" className="h-8 w-8 text-green-500 opacity-60" />
@@ -181,9 +174,9 @@ export default function DailySalesPage() {
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Deductions</p>
+								<p className="text-sm font-medium text-muted-foreground">Total Cost</p>
 								<p className="text-2xl font-bold text-red-600">
-									{isLoading ? "..." : formatCurrency(transformedData?.deductions || 0)}
+									{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.totalCost || 0)}
 								</p>
 							</div>
 							<Icon icon="lucide:trending-down" className="h-8 w-8 text-red-500 opacity-60" />
@@ -195,9 +188,9 @@ export default function DailySalesPage() {
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Net Sales</p>
+								<p className="text-sm font-medium text-muted-foreground">Gross Margin</p>
 								<p className="text-2xl font-bold text-blue-600">
-									{isLoading ? "..." : formatCurrency(transformedData?.netSales || 0)}
+									{marginLoading ? "..." : formatCurrency(marginReport?.dailyTotal?.grossMargin || 0)}
 								</p>
 							</div>
 							<Icon icon="lucide:trending-up" className="h-8 w-8 text-blue-500 opacity-60" />
@@ -205,6 +198,32 @@ export default function DailySalesPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{/* Margin Percentage Row */}
+			{marginReport?.dailyTotal && (
+				<div className="grid grid-cols-1 gap-4 max-w-xs">
+					<Card>
+						<CardContent className="p-6">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="text-sm font-medium text-muted-foreground">Margin %</p>
+									<p className="text-2xl font-bold text-purple-600">
+										{marginReport.dailyTotal.marginPercentage.toFixed(2)}%
+									</p>
+								</div>
+								<Icon icon="lucide:percent" className="h-8 w-8 text-purple-500 opacity-60" />
+							</div>
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			{/* Units Sold */}
+			{marginReport?.dailyTotal && (
+				<div className="pt-4">
+					<p className="text-lg font-semibold">Units Sold: <span className="text-blue-600">{marginReport.dailyTotal.unitsSold}</span></p>
+				</div>
+			)}
 
 			{/* Detailed Summary */}
 			<Card>
@@ -218,27 +237,27 @@ export default function DailySalesPage() {
 					</CardDescription>
 				</CardHeader>
 				<CardContent>
-					{isLoading ? (
+					{isLoading || marginLoading ? (
 						<div className="text-center py-12">
 							<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
 							<p className="text-muted-foreground">Loading daily sales data...</p>
 						</div>
-					) : transformedData ? (
+					) : marginReport?.dailyTotal ? (
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 							{/* Financial Summary */}
 							<div className="space-y-4">
-								<h3 className="font-semibold text-lg mb-4">Financial Summary</h3>
+								<h3 className="font-semibold text-lg mb-4">Margin Report</h3>
 								<div className="flex justify-between items-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg">
-									<span className="font-medium">Gross Sales</span>
-									<span className="font-bold text-green-600">{formatCurrency(transformedData.grossSales)}</span>
+									<span className="font-medium">Gross Revenue</span>
+									<span className="font-bold text-green-600">{formatCurrency(marginReport.dailyTotal.grossRevenue)}</span>
 								</div>
 								<div className="flex justify-between items-center p-4 bg-red-50 dark:bg-red-900/20 rounded-lg">
-									<span className="font-medium">Deductions</span>
-									<span className="font-bold text-red-600">{formatCurrency(transformedData.deductions)}</span>
+									<span className="font-medium">Total Cost</span>
+									<span className="font-bold text-red-600">{formatCurrency(marginReport.dailyTotal.totalCost)}</span>
 								</div>
 								<div className="flex justify-between items-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-									<span className="font-medium">Net Sales</span>
-									<span className="font-bold text-blue-600">{formatCurrency(transformedData.netSales)}</span>
+									<span className="font-medium">Gross Margin</span>
+									<span className="font-bold text-blue-600">{formatCurrency(marginReport.dailyTotal.grossMargin)}</span>
 								</div>
 
 								{/* Sold Items Quick Action */}
@@ -265,14 +284,15 @@ export default function DailySalesPage() {
 									<p className="text-xl font-bold">{new Date(selectedDate).toLocaleDateString()}</p>
 								</div>
 
-								{transformedData.grossSales > 0 && (
-									<div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-										<p className="text-sm text-muted-foreground">Profit Margin</p>
-										<p className="text-xl font-bold text-purple-600">
-											{((transformedData.netSales / transformedData.grossSales) * 100).toFixed(1)}%
-										</p>
-									</div>
-								)}
+								<div className="text-center p-6 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+									<p className="text-sm text-muted-foreground">Margin Percentage</p>
+									<p className="text-xl font-bold text-purple-600">{marginReport.dailyTotal.marginPercentage.toFixed(2)}%</p>
+								</div>
+
+								<div className="text-center p-6 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+									<p className="text-sm text-muted-foreground">Units Sold</p>
+									<p className="text-xl font-bold text-blue-600">{marginReport.dailyTotal.unitsSold}</p>
+								</div>
 							</div>
 						</div>
 					) : (

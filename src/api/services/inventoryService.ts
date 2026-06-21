@@ -279,6 +279,49 @@ export interface ContactSupplierResponse {
 	messageId?: string;
 }
 
+export interface DailyMarginReportTotal {
+	unitsSold: number;
+	grossRevenue: number;
+	totalCost: number;
+	grossMargin: number;
+	marginPercentage: number;
+}
+
+export interface MarginReportResponse {
+	status: string;
+	statusCode: number;
+	message: string;
+	dailyTotal: DailyMarginReportTotal;
+}
+
+export interface ReconciliationTransactionItem {
+	itemCode: string;
+	itemName: string;
+	quantity: number;
+	unitPrice: number;
+	totalPrice: number;
+	orderType: "RETAIL" | "WHOLESALE";
+}
+
+export interface ReconciliationTransaction {
+	transactionRef: string;
+	saleDatetime: string;
+	customerPhone: string;
+	itemCount: number;
+	totalUnits: number;
+	basketTotal: number;
+	items: ReconciliationTransactionItem[];
+}
+
+export interface ReconciliationResponse {
+	date: string;
+	merchantId: string;
+	totalTransactions: number;
+	totalUnits: number;
+	totalRevenue: number;
+	transactions: ReconciliationTransaction[];
+}
+
 const getMerchantId = (): string => {
 	const state = useUserStore.getState();
 	const merchantId = state.merchantId;
@@ -1190,6 +1233,100 @@ class InventoryService {
 				numberOfTransactions: 0,
 				merchantId: merchantId,
 				date: date || new Date().toISOString().split("T")[0],
+			};
+		}
+	}
+
+	async getReconciliation(date?: string): Promise<ReconciliationResponse> {
+		const merchantId = getMerchantId();
+
+		console.group("🧮 Get Reconciliation API Call");
+		console.log("📦 Reconciliation Request:", { merchantId, date });
+
+		if (!date) {
+			date = new Date().toISOString().split("T")[0];
+		}
+
+		try {
+			console.log(`🚀 Sending GET request to /inventory/reconciliation...`);
+
+			const response = await loyaltyApiClient.get<ReconciliationResponse>({
+				url: "/inventory/reconciliation",
+				params: {
+					merchantId: merchantId,
+					date: date,
+				},
+			});
+
+			console.log("✅ Reconciliation API Response:", response);
+			console.groupEnd();
+
+			return response;
+		} catch (error: any) {
+			console.error("❌ Reconciliation API Error:", error);
+			console.error("❌ Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+
+			return {
+				date,
+				merchantId,
+				totalTransactions: 0,
+				totalUnits: 0,
+				totalRevenue: 0,
+				transactions: [],
+			};
+		}
+	}
+
+	async getMarginReport(date?: string): Promise<MarginReportResponse> {
+		const merchantId = getMerchantId();
+
+		console.group("📊 Get Margin Report API Call");
+		console.log("📦 Margin Report Request:", { merchantId, date });
+
+		if (!date) {
+			date = new Date().toISOString().split("T")[0];
+		}
+
+		try {
+			console.log(`🚀 Sending GET request to /inventory/margin-report...`);
+
+			const response = await loyaltyApiClient.get<MarginReportResponse>({
+				url: "/inventory/margin-report",
+				params: {
+					merchantId: merchantId,
+					date: date,
+				},
+			});
+
+			console.log("✅ Margin Report API Response:", response);
+			console.groupEnd();
+
+			return response;
+		} catch (error: any) {
+			console.error("❌ Margin Report API Error:", error);
+			console.error("❌ Error details:", {
+				status: error.response?.status,
+				data: error.response?.data,
+				message: error.message,
+			});
+			console.groupEnd();
+
+			return {
+				status: "ERROR",
+				statusCode: error.response?.status || 500,
+				message: error.response?.data?.message || "Failed to load margin report",
+				dailyTotal: {
+					unitsSold: 0,
+					grossRevenue: 0,
+					totalCost: 0,
+					grossMargin: 0,
+					marginPercentage: 0,
+				},
 			};
 		}
 	}

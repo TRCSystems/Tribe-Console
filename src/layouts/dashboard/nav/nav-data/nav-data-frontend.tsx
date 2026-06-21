@@ -40,6 +40,7 @@ export const frontendNavData: NavProps["data"] = [
 					},
 				],
 			},
+
 			/*	{
 				title: "sys.nav.management",
 				path: "/management",
@@ -105,6 +106,25 @@ export const frontendNavData: NavProps["data"] = [
 					{
 						title: "Expenses",
 						path: "/inventory/expenses",
+					},
+				],
+			},
+			{
+				title: "Reports",
+				path: "/reports",
+				icon: <Icon icon="lucide:file-text" size="24" />,
+				children: [
+					{
+						title: "Reconciliation",
+						path: "/analytics/reconciliation",
+					},
+					{
+						title: "Daily Sales",
+						path: "/analytics/daily-sales",
+					},
+					{
+						title: "Weekly Sales",
+						path: "/analytics/weekly",
 					},
 				],
 			},

@@ -266,6 +266,10 @@ export default function SoldItemsPage() {
 							<Icon icon="lucide:printer" className="h-4 w-4" />
 							Print Report
 						</Button>
+						<Button onClick={() => navigate(`/analytics/reconciliation?date=${selectedDate}`)} className="flex items-center gap-2" variant="outline">
+							<Icon icon="lucide:file-text" className="h-4 w-4" />
+							View Reconciliation
+						</Button>
 						<Button onClick={() => refetch()} className="flex items-center gap-2" variant="secondary">
 							<Icon icon="lucide:refresh-cw" className="h-4 w-4" />
 							Refresh Data

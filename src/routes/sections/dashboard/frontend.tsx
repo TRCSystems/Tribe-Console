@@ -74,13 +74,14 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 				{ path: "close-day", element: Component("/pages/inventory/close-day") },
 			],
 		},
-		{
+{
 			path: "analytics",
 			children: [
 				{ index: true, element: <Navigate to="daily-sales" replace /> },
 				{ path: "daily-sales", element: Component("/pages/analytics/daily-sales") },
 				{ path: "weekly", element: Component("/pages/analytics/weekly") },
 				{ path: "sold-items", element: Component("/pages/analytics/sold-items") },
+				{ path: "reconciliation", element: Component("/pages/analytics/reconciliation") },
 			],
 		},
 		//	{ path: "marketing", element: Component("/pages/marketing/social/index") },
