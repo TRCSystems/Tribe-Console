@@ -1599,6 +1599,11 @@ export default function PointOfSalePage() {
 															? formatCurrency(itemData.activeUnitPrice)
 															: "No wholesale price"}
 													</p>
+													{itemData.unitCost !== null && itemData.unitCost !== undefined ? (
+														<p className="text-xs text-gray-500 mt-1">BP: {formatCurrency(itemData.unitCost)}</p>
+													) : (
+														<p className="text-xs text-gray-500 mt-1">BP: _</p>
+													)}
 												</div>
 
 												<div className="text-center z-10">

@@ -160,6 +160,18 @@ export function UserRoleIndicator() {
 				<DropdownMenuItem
 					className="flex items-center gap-2 cursor-pointer"
 					onClick={() => {
+						window.location.href = "/analytics/reconciliation";
+					}}
+				>
+					<Icon icon="lucide:file-spreadsheet" className="h-4 w-4" />
+					<span>Reconciliation</span>
+				</DropdownMenuItem>
+
+				<DropdownMenuSeparator />
+
+				<DropdownMenuItem
+					className="flex items-center gap-2 cursor-pointer"
+					onClick={() => {
 						window.location.href = "/analytics/daily-sales";
 					}}
 				>
