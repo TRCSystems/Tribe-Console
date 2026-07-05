@@ -252,12 +252,33 @@ export const posService = {
 		});
 	},
 
-	getMerchantOrders: (status: string): Promise<any[]> => {
+	getMerchantOrders: (params: {
+		status: string;
+		startDate?: string;
+		endDate?: string;
+		page?: number;
+		size?: number;
+		sort?: string;
+	}): Promise<{ count: number; totalPages: number; currentPage: number; data: any[] }> => {
+		const { status, startDate, endDate, page, size, sort } = params;
+
 		return loyaltyApiClient
-			.get<any>({
+			.get<{ count: number; totalPages: number; currentPage: number; data: any[] }>({
 				url: `/orders/merchant/status/${encodeURIComponent(status)}`,
+				params: {
+					...(startDate ? { startDate } : {}),
+					...(endDate ? { endDate } : {}),
+					...(page !== undefined ? { page } : {}),
+					...(size !== undefined ? { size } : {}),
+					...(sort ? { sort } : {}),
+				},
 			})
-			.then((res) => responseToArray(res));
+			.then((res) => ({
+				count: typeof res?.count === "number" ? res.count : 0,
+				totalPages: typeof res?.totalPages === "number" ? res.totalPages : 1,
+				currentPage: typeof res?.currentPage === "number" ? res.currentPage : 0,
+				data: Array.isArray(res?.data) ? res.data : [],
+			}));
 	},
 
 	getDistributorOrders: (status: string): Promise<any[]> => {
