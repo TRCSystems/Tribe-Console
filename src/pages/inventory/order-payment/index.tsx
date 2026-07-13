@@ -669,151 +669,159 @@ export default function OrderPaymentPage() {
 			</div>
 
 			<div className="grid gap-6 xl:grid-cols-[1.35fr_0.9fr]">
-				<Card className="overflow-hidden">
-					<CardHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5">
-						<div className="space-y-2">
-							<CardTitle className="text-lg">Order Details</CardTitle>
-							<CardDescription>Select a product, then enter the quantity and wholesale price.</CardDescription>
-						</div>
-					</CardHeader>
-
-					<CardContent className="space-y-6 px-6 py-6">
-						<SearchablePicker
-							id="distributorId"
-							label="Distributor"
-							placeholder={isLoadingDistributors ? "Loading distributors..." : "Select a distributor"}
-							searchPlaceholder="Search distributor name, phone, location..."
-							emptyText="No distributors match your search."
-							loadingText="Loading distributors..."
-							items={distributors}
-							value={distributorId}
-							isLoading={isLoadingDistributors}
-							error={distributorsError}
-							disabled={isLoadingDistributors || distributors.length === 0}
-							getValue={(item) => String(item.id)}
-							getLabel={(item) => item.businessName}
-							onSelect={(item) => {
-								setDistributorId(String(item.id));
-							}}
-						/>
-
-						<div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-							<div className="grid gap-4 sm:grid-cols-[1.4fr_0.6fr_0.8fr]">
-								<SearchablePicker
-									id="selectedProductCode"
-									label="Select Product"
-									placeholder={isLoadingItems ? "Loading products..." : "Choose a product"}
-									searchPlaceholder="Search product name or code..."
-									emptyText="No products match your search."
-									loadingText="Loading products..."
-									items={availableItems}
-									value={selectedProductCode}
-									isLoading={isLoadingItems}
-									error={itemsError}
-									disabled={isLoadingItems || availableItems.length === 0}
-									getValue={(item) => item.productCode}
-									getLabel={(item) => item.productName}
-									getDescription={(item) =>
-										`${item.productCode}${item.volumeMl ? ` · ${formatVolume(item.volumeMl)}` : ""}`
-									}
-									onSelect={(item) => {
-										setSelectedProductCode(item.productCode);
-										setAddItemError(null);
-									}}
-								/>
-
-								<div className="space-y-2">
-									<Label htmlFor="itemQuantity" className="text-sm font-medium text-slate-800">
-										Quantity
-									</Label>
-
-									<Input
-										id="itemQuantity"
-										type="number"
-										min={1}
-										value={itemQuantity}
-										onChange={(event) => {
-											setItemQuantity(event.target.value);
-											setAddItemError(null);
-										}}
-										placeholder="Qty"
-									/>
-								</div>
-
-								<div className="space-y-2">
-									<Label htmlFor="itemWholesalePrice" className="text-sm font-medium text-slate-800">
-										Wholesale Price
-									</Label>
-
-									<Input
-										id="itemWholesalePrice"
-										type="number"
-										min={0}
-										step={0.01}
-										value={itemWholesalePrice}
-										onChange={(event) => {
-											setItemWholesalePrice(event.target.value);
-											setAddItemError(null);
-										}}
-										placeholder="Price"
-									/>
-								</div>
+				<div className="space-y-6">
+					<Card className="overflow-hidden">
+						<CardHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+							<div className="space-y-2">
+								<CardTitle className="text-lg">Order Details</CardTitle>
+								<CardDescription>Select a distributor, then add products to the order.</CardDescription>
 							</div>
+						</CardHeader>
 
-							{selectedItem ? (
-								<div className="rounded-xl border border-slate-200 bg-white p-4">
-									<div className="grid gap-3 text-sm sm:grid-cols-3">
-										<div>
-											<p className="text-slate-500">Product Code</p>
-											<p className="font-medium text-slate-950">{selectedItem.productCode}</p>
-										</div>
+						<CardContent className="space-y-6 px-6 py-6">
+							<SearchablePicker
+								id="distributorId"
+								label="Distributor"
+								placeholder={isLoadingDistributors ? "Loading distributors..." : "Select a distributor"}
+								searchPlaceholder="Search distributor name, phone, location..."
+								emptyText="No distributors match your search."
+								loadingText="Loading distributors..."
+								items={distributors}
+								value={distributorId}
+								isLoading={isLoadingDistributors}
+								error={distributorsError}
+								disabled={isLoadingDistributors || distributors.length === 0}
+								getValue={(item) => String(item.id)}
+								getLabel={(item) => item.businessName}
+								onSelect={(item) => {
+									setDistributorId(String(item.id));
+								}}
+							/>
 
-										<div>
-											<p className="text-slate-500">Product Name</p>
-											<p className="font-medium text-slate-950">{selectedItem.productName}</p>
-										</div>
+							<div className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+								<div className="grid gap-4 sm:grid-cols-[1.4fr_0.6fr_0.8fr]">
+									<SearchablePicker
+										id="selectedProductCode"
+										label="Select Product"
+										placeholder={isLoadingItems ? "Loading products..." : "Choose a product"}
+										searchPlaceholder="Search product name or code..."
+										emptyText="No products match your search."
+										loadingText="Loading products..."
+										items={availableItems}
+										value={selectedProductCode}
+										isLoading={isLoadingItems}
+										error={itemsError}
+										disabled={isLoadingItems || availableItems.length === 0}
+										getValue={(item) => item.productCode}
+										getLabel={(item) => item.productName}
+										getDescription={(item) =>
+											`${item.productCode}${item.volumeMl ? ` · ${formatVolume(item.volumeMl)}` : ""}`
+										}
+										onSelect={(item) => {
+											setSelectedProductCode(item.productCode);
+											setAddItemError(null);
+										}}
+									/>
 
-										<div>
-											<p className="text-slate-500">Volume</p>
-											<p className="font-medium text-slate-950">{formatVolume(selectedItem.volumeMl)}</p>
-										</div>
+									<div className="space-y-2">
+										<Label htmlFor="itemQuantity" className="text-sm font-medium text-slate-800">
+											Quantity
+										</Label>
+
+										<Input
+											id="itemQuantity"
+											type="number"
+											min={1}
+											value={itemQuantity}
+											onChange={(event) => {
+												setItemQuantity(event.target.value);
+												setAddItemError(null);
+											}}
+											placeholder="Qty"
+										/>
+									</div>
+
+									<div className="space-y-2">
+										<Label htmlFor="itemWholesalePrice" className="text-sm font-medium text-slate-800">
+											Wholesale Price
+										</Label>
+
+										<Input
+											id="itemWholesalePrice"
+											type="number"
+											min={0}
+											step={0.01}
+											value={itemWholesalePrice}
+											onChange={(event) => {
+												setItemWholesalePrice(event.target.value);
+												setAddItemError(null);
+											}}
+											placeholder="Price"
+										/>
 									</div>
 								</div>
-							) : null}
 
-							{addItemError ? (
-								<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
-									{addItemError}
-								</div>
-							) : null}
+								{selectedItem ? (
+									<div className="rounded-xl border border-slate-200 bg-white p-4">
+										<div className="grid gap-3 text-sm sm:grid-cols-3">
+											<div>
+												<p className="text-slate-500">Product Code</p>
+												<p className="font-medium text-slate-950">{selectedItem.productCode}</p>
+											</div>
 
-							<Button
-								type="button"
-								onClick={handleAddOrderItem}
-								disabled={isLoadingItems || availableItems.length === 0}
-								className="w-full"
-							>
-								Add Product
-							</Button>
-						</div>
+											<div>
+												<p className="text-slate-500">Product Name</p>
+												<p className="font-medium text-slate-950">{selectedItem.productName}</p>
+											</div>
 
-						<div className="space-y-3">
-							<div className="flex items-center justify-between">
-								<Label className="text-sm font-medium text-slate-800">Order Items</Label>
-								<span className="text-sm text-slate-500">{orderItems.length} item(s)</span>
+											<div>
+												<p className="text-slate-500">Volume</p>
+												<p className="font-medium text-slate-950">{formatVolume(selectedItem.volumeMl)}</p>
+											</div>
+										</div>
+									</div>
+								) : null}
+
+								{addItemError ? (
+									<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">
+										{addItemError}
+									</div>
+								) : null}
+
+								<Button
+									type="button"
+									onClick={handleAddOrderItem}
+									disabled={isLoadingItems || availableItems.length === 0}
+									className="w-full"
+								>
+									Add Product
+								</Button>
 							</div>
+						</CardContent>
+					</Card>
 
+					<Card>
+						<CardHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+							<div className="flex items-center justify-between">
+								<div className="space-y-2">
+									<CardTitle className="text-lg">Order Items</CardTitle>
+									<CardDescription>{orderItems.length} item(s) in this order</CardDescription>
+								</div>
+							</div>
+						</CardHeader>
+
+						<CardContent className="px-6 py-6">
 							{orderItems.length === 0 ? (
 								<p className="text-sm text-slate-500">No items added yet.</p>
 							) : (
-								<div className="space-y-3 rounded-2xl border border-slate-200 bg-white p-4">
+								<div className="space-y-3">
 									{orderItems.map((item, index) => {
 										const product = availableItems.find((productItem) => productItem.productCode === item.itemCode);
 
 										return (
 											<div
 												key={`${item.itemCode}-${index}`}
-												className="flex flex-col gap-2 rounded-xl border border-slate-200 p-3 sm:flex-row sm:items-center sm:justify-between"
+												className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
 											>
 												<div className="space-y-1">
 													<p className="font-semibold text-slate-900">{item.itemName}</p>
@@ -826,61 +834,79 @@ export default function OrderPaymentPage() {
 													</p>
 												</div>
 
-												<Button type="button" variant="outline" size="sm" onClick={() => handleRemoveOrderItem(index)}>
-													Remove
-												</Button>
+												<div className="flex items-center gap-3">
+													<p className="text-sm font-medium text-slate-900">
+														Subtotal: KSh {(item.quantity * item.wholesalePrice).toFixed(2)}
+													</p>
+													<Button type="button" variant="outline" size="sm" onClick={() => handleRemoveOrderItem(index)}>
+														Remove
+													</Button>
+												</div>
 											</div>
 										);
 									})}
 								</div>
 							)}
-						</div>
+						</CardContent>
+					</Card>
 
-						<div className="space-y-2">
-							<Label htmlFor="comment" className="text-sm font-medium text-slate-800">
-								Comment
-							</Label>
-							<Textarea
-								id="comment"
-								value={comment}
-								onChange={(event) => setComment(event.target.value)}
-								placeholder="Add instructions or notes for this order"
-								className="min-h-[120px]"
-								maxLength={200}
-							/>
-							<div className="text-right text-xs text-slate-500">{comment.length} / 200</div>
-						</div>
+					<Card>
+						<CardHeader className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+							<div className="space-y-2">
+								<CardTitle className="text-lg">Customer Details</CardTitle>
+								<CardDescription>Contact information for this order.</CardDescription>
+							</div>
+						</CardHeader>
 
-						<div className="space-y-2">
-							<Label htmlFor="phoneNumber" className="text-sm font-medium text-slate-800">
-								Customer Phone Number
-							</Label>
-							<Input
-								id="phoneNumber"
-								type="tel"
-								value={phoneNumber}
-								onChange={(event) => setPhoneNumber(event.target.value)}
-								placeholder="e.g. 254708..."
-							/>
-							<p className="text-sm text-slate-500">The M-Pesa prompt will be sent to this number.</p>
-						</div>
+						<CardContent className="space-y-5 px-6 py-6">
+							<div className="space-y-2">
+								<Label htmlFor="phoneNumber" className="text-sm font-medium text-slate-800">
+									Customer Phone Number
+								</Label>
+								<Input
+									id="phoneNumber"
+									type="tel"
+									value={phoneNumber}
+									onChange={(event) => setPhoneNumber(event.target.value)}
+									placeholder="e.g. 254708..."
+								/>
+								<p className="text-sm text-slate-500">The M-Pesa prompt will be sent to this number.</p>
+							</div>
 
-						<div className="flex flex-col gap-3 sm:flex-row">
-							<Button
-								type="button"
-								className="flex-1"
-								onClick={handleProceedToPayment}
-								disabled={!canProceed || isProcessing}
-							>
-								{isProcessing ? "Checking Payment..." : "Proceed to Payment"}
-							</Button>
+							<div className="space-y-2">
+								<div className="flex items-center justify-between">
+									<Label htmlFor="comment" className="text-sm font-medium text-slate-800">
+										Comment
+									</Label>
+									<span className="text-xs text-slate-500">{comment.length} / 200</span>
+								</div>
+								<Textarea
+									id="comment"
+									value={comment}
+									onChange={(event) => setComment(event.target.value)}
+									placeholder="Add instructions or notes for this order"
+									className="min-h-[100px]"
+									maxLength={200}
+								/>
+							</div>
+						</CardContent>
+					</Card>
 
-							<Button type="button" variant="ghost" className="flex-1" onClick={handleClearForm}>
-								Clear Form
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
+					<div className="flex flex-col gap-3 sm:flex-row">
+						<Button
+							type="button"
+							className="flex-1"
+							onClick={handleProceedToPayment}
+							disabled={!canProceed || isProcessing}
+						>
+							{isProcessing ? "Checking Payment..." : "Proceed to Payment"}
+						</Button>
+
+						<Button type="button" variant="ghost" className="flex-1" onClick={handleClearForm}>
+							Clear Form
+						</Button>
+					</div>
+				</div>
 
 				<div className="space-y-6">
 					<Card>
@@ -913,13 +939,6 @@ export default function OrderPaymentPage() {
 								<div className="flex items-center justify-between text-sm text-slate-600">
 									<span>Total Amount</span>
 									<span className="font-medium text-slate-900">KSh {totalAmount.toFixed(2)}</span>
-								</div>
-
-								<div className="flex items-start justify-between text-sm text-slate-600">
-									<span>Comment</span>
-									<span className="ml-4 max-w-[10rem] whitespace-pre-wrap text-right font-medium text-slate-900">
-										{comment || "-"}
-									</span>
 								</div>
 							</div>
 						</CardContent>

@@ -30,12 +30,12 @@ export const frontendNavData: NavProps["data"] = [
 				path: "/orders",
 				icon: <Icon icon="lucide:shopping-bag" size="24" />,
 				children: [
-					{
+					/*{
 						title: "Create Order",
 						path: "/order-payment",
-					},
+					},*/
 					{
-						title: "Paid Orders",
+						title: "Orders",
 						path: "/orders",
 					},
 				],

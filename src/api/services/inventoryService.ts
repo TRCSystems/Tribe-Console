@@ -310,12 +310,16 @@ export interface ReconciliationTransaction {
 	itemCount: number;
 	totalUnits: number;
 	basketTotal: number;
+	merchantName: string | null;
+	merchantPhone: string | null;
 	items: ReconciliationTransactionItem[];
 }
 
 export interface ReconciliationResponse {
 	date: string;
 	merchantId: string;
+	merchantName: string | null;
+	merchantPhone: string | null;
 	totalTransactions: number;
 	totalUnits: number;
 	totalRevenue: number;
@@ -1271,14 +1275,16 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-			return {
-				date,
-				merchantId,
-				totalTransactions: 0,
-				totalUnits: 0,
-				totalRevenue: 0,
-				transactions: [],
-			};
+		return {
+			date,
+			merchantId,
+			merchantName: null,
+			merchantPhone: null,
+			totalTransactions: 0,
+			totalUnits: 0,
+			totalRevenue: 0,
+			transactions: [],
+		};
 		}
 	}
 

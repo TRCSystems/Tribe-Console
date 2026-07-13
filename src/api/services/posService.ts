@@ -246,26 +246,40 @@ export const posService = {
 		});
 	},
 
-	fulfillOrder: (orderCode: string): Promise<any> => {
+	fulfillOrder: (orderCode: string, allowPartial: boolean = false): Promise<any> => {
 		return loyaltyApiClient.post<any>({
 			url: `/orders/${encodeURIComponent(orderCode)}/fulfill`,
+			params: {
+				allowPartial,
+			},
 		});
 	},
 
-	getMerchantOrders: (params: {
+	getDistributorOrders: (params: {
 		status: string;
+		paymentMode?: string;
 		startDate?: string;
 		endDate?: string;
 		page?: number;
 		size?: number;
 		sort?: string;
-	}): Promise<{ count: number; totalPages: number; currentPage: number; data: any[] }> => {
-		const { status, startDate, endDate, page, size, sort } = params;
+	}): Promise<{
+		role: string;
+		status: string;
+		count: number;
+		totalPages: number;
+		currentPage: number;
+		filterPaymentMode?: string;
+		filterStatus?: string;
+		data: any[];
+	}> => {
+		const { status, paymentMode, startDate, endDate, page, size, sort } = params;
 
 		return loyaltyApiClient
-			.get<{ count: number; totalPages: number; currentPage: number; data: any[] }>({
-				url: `/orders/merchant/status/${encodeURIComponent(status)}`,
+			.get<any>({
+				url: `/orders/distributor/status/${encodeURIComponent(status)}`,
 				params: {
+					...(paymentMode ? { paymentMode } : {}),
 					...(startDate ? { startDate } : {}),
 					...(endDate ? { endDate } : {}),
 					...(page !== undefined ? { page } : {}),
@@ -273,20 +287,32 @@ export const posService = {
 					...(sort ? { sort } : {}),
 				},
 			})
-			.then((res) => ({
-				count: typeof res?.count === "number" ? res.count : 0,
-				totalPages: typeof res?.totalPages === "number" ? res.totalPages : 1,
-				currentPage: typeof res?.currentPage === "number" ? res.currentPage : 0,
-				data: Array.isArray(res?.data) ? res.data : [],
-			}));
-	},
+			.then((res) => {
+				const body = parseJsonIfString(res);
+				const data = Array.isArray(body?.data) ? body.data : [];
+				const count =
+					typeof body?.count === "number"
+						? body.count
+						: typeof body?.totalElements === "number"
+							? body.totalElements
+							: data.length;
 
-	getDistributorOrders: (status: string): Promise<any[]> => {
-		return loyaltyApiClient
-			.get<any>({
-				url: `/orders/distributor/status/${encodeURIComponent(status)}`,
-			})
-			.then((res) => responseToArray(res));
+				return {
+					role: String(body?.role ?? ""),
+					status: String(body?.status ?? ""),
+					count,
+					totalPages: typeof body?.totalPages === "number" ? body.totalPages : 1,
+					currentPage:
+						typeof body?.currentPage === "number"
+							? body.currentPage
+							: typeof body?.page === "number"
+								? body.page
+								: 0,
+					filterPaymentMode: body?.filterPaymentMode,
+					filterStatus: body?.filterStatus,
+					data,
+				};
+			});
 	},
 
 	getProductDefaults: async (): Promise<ProductDefault[]> => {

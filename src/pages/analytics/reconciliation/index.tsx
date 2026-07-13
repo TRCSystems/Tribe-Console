@@ -47,16 +47,20 @@ const TransactionDialog = ({ transaction, isOpen, onOpenChange }: TransactionDia
 								<p className="text-xs font-medium uppercase text-slate-500">Sale Date & Time</p>
 								<p className="font-semibold text-slate-950">{formatDateTime(transaction.saleDatetime)}</p>
 							</div>
-							<div>
-								<p className="text-xs font-medium uppercase text-slate-500">Customer Phone</p>
-								<p className="font-semibold text-slate-950">{transaction.customerPhone || "N/A"}</p>
-							</div>
-							<div>
-								<p className="text-xs font-medium uppercase text-slate-500">Order Type</p>
-								<Badge className={transaction.items.some((i) => i.orderType === "WHOLESALE") ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}>
-									{transaction.items.some((i) => i.orderType === "WHOLESALE") ? "Wholesale" : "Retail"}
-								</Badge>
-							</div>
+					<div>
+						<p className="text-xs font-medium uppercase text-slate-500">Merchant Name</p>
+						<p className="font-semibold text-slate-950">{transaction.merchantName || "N/A"}</p>
+					</div>
+					<div>
+						<p className="text-xs font-medium uppercase text-slate-500">Merchant Phone</p>
+						<p className="font-semibold text-slate-950">{transaction.merchantPhone || "N/A"}</p>
+					</div>
+					<div>
+						<p className="text-xs font-medium uppercase text-slate-500">Order Type</p>
+						<Badge className={transaction.items.some((i) => i.orderType === "WHOLESALE") ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}>
+							{transaction.items.some((i) => i.orderType === "WHOLESALE") ? "Wholesale" : "Retail"}
+						</Badge>
+					</div>
 						</div>
 
 						<div className="border rounded-lg overflow-hidden">
@@ -140,6 +144,8 @@ const generateReconciliationPDF = (data: any, selectedDate: string) => {
 	</div>
 	<div class="report-meta">
 		<div><span class="label">Report Date</span><span class="value">${selectedDate}</span></div>
+		<div><span class="label">Merchant</span><span class="value">${data.merchantName || data.merchantId}</span></div>
+		<div><span class="label">Merchant Phone</span><span class="value">${data.merchantPhone || "N/A"}</span></div>
 		<div><span class="label">Total Transactions</span><span class="value">${data.totalTransactions}</span></div>
 		<div><span class="label">Total Revenue</span><span class="value">${formatCurrency(data.totalRevenue)}</span></div>
 	</div>
@@ -147,7 +153,17 @@ const generateReconciliationPDF = (data: any, selectedDate: string) => {
 		.map(
 			(t: any) => `
 	<div class="transaction-block">
-		<div class="transaction-header">Transaction: ${t.transactionRef.substring(0, 12)}... | ${formatDateTime(t.saleDatetime)} | ${t.items.some((i: any) => i.orderType === "WHOLESALE") ? "Wholesale" : "Retail"}</div>
+		<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+			<div><strong>Transaction Ref:</strong> ${t.transactionRef}</div>
+			<div><strong>Sale Date & Time:</strong> ${formatDateTime(t.saleDatetime)}</div>
+		</div>
+		<div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+			<div><strong>Merchant Name:</strong> ${t.merchantName || "N/A"}</div>
+			<div><strong>Merchant Phone:</strong> ${t.merchantPhone || "N/A"}</div>
+		</div>
+		<div style="margin-bottom: 10px;">
+			<strong>Order Type:</strong> ${t.items.some((i: any) => i.orderType === "WHOLESALE") ? "Wholesale" : "Retail"}
+		</div>
 		<table class="items-table">
 			<thead>
 				<tr>
@@ -275,7 +291,12 @@ export default function ReconciliationPage() {
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div>
 					<h1 className="text-3xl font-semibold tracking-tight text-slate-950">Daily Reconciliation</h1>
-					<p className="mt-2 text-sm text-slate-600">End-of-day reconciliation report for {merchantId}</p>
+					<p className="mt-2 text-sm text-slate-600">
+						End-of-day reconciliation report for {reconciliationData?.merchantName || merchantId}
+					</p>
+					{reconciliationData?.merchantPhone && (
+						<p className="text-sm text-slate-600">Phone: {reconciliationData.merchantPhone}</p>
+					)}
 				</div>
 				<div className="flex items-center gap-4">
 					<div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background">
@@ -383,48 +404,52 @@ export default function ReconciliationPage() {
 					<CardContent>
 						<div className="rounded-md border">
 							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead>Item Name</TableHead>
-										<TableHead>Time</TableHead>
-										<TableHead>Qty</TableHead>
-										<TableHead>Units</TableHead>
-										<TableHead className="text-right">Total</TableHead>
-										<TableHead>Type</TableHead>
-										<TableHead>Actions</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{transactions.map((t, index) => {
-										const hasWholesale = t.items.some((i) => i.orderType === "WHOLESALE");
-										return (
-											<TableRow key={`${t.transactionRef}-${index}`}>
-												<TableCell>
-													<span className="font-medium text-sm">{t.items[0]?.itemName || "Multiple Items"}</span>
-													{t.items.length > 1 && (
-														<span className="ml-1 text-xs text-slate-500">+ {t.items.length - 1} more</span>
-													)}
-												</TableCell>
-												<TableCell>{formatDateTime(t.saleDatetime)}</TableCell>
-												<TableCell>
-													<Badge variant="outline">{t.itemCount}</Badge>
-												</TableCell>
-												<TableCell>{t.totalUnits}</TableCell>
-												<TableCell className="text-right font-semibold text-green-600">{formatCurrency(t.basketTotal)}</TableCell>
-												<TableCell>
-													<Badge className={hasWholesale ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}>
-														{hasWholesale ? "Wholesale" : "Retail"}
-													</Badge>
-												</TableCell>
-												<TableCell>
-													<Button variant="outline" size="sm" onClick={() => handleViewTransaction(t)} className="flex items-center gap-2">
-														<Icon icon="lucide:eye" className="h-3 w-3" />
-														View
-													</Button>
-												</TableCell>
-											</TableRow>
-										);
-									})}
+							<TableHeader>
+								<TableRow>
+									<TableHead>Item Name</TableHead>
+									<TableHead>Time</TableHead>
+									<TableHead>Merchant</TableHead>
+									<TableHead>Phone</TableHead>
+									<TableHead>Qty</TableHead>
+									<TableHead>Units</TableHead>
+									<TableHead className="text-right">Total</TableHead>
+									<TableHead>Type</TableHead>
+									<TableHead>Actions</TableHead>
+								</TableRow>
+							</TableHeader>
+							<TableBody>
+								{transactions.map((t, index) => {
+									const hasWholesale = t.items.some((i) => i.orderType === "WHOLESALE");
+									return (
+										<TableRow key={`${t.transactionRef}-${index}`}>
+											<TableCell>
+												<span className="font-medium text-sm">{t.items[0]?.itemName || "Multiple Items"}</span>
+												{t.items.length > 1 && (
+													<span className="ml-1 text-xs text-slate-500">+ {t.items.length - 1} more</span>
+												)}
+											</TableCell>
+											<TableCell>{formatDateTime(t.saleDatetime)}</TableCell>
+											<TableCell>{t.merchantName || "N/A"}</TableCell>
+											<TableCell>{t.merchantPhone || "N/A"}</TableCell>
+											<TableCell>
+												<Badge variant="outline">{t.itemCount}</Badge>
+											</TableCell>
+											<TableCell>{t.totalUnits}</TableCell>
+											<TableCell className="text-right font-semibold text-green-600">{formatCurrency(t.basketTotal)}</TableCell>
+											<TableCell>
+												<Badge className={hasWholesale ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}>
+													{hasWholesale ? "Wholesale" : "Retail"}
+												</Badge>
+											</TableCell>
+											<TableCell>
+												<Button variant="outline" size="sm" onClick={() => handleViewTransaction(t)} className="flex items-center gap-2">
+													<Icon icon="lucide:eye" className="h-3 w-3" />
+													View
+												</Button>
+											</TableCell>
+										</TableRow>
+									);
+								})}
 								</TableBody>
 							</Table>
 						</div>
@@ -452,6 +477,10 @@ export default function ReconciliationPage() {
 					<div className="mb-8 border-b pb-4">
 						<h1 className="text-2xl font-bold">Daily Reconciliation Report</h1>
 						<p className="text-gray-600">Date: {selectedDate}</p>
+						<p className="text-gray-600">Merchant: {reconciliationData?.merchantName || reconciliationData?.merchantId}</p>
+						{reconciliationData?.merchantPhone && (
+							<p className="text-gray-600">Phone: {reconciliationData.merchantPhone}</p>
+						)}
 						<p className="text-gray-600">Report Date: {new Date().toLocaleString()}</p>
 					</div>
 					<div className="mb-6 grid grid-cols-3 gap-4">

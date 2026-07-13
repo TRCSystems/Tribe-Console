@@ -82,6 +82,8 @@ const getStatusBadgeVariant = (statusValue: string) => {
 			return "bg-red-100 text-red-800 hover:bg-red-100";
 		case "RECEIVED":
 			return "bg-blue-100 text-blue-800 hover:bg-blue-100";
+		case "FULFILLED":
+			return "bg-indigo-100 text-indigo-800 hover:bg-indigo-100";
 		default:
 			return "bg-slate-100 text-slate-800 hover:bg-slate-100";
 	}
@@ -90,18 +92,25 @@ const getStatusBadgeVariant = (statusValue: string) => {
 export default function OrdersPage() {
 	const navigate = useNavigate();
 
-	const [status, setStatus] = useState("PAID");
+	const [status, setStatus] = useState("PENDING");
+	const [paymentMode, setPaymentMode] = useState("PAY_ON_DELIVERY");
 	const [startDate, setStartDate] = useState("");
 	const [endDate, setEndDate] = useState("");
 	const [page, setPage] = useState(0);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [ordersResponse, setOrdersResponse] = useState<{
+		role: string;
+		status: string;
 		count: number;
 		totalPages: number;
 		currentPage: number;
+		filterPaymentMode?: string;
+		filterStatus?: string;
 		data: Order[];
 	}>({
+		role: "",
+		status: "",
 		count: 0,
 		totalPages: 1,
 		currentPage: 0,
@@ -109,27 +118,30 @@ export default function OrdersPage() {
 	});
 	const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 	const [isModalOpen, setIsModalOpen] = useState(false);
+	const [isFulfilling, setIsFulfilling] = useState(false);
+	const [fulfillError, setFulfillError] = useState<string | null>(null);
 
-	const fetchOrders = async () => {
-		setIsLoading(true);
-		setError(null);
+	const handleFulfillOrder = async () => {
+		if (!selectedOrder || isFulfilling) return;
+
+		setIsFulfilling(true);
+		setFulfillError(null);
 
 		try {
-			const response = await posService.getMerchantOrders({
-				status,
-				startDate: startDate || undefined,
-				endDate: endDate || undefined,
-				page,
-				size: PAGE_SIZE,
-				sort: "orderDate,desc",
-			});
+			await posService.fulfillOrder(selectedOrder.orderCode, false);
 
-			setOrdersResponse(response);
+			const fulfilledOrder: Order = { ...selectedOrder, status: "FULFILLED" };
+
+			setSelectedOrder(fulfilledOrder);
+			setOrdersResponse((prev) => ({
+				...prev,
+				data: prev.data.map((order) => (order.id === fulfilledOrder.id ? fulfilledOrder : order)),
+			}));
 		} catch (err) {
-			console.error("Failed to fetch orders:", err);
-			setError("Failed to load orders. Please try again later.");
+			console.error("Failed to fulfill order:", err);
+			setFulfillError("We could not fulfill this order. Please try again.");
 		} finally {
-			setIsLoading(false);
+			setIsFulfilling(false);
 		}
 	};
 
@@ -149,8 +161,9 @@ export default function OrdersPage() {
 
 		const loadOrders = async () => {
 			try {
-				const response = await posService.getMerchantOrders({
+				const response = await posService.getDistributorOrders({
 					status,
+					paymentMode,
 					startDate: startDate || undefined,
 					endDate: endDate || undefined,
 					page,
@@ -176,7 +189,7 @@ export default function OrdersPage() {
 		return () => {
 			isMounted = false;
 		};
-	}, [status, startDate, endDate, page]);
+	}, [status, paymentMode, startDate, endDate, page]);
 
 	if (isLoading) {
 		return (
@@ -205,10 +218,34 @@ export default function OrdersPage() {
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div>
 					<h1 className="text-3xl font-semibold tracking-tight text-slate-950">Orders</h1>
-					<p className="mt-2 text-sm text-slate-600">View order payments and their details.</p>
+					<p className="mt-2 text-sm text-slate-600">View distributor orders and their details.</p>
+					{ordersResponse.role ? (
+						<p className="mt-1 text-xs text-slate-500">
+							Role: {ordersResponse.role}
+							{ordersResponse.filterStatus ? ` · Status: ${ordersResponse.filterStatus}` : ""}
+							{ordersResponse.filterPaymentMode ? ` · Payment Mode: ${ordersResponse.filterPaymentMode}` : ""}
+							{` · ${ordersResponse.count} order(s)`}
+						</p>
+					) : null}
 				</div>
 
 				<div className="flex flex-col gap-3 sm:flex-row">
+					<Select
+						value={paymentMode}
+						onValueChange={(newPaymentMode) => {
+							setPaymentMode(newPaymentMode);
+							setPage(0);
+						}}
+					>
+						<SelectTrigger className="w-[200px]">
+							<SelectValue placeholder="Select payment mode" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="PREPAID">Prepaid</SelectItem>
+							<SelectItem value="PAY_ON_DELIVERY">Pay On Delivery</SelectItem>
+						</SelectContent>
+					</Select>
+
 					<Select
 						value={status}
 						onValueChange={(newStatus) => {
@@ -224,10 +261,11 @@ export default function OrdersPage() {
 							<SelectItem value="PENDING">Pending Orders</SelectItem>
 							<SelectItem value="CANCELLED">Cancelled Orders</SelectItem>
 							<SelectItem value="RECEIVED">Received Orders</SelectItem>
+							<SelectItem value="FULFILLED">Fulfilled Orders</SelectItem>
 						</SelectContent>
 					</Select>
 
-					<Button type="button" onClick={() => navigate("/inventory/order-payment")}>
+					<Button type="button" onClick={() => navigate("/order-payment")}>
 						Create Order
 					</Button>
 
@@ -291,20 +329,21 @@ export default function OrdersPage() {
 					<Table>
 						<TableHeader>
 							<TableRow>
-								<TableHead>Order</TableHead>
-								<TableHead>Date</TableHead>
-								<TableHead>Distributor</TableHead>
-								<TableHead>Status</TableHead>
-								<TableHead className="text-center">Items</TableHead>
-								<TableHead className="text-right">Total</TableHead>
-								<TableHead>Phone</TableHead>
-								<TableHead className="text-center">Actions</TableHead>
-							</TableRow>
+							<TableHead>Order</TableHead>
+							<TableHead>Date</TableHead>
+							<TableHead>Distributor</TableHead>
+							<TableHead>Merchant</TableHead>
+							<TableHead>Status</TableHead>
+							<TableHead className="text-center">Items</TableHead>
+							<TableHead className="text-right">Total</TableHead>
+							<TableHead>Phone</TableHead>
+							<TableHead className="text-center">Actions</TableHead>
+						</TableRow>
 						</TableHeader>
 						<TableBody>
 							{ordersResponse.data.length === 0 ? (
 								<TableRow>
-									<TableCell colSpan={8} className="h-24 text-center text-slate-500">
+									<TableCell colSpan={9} className="h-24 text-center text-slate-500">
 										No orders match your filters.
 									</TableCell>
 								</TableRow>
@@ -313,7 +352,8 @@ export default function OrdersPage() {
 									<TableRow key={order.id}>
 										<TableCell className="font-medium">{order.orderCode}</TableCell>
 										<TableCell>{formatDate(order.orderDate)}</TableCell>
-										<TableCell>{order.distributor.businessName}</TableCell>
+										<TableCell>{order.distributor?.businessName ?? "-"}</TableCell>
+										<TableCell>{order.merchant?.businessName ?? "-"}</TableCell>
 										<TableCell>
 											<Badge className={getStatusBadgeVariant(order.status)}>{order.status}</Badge>
 										</TableCell>
@@ -423,10 +463,30 @@ export default function OrdersPage() {
 
 								<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
 									<div className="flex items-center gap-3">
+										<Icon icon="lucide:tag" className="h-5 w-5 text-slate-500" />
+										<div>
+											<p className="text-xs font-medium uppercase text-slate-500">Status</p>
+											<p className="font-semibold text-slate-950">{selectedOrder.status}</p>
+										</div>
+									</div>
+								</div>
+
+								<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+									<div className="flex items-center gap-3">
 										<Icon icon="lucide:user-round" className="h-5 w-5 text-slate-500" />
 										<div>
 											<p className="text-xs font-medium uppercase text-slate-500">Distributor</p>
-											<p className="font-semibold text-slate-950">{selectedOrder.distributor.businessName}</p>
+											<p className="font-semibold text-slate-950">{selectedOrder.distributor?.businessName ?? "-"}</p>
+										</div>
+									</div>
+								</div>
+
+								<div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+									<div className="flex items-center gap-3">
+										<Icon icon="lucide:store" className="h-5 w-5 text-slate-500" />
+										<div>
+											<p className="text-xs font-medium uppercase text-slate-500">Merchant</p>
+											<p className="font-semibold text-slate-950">{selectedOrder.merchant?.businessName ?? "-"}</p>
 										</div>
 									</div>
 								</div>
@@ -463,10 +523,26 @@ export default function OrdersPage() {
 						</div>
 					)}
 
-					<DialogFooter>
-						<Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-							Close
-						</Button>
+					<DialogFooter className="flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+						{fulfillError ? (
+							<p className="text-sm font-medium text-red-600">{fulfillError}</p>
+						) : null}
+
+						<div className="flex flex-col gap-3 sm:flex-row">
+							{selectedOrder && selectedOrder.status === "PENDING" ? (
+								<Button
+									type="button"
+									onClick={handleFulfillOrder}
+									disabled={isFulfilling}
+								>
+									{isFulfilling ? "Fulfilling..." : "Fulfill Order"}
+								</Button>
+							) : null}
+
+							<Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+								Close
+							</Button>
+						</div>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
