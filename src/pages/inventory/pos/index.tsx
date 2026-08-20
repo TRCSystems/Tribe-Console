@@ -1664,11 +1664,13 @@ export default function PointOfSalePage() {
 														}
 														className="text-xs px-2 py-1 border border-black/20"
 													>
-														{isWholesaleUnavailable
-															? "Missing price"
-															: itemData.availableStock === 0
-																? "Sold Out"
-																: `${itemData.availableStock} in stock`}
+													{isWholesaleUnavailable
+														? "Missing price"
+														: itemData.availableStock === 0
+															? "Sold Out"
+															: itemData.availableStock < 5
+																? "Low Stock"
+																: "Sufficient"}
 													</Badge>
 												</div>
 
