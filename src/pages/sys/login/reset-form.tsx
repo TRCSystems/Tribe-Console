@@ -33,7 +33,7 @@ function ResetForm() {
 					<FormField
 						control={form.control}
 						name="email"
-						render={({ field }) => (
+						render={() => (
 							<FormItem>
 								<FormMessage />
 							</FormItem>

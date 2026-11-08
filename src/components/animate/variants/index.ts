@@ -20,7 +20,8 @@ export * from "./slide";
 export * from "./transition";
 export * from "./zoom";
 
-export function getVariant(variant = "slideInUp") {
+// Typed loosely: some variants use an empty easing list that motion's Variants type rejects.
+export function getVariant(variant = "slideInUp"): any {
 	return {
 		// Slide
 		slideInUp: varSlide().inUp,

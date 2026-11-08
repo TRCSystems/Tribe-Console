@@ -187,10 +187,6 @@ export default function ExpenseTrackingPage() {
 		return `KSh ${amount?.toFixed(2) || "0.00"}`;
 	};
 
-	const _formatDate = (dateString: string) => {
-		return dayjs(dateString).format("MMM D, YYYY h:mm A");
-	};
-
 	const formatTableDate = (dateString: string) => {
 		return dayjs(dateString).format("MMM D, h:mm A");
 	};
@@ -210,8 +206,8 @@ export default function ExpenseTrackingPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Expense Tracking</h1>
-					<p className="text-muted-foreground">Record and track business expenses</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Expense Tracking</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Record and track business expenses</p>
 				</div>
 				<div className="text-right">
 					<p className="text-sm text-muted-foreground">Total Expenses</p>
@@ -432,7 +428,7 @@ export default function ExpenseTrackingPage() {
 						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
 					</div>
 					<p className="text-xs text-gray-400 dark:text-gray-500">
-						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+						Tribe by <span className="font-bold text-gray-600 dark:text-gray-300">ASANO GROUP LIMITED</span>
 					</p>
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>

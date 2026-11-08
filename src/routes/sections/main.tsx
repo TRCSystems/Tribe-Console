@@ -11,8 +11,18 @@ import SimpleLayout from "@/layouts/simple";
 const Page403 = lazy(() => import("@/pages/sys/error/Page403"));
 const Page404 = lazy(() => import("@/pages/sys/error/Page404"));
 const Page500 = lazy(() => import("@/pages/sys/error/Page500"));
+const ShopOrderPage = lazy(() => import("@/pages/shop-order"));
 
 export const mainRoutes: RouteObject[] = [
+	// Public shop order page, opened from an SMS/WhatsApp link (no login, own layout)
+	{
+		path: "/o/:token",
+		element: (
+			<Suspense fallback={<LineLoading />}>
+				<ShopOrderPage />
+			</Suspense>
+		),
+	},
 	{
 		path: "/",
 		element: (

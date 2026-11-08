@@ -3,6 +3,7 @@
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { UploadAvatar } from "@/components/upload";
+import type { UserInfo } from "#/entity";
 import { useUserActions, useUserEmail, useUserInfo } from "@/store/userStore"; // ADDED
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardFooter } from "@/ui/card";
@@ -22,7 +23,8 @@ type FieldType = {
 };
 
 export default function GeneralTab() {
-	const { avatar, username } = useUserInfo();
+	const userInfo = useUserInfo();
+	const { avatar, username } = userInfo;
 	const userEmail = useUserEmail(); // ADDED: Get real email
 	const { setUserInfo } = useUserActions(); // ADDED: To update user info
 
@@ -39,11 +41,12 @@ export default function GeneralTab() {
 		const formData = form.getValues();
 
 		// Update user info in store
+		// Keep the rest of the signed-in user (id, role, merchant); replacing it would sign them out.
 		setUserInfo({
-			username: formData.name || username,
-			email: formData.email || userEmail,
-			// Add other fields as needed
-		});
+			...userInfo,
+			username: formData.name || username || "",
+			email: formData.email || userEmail || "",
+		} as UserInfo);
 
 		toast.success("Update success!");
 	};

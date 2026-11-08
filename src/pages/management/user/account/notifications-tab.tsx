@@ -55,12 +55,12 @@ export default function NotificationsTab() {
 		refetch,
 	} = useQuery({
 		queryKey: ["today-transactions", today, merchantId],
-		queryFn: () => inventoryService.getDailySalesSummary(merchantId || "HTL001", today),
+		queryFn: () => inventoryService.getDailySalesSummary(today),
 		refetchInterval: 30000, // Refresh every 30 seconds
 		enabled: !!merchantId, // Only fetch if we have a merchant ID
 	});
 
-	const transactionsData = todayTransactions as DailyTransactionsResponse;
+	const transactionsData = todayTransactions as unknown as DailyTransactionsResponse;
 
 	const handleSaveSettings = () => {
 		// Here you would typically save the notification settings to your backend

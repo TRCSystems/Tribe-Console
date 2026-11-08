@@ -70,8 +70,8 @@ export default function EditUserPage() {
 						<Icon icon="lucide:arrow-left" className="h-4 w-4" />
 					</Button>
 					<div>
-						<h1 className="text-2xl font-bold">Edit User</h1>
-						<p className="text-muted-foreground">Loading user information...</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit User</h1>
+						<p className="mt-1 text-sm text-muted-foreground">Loading user information...</p>
 					</div>
 				</div>
 				<div className="flex items-center justify-center min-h-64">
@@ -88,8 +88,8 @@ export default function EditUserPage() {
 					<Icon icon="lucide:arrow-left" className="h-4 w-4" />
 				</Button>
 				<div>
-					<h1 className="text-2xl font-bold">Edit User</h1>
-					<p className="text-muted-foreground">Update user information</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit User</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Update user information</p>
 				</div>
 			</div>
 
@@ -112,19 +112,19 @@ export default function EditUserPage() {
 							{/* Display current user info */}
 							<div className="grid grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
 								<div>
-									<label className="text-sm font-medium">Username</label>
+									<span className="text-sm font-medium">Username</span>
 									<p className="text-lg">{userData?.username}</p>
 								</div>
 								<div>
-									<label className="text-sm font-medium">Role</label>
+									<span className="text-sm font-medium">Role</span>
 									<p className="text-lg">{userData?.role}</p>
 								</div>
 								<div>
-									<label className="text-sm font-medium">Current Status</label>
+									<span className="text-sm font-medium">Current Status</span>
 									<p className="text-lg">{userData?.status}</p>
 								</div>
 								<div>
-									<label className="text-sm font-medium">User ID</label>
+									<span className="text-sm font-medium">User ID</span>
 									<p className="text-lg">{userData?.id}</p>
 								</div>
 							</div>

@@ -1,7 +1,7 @@
 // src/routes/components/role-route-guard.tsx - UPDATED
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { ROLE_PERMISSIONS, ROUTE_PERMISSIONS, type UserRole } from "#/entity";
+import { ROLE_PERMISSIONS, ROUTE_PERMISSIONS } from "#/entity";
 import { useUserRole } from "@/store/userStore";
 
 interface RoleRouteGuardProps {
@@ -46,7 +46,9 @@ export const RoleRouteGuard = ({ children }: RoleRouteGuardProps) => {
 		if (userRole === "MANAGER") {
 			const hasAccess =
 				requiredPermissions.length === 0 ||
-				requiredPermissions.some((permission) => ROLE_PERMISSIONS[userRole]?.includes(permission));
+				requiredPermissions.some((permission) =>
+					(ROLE_PERMISSIONS[userRole] as readonly string[] | undefined)?.includes(permission),
+				);
 
 			if (!hasAccess) {
 				console.warn(`🚫 Access denied for ${userRole} to ${currentPath}`);

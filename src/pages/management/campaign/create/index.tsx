@@ -135,8 +135,8 @@ export default function CreateCampaignPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">Create New Campaign</h1>
-				<p className="text-muted-foreground">Set up a new marketing campaign using the Loyalty Engine</p>
+				<h1 className="text-2xl font-semibold tracking-tight text-foreground">Create New Campaign</h1>
+				<p className="mt-1 text-sm text-muted-foreground">Set up a new marketing campaign using the Loyalty Engine</p>
 			</div>
 
 			<Card>
@@ -243,6 +243,7 @@ export default function CreateCampaignPage() {
 							</div>
 
 							{messages.map((message, index) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: message rows have no id until saved
 								<div key={index} className="flex gap-2 items-start">
 									<div className="flex-1">
 										<Textarea

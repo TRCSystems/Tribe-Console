@@ -2,12 +2,13 @@ import { ThemeColorPresets } from "#/enum";
 import { rgbAlpha } from "@/utils/theme";
 
 export const presetsColors = {
+	// Tribe brand purple (the logo colour)
 	[ThemeColorPresets.Default]: {
-		lighter: "#C8FAD6",
-		light: "#5BE49B",
-		default: "#00A76F",
-		dark: "#007867",
-		darker: "#004B50",
+		lighter: "#EEEDFE",
+		light: "#AFA9EC",
+		default: "#534AB7",
+		dark: "#3C3489",
+		darker: "#26215C",
 	},
 	[ThemeColorPresets.Cyan]: {
 		lighter: "#CCF4FE",

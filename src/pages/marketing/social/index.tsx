@@ -68,7 +68,7 @@ export default function SocialMarketingPage() {
 						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
 					</div>
 					<p className="text-xs text-gray-400 dark:text-gray-500">
-						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+						Tribe by <span className="font-bold text-gray-600 dark:text-gray-300">ASANO GROUP LIMITED</span>
 					</p>
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>

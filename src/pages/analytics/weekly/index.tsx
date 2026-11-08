@@ -115,8 +115,6 @@ const secureData = {
 	},
 };
 
-const _COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
-
 // Secure export function
 const exportReport = async (currentData: any, merchantId: string, reportType: string, dateRange: string) => {
 	try {
@@ -572,7 +570,7 @@ const generateBankingReportHTML = (data: any) => {
             <div class="footer-section">
                 <h5>PREPARED BY</h5>
                 <p>TRIBE Business Analytics System<br>
-                Powered by TRC Systems<br>
+                Tribe by ASANO GROUP LIMITED<br>
                 ${new Date(data.generatedAt).toLocaleString("en-US")}</p>
             </div>
             
@@ -589,7 +587,7 @@ const generateBankingReportHTML = (data: any) => {
         </div>
         
         <div style="text-align: center; margin-top: 20px; font-size: 9pt; color: #999;">
-            <p>© ${new Date().getFullYear()} TRC Systems. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} ASANO GROUP LIMITED. All rights reserved.</p>
             <p>This document is generated electronically and is valid without signature.</p>
         </div>
     </div>
@@ -753,7 +751,8 @@ export default function WeeklyAnalyticsPage() {
 	const getTransformedData = () => {
 		if (!weeklyAnalytics) return null;
 
-		const data = weeklyAnalytics.data || weeklyAnalytics;
+		// Older backends sent these fields flat and under other names; read loosely.
+		const data: any = weeklyAnalytics.data || weeklyAnalytics;
 
 		// Store securely
 		const transformed = {
@@ -816,8 +815,8 @@ export default function WeeklyAnalyticsPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Business Analytics & Reports</h1>
-					<p className="text-muted-foreground">Comprehensive business insights and performance reports</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Business Analytics & Reports</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Comprehensive business insights and performance reports</p>
 				</div>
 				<div className="flex items-center gap-3">
 					<UserRoleIndicator />
@@ -829,7 +828,7 @@ export default function WeeklyAnalyticsPage() {
 				<CardContent className="p-4">
 					<div className="flex items-center gap-4">
 						<div className="flex-1">
-							<label className="text-sm font-medium mb-2 block">Date Range</label>
+							<span className="text-sm font-medium mb-2 block">Date Range</span>
 							<Select value={dateRange} onValueChange={setDateRange}>
 								<SelectTrigger className="w-40">
 									<SelectValue />
@@ -948,7 +947,7 @@ export default function WeeklyAnalyticsPage() {
 												cx="50%"
 												cy="50%"
 												labelLine={false}
-												label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+												label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
 												outerRadius={80}
 												fill="#8884d8"
 												dataKey="value"

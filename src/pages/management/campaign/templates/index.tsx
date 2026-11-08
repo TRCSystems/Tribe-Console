@@ -44,8 +44,8 @@ export default function CampaignTemplatesPage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold">Campaign Templates</h1>
-						<p className="text-muted-foreground">Browse and use pre-built campaign templates</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Campaign Templates</h1>
+						<p className="mt-1 text-sm text-muted-foreground">Browse and use pre-built campaign templates</p>
 					</div>
 				</div>
 				<Card>
@@ -64,8 +64,8 @@ export default function CampaignTemplatesPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Campaign Templates</h1>
-					<p className="text-muted-foreground">Browse and use pre-built campaign templates</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Campaign Templates</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Browse and use pre-built campaign templates</p>
 				</div>
 			</div>
 

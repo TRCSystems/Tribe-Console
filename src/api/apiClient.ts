@@ -8,6 +8,7 @@ import axios, {
 } from "axios";
 import { GLOBAL_CONFIG } from "@/global-config";
 import useUserStore from "@/store/userStore";
+import { getStockViewToken, OWNER_REPORT_URL_PATTERNS } from "@/utils/stock-visibility";
 
 // Create separate instances for different base URLs
 const mainApiInstance = axios.create({
@@ -57,8 +58,17 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
 	// Add header to prevent browser auth dialog
 	newConfig.headers["X-Requested-With"] = "XMLHttpRequest";
 
-	if (token) {
+	// The shop order page (/o/:token) is public: never send a portal login with it. A stale login left in
+	// the phone's browser used to make the backend answer with an empty response.
+	const isPublicShopOrder = /^\/?shop-order\//.test(config.url ?? "");
+	if (token && !isPublicShopOrder) {
 		newConfig.headers.Authorization = `Bearer ${token}`;
+	}
+
+	// Owner stock-view token goes ONLY to owner reports, so POS/Stock pages never receive quantities
+	const stockViewToken = getStockViewToken();
+	if (stockViewToken && OWNER_REPORT_URL_PATTERNS.some((pattern) => pattern.test(config.url ?? ""))) {
+		newConfig.headers["X-Stock-View-Token"] = stockViewToken;
 	}
 
 	return newConfig;

@@ -75,7 +75,7 @@ export class ElectronFileSystem {
 			filePath = result.filePaths[0];
 		}
 
-		const readResult = await ElectronFileSystem.api.readFile(filePath);
+		const readResult = await ElectronFileSystem.api.readFile(filePath as string);
 		if (!readResult.success) {
 			throw new Error(`Failed to read file: ${readResult.error}`);
 		}

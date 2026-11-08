@@ -11,7 +11,7 @@ export type UseScrollProgressReturn = {
 	/** 垂直滚动进度值 (0-1) */
 	scrollYProgress: MotionValue<number>;
 	/** 容器元素的引用，用于容器滚动模式 */
-	elementRef: React.RefObject<HTMLDivElement | null>;
+	elementRef: React.RefObject<HTMLDivElement>;
 };
 
 /**

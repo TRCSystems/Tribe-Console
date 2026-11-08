@@ -69,8 +69,8 @@ export default function CreateUserPage() {
 					<Icon icon="lucide:arrow-left" className="h-4 w-4" />
 				</Button>
 				<div>
-					<h1 className="text-2xl font-bold">Create System User</h1>
-					<p className="text-muted-foreground">Add a new user to the system</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Create System User</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Add a new user to the system</p>
 				</div>
 			</div>
 

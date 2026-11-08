@@ -4,7 +4,6 @@
  */
 
 import { AuthGuard } from "@/components/auth/auth-guard";
-import { useUserRole } from "@/store/userStore";
 
 interface RoleUIGuardProps {
 	children: React.ReactNode;
@@ -28,8 +27,6 @@ export const RoleUIGuard = ({
 	readOnlyFallback: _readOnlyFallback,
 	noAccessFallback = null,
 }: RoleUIGuardProps) => {
-	const _userRole = useUserRole();
-
 	// If user has write permission, show full access
 	return (
 		<AuthGuard check={permission} baseOn="permission" fallback={noAccessFallback}>

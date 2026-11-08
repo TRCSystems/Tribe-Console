@@ -1,9 +1,12 @@
 // Original Author: Marcellas
 // src/pages/analytics/reconciliation/index.tsx - Daily Reconciliation Report Page
-import { useQuery } from "@tanstack/react-query";
-import React, { useRef, useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { message } from "antd";
+import type React from "react";
+import { useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import inventoryService, { ReconciliationTransaction } from "@/api/services/inventoryService";
+import { loyaltyApiClient } from "@/api/apiClient";
+import inventoryService, { type ReconciliationTransaction } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useMerchantId } from "@/store/userStore";
@@ -13,6 +16,99 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/ui/dialog";
 import { ScrollArea } from "@/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/ui/table";
+import { useCanViewStockCountResults } from "@/utils/stock-visibility";
+
+/** Margin amount with % — or a dash when the cost wasn't recorded for this sale. */
+const MarginValue = ({ amount, pct }: { amount?: number | null; pct?: number | null }) => {
+	if (amount === null || amount === undefined) {
+		return (
+			<span className="text-slate-400" title="No cost recorded for this sale">
+				—
+			</span>
+		);
+	}
+	const formatted = `KShs ${Number(amount).toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+	return (
+		<span className={amount < 0 ? "text-red-600" : "text-emerald-700"}>
+			{formatted}
+			{pct !== null && pct !== undefined && <span className="ml-1 text-xs text-slate-500">({pct}%)</span>}
+		</span>
+	);
+};
+
+/** Sales and margin from the 1st of the month up to the selected day, plus "send month summary" for the owner. */
+const MonthToDate = ({
+	data,
+}: {
+	data?: {
+		date?: string;
+		mtdFrom?: string | null;
+		mtdSales?: number | null;
+		mtdRevenue?: number | null;
+		mtdMargin?: number | null;
+		mtdMarginPct?: number | null;
+		mtdLinesWithoutCost?: number | null;
+	} | null;
+}) => {
+	const isOwner = useCanViewStockCountResults();
+	const sendSummary = useMutation({
+		mutationFn: async () => {
+			const month = (data?.date ?? new Date().toISOString()).slice(0, 7);
+			const res = (await loyaltyApiClient.post({
+				url: "/inventory/reports/monthly-summary/send",
+				params: { month },
+			})) as { status?: string; message?: string };
+			if (res?.status === "FAILURE") throw new Error(res.message || "Could not send the summary");
+			return res;
+		},
+		onSuccess: () => message.success("Month summary sent to the owner's phone(s)"),
+		onError: (e: Error) => message.error(e.message),
+	});
+
+	if (!data || data.mtdRevenue === undefined || data.mtdRevenue === null) return null;
+	const kes = (n?: number | null) => `KShs ${Number(n ?? 0).toLocaleString("en-KE", { maximumFractionDigits: 0 })}`;
+	const fmt = (d?: string | null) =>
+		d ? new Date(d).toLocaleDateString(undefined, { day: "numeric", month: "short" }) : "—";
+
+	return (
+		<Card className="border-emerald-200 bg-emerald-50/40">
+			<CardContent className="p-5">
+				<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+					<div>
+						<p className="text-sm font-semibold">
+							Month to date ({fmt(data.mtdFrom)} – {fmt(data.date)})
+						</p>
+						<p className="text-xs text-muted-foreground">
+							Everything sold from the 1st of the month up to the selected day.
+							{data.mtdLinesWithoutCost
+								? ` ${data.mtdLinesWithoutCost} item(s) with no cost are left out of the margin.`
+								: ""}
+						</p>
+					</div>
+					<div className="flex flex-wrap items-center gap-6">
+						<div>
+							<p className="text-xs text-muted-foreground">Sales</p>
+							<p className="text-xl font-bold text-green-700">{kes(data.mtdRevenue)}</p>
+							<p className="text-xs text-muted-foreground">{data.mtdSales ?? 0} sales</p>
+						</div>
+						<div>
+							<p className="text-xs text-muted-foreground">Margin</p>
+							<p className="text-xl font-bold">
+								<MarginValue amount={data.mtdMargin} pct={data.mtdMarginPct} />
+							</p>
+						</div>
+						{isOwner && (
+							<Button variant="outline" size="sm" onClick={() => sendSummary.mutate()} disabled={sendSummary.isPending}>
+								<Icon icon="lucide:message-square" className="mr-2 h-4 w-4" />
+								{sendSummary.isPending ? "Sending…" : "Send month summary"}
+							</Button>
+						)}
+					</div>
+				</div>
+			</CardContent>
+		</Card>
+	);
+};
 
 interface TransactionDialogProps {
 	transaction: ReconciliationTransaction;
@@ -47,20 +143,26 @@ const TransactionDialog = ({ transaction, isOpen, onOpenChange }: TransactionDia
 								<p className="text-xs font-medium uppercase text-slate-500">Sale Date & Time</p>
 								<p className="font-semibold text-slate-950">{formatDateTime(transaction.saleDatetime)}</p>
 							</div>
-					<div>
-						<p className="text-xs font-medium uppercase text-slate-500">Merchant Name</p>
-						<p className="font-semibold text-slate-950">{transaction.merchantName || "N/A"}</p>
-					</div>
-					<div>
-						<p className="text-xs font-medium uppercase text-slate-500">Merchant Phone</p>
-						<p className="font-semibold text-slate-950">{transaction.merchantPhone || "N/A"}</p>
-					</div>
-					<div>
-						<p className="text-xs font-medium uppercase text-slate-500">Order Type</p>
-						<Badge className={transaction.items.some((i) => i.orderType === "WHOLESALE") ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}>
-							{transaction.items.some((i) => i.orderType === "WHOLESALE") ? "Wholesale" : "Retail"}
-						</Badge>
-					</div>
+							<div>
+								<p className="text-xs font-medium uppercase text-slate-500">Merchant Name</p>
+								<p className="font-semibold text-slate-950">{transaction.merchantName || "N/A"}</p>
+							</div>
+							<div>
+								<p className="text-xs font-medium uppercase text-slate-500">Merchant Phone</p>
+								<p className="font-semibold text-slate-950">{transaction.merchantPhone || "N/A"}</p>
+							</div>
+							<div>
+								<p className="text-xs font-medium uppercase text-slate-500">Order Type</p>
+								<Badge
+									className={
+										transaction.items.some((i) => i.orderType === "WHOLESALE")
+											? "bg-blue-100 text-blue-800"
+											: "bg-green-100 text-green-800"
+									}
+								>
+									{transaction.items.some((i) => i.orderType === "WHOLESALE") ? "Wholesale" : "Retail"}
+								</Badge>
+							</div>
 						</div>
 
 						<div className="border rounded-lg overflow-hidden">
@@ -71,6 +173,7 @@ const TransactionDialog = ({ transaction, isOpen, onOpenChange }: TransactionDia
 										<th className="px-4 py-2 text-left text-sm font-semibold">Qty</th>
 										<th className="px-4 py-2 text-right text-sm font-semibold">Unit Price</th>
 										<th className="px-4 py-2 text-right text-sm font-semibold">Total</th>
+										<th className="px-4 py-2 text-right text-sm font-semibold">Margin</th>
 									</tr>
 								</thead>
 								<tbody>
@@ -82,14 +185,26 @@ const TransactionDialog = ({ transaction, isOpen, onOpenChange }: TransactionDia
 											</td>
 											<td className="px-4 py-2">{item.quantity}</td>
 											<td className="px-4 py-2 text-right">{formatCurrency(item.unitPrice)}</td>
-											<td className="px-4 py-2 text-right font-semibold text-green-600">{formatCurrency(item.totalPrice)}</td>
+											<td className="px-4 py-2 text-right font-semibold text-green-600">
+												{formatCurrency(item.totalPrice)}
+											</td>
+											<td className="px-4 py-2 text-right">
+												<MarginValue amount={item.lineMargin} />
+											</td>
 										</tr>
 									))}
 								</tbody>
 								<tfoot className="bg-slate-50 border-t">
 									<tr>
-										<td colSpan={3} className="px-4 py-2 font-bold">Basket Total</td>
-										<td className="px-4 py-2 font-bold text-right text-green-600">{formatCurrency(transaction.basketTotal)}</td>
+										<td colSpan={3} className="px-4 py-2 font-bold">
+											Basket Total
+										</td>
+										<td className="px-4 py-2 font-bold text-right text-green-600">
+											{formatCurrency(transaction.basketTotal)}
+										</td>
+										<td className="px-4 py-2 font-bold text-right">
+											<MarginValue amount={transaction.basketMargin} pct={transaction.marginPct} />
+										</td>
 									</tr>
 								</tfoot>
 							</table>
@@ -97,7 +212,9 @@ const TransactionDialog = ({ transaction, isOpen, onOpenChange }: TransactionDia
 					</div>
 				</ScrollArea>
 				<div className="flex justify-end pt-4">
-					<Button onClick={() => onOpenChange(false)} variant="outline">Close</Button>
+					<Button onClick={() => onOpenChange(false)} variant="outline">
+						Close
+					</Button>
 				</div>
 			</DialogContent>
 		</Dialog>
@@ -105,7 +222,8 @@ const TransactionDialog = ({ transaction, isOpen, onOpenChange }: TransactionDia
 };
 
 const generateReconciliationPDF = (data: any, selectedDate: string) => {
-	const formatCurrency = (amount: number) => `KShs ${amount?.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}`;
+	const formatCurrency = (amount: number) =>
+		`KShs ${amount?.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}`;
 
 	const formatDateTime = (datetime: string) => {
 		if (!datetime) return "-";
@@ -231,7 +349,8 @@ export default function ReconciliationPage() {
 		enabled: !!merchantId,
 	});
 
-	const formatCurrency = (amount: number) => `KShs ${amount?.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}`;
+	const formatCurrency = (amount: number) =>
+		`KShs ${amount?.toLocaleString("en-KE", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || "0.00"}`;
 
 	const formatDateTime = (datetime: string) => {
 		if (!datetime) return "-";
@@ -269,8 +388,8 @@ export default function ReconciliationPage() {
 		return (
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
-					<h1 className="text-2xl font-bold">Daily Reconciliation</h1>
-					<p className="text-muted-foreground">End-of-day reconciliation report</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Daily Reconciliation</h1>
+					<p className="mt-1 text-sm text-muted-foreground">End-of-day reconciliation report</p>
 				</div>
 				<Card>
 					<CardContent className="p-6 text-center">
@@ -290,8 +409,8 @@ export default function ReconciliationPage() {
 		<div className="space-y-6">
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
 				<div>
-					<h1 className="text-3xl font-semibold tracking-tight text-slate-950">Daily Reconciliation</h1>
-					<p className="mt-2 text-sm text-slate-600">
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Daily Reconciliation</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
 						End-of-day reconciliation report for {reconciliationData?.merchantName || merchantId}
 					</p>
 					{reconciliationData?.merchantPhone && (
@@ -313,13 +432,17 @@ export default function ReconciliationPage() {
 				</div>
 			</div>
 
-			<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+			<MonthToDate data={reconciliationData} />
+
+			<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
 				<Card>
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-muted-foreground">Total Transactions</p>
-								<p className="text-2xl font-bold text-blue-600">{isLoading ? "..." : reconciliationData?.totalTransactions || 0}</p>
+								<p className="text-2xl font-bold text-blue-600">
+									{isLoading ? "..." : reconciliationData?.totalTransactions || 0}
+								</p>
 							</div>
 							<Icon icon="lucide:receipt" className="h-8 w-8 text-blue-500 opacity-60" />
 						</div>
@@ -331,7 +454,9 @@ export default function ReconciliationPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-muted-foreground">Total Units</p>
-								<p className="text-2xl font-bold text-purple-600">{isLoading ? "..." : reconciliationData?.totalUnits || 0}</p>
+								<p className="text-2xl font-bold text-purple-600">
+									{isLoading ? "..." : reconciliationData?.totalUnits || 0}
+								</p>
 							</div>
 							<Icon icon="lucide:package" className="h-8 w-8 text-purple-500 opacity-60" />
 						</div>
@@ -343,9 +468,34 @@ export default function ReconciliationPage() {
 						<div className="flex items-center justify-between">
 							<div>
 								<p className="text-sm font-medium text-muted-foreground">Total Revenue</p>
-								<p className="text-2xl font-bold text-green-600">{isLoading ? "..." : formatCurrency(reconciliationData?.totalRevenue || 0)}</p>
+								<p className="text-2xl font-bold text-green-600">
+									{isLoading ? "..." : formatCurrency(reconciliationData?.totalRevenue || 0)}
+								</p>
 							</div>
 							<Icon icon="lucide:wallet" className="h-8 w-8 text-green-500 opacity-60" />
+						</div>
+					</CardContent>
+				</Card>
+
+				<Card>
+					<CardContent className="p-6">
+						<div className="flex items-center justify-between">
+							<div>
+								<p className="text-sm font-medium text-muted-foreground">Margin</p>
+								<p className="text-2xl font-bold">
+									{isLoading ? (
+										"..."
+									) : (
+										<MarginValue amount={reconciliationData?.totalMargin} pct={reconciliationData?.marginPct} />
+									)}
+								</p>
+								{!!reconciliationData?.salesWithoutCost && (
+									<p className="text-xs text-muted-foreground">
+										{reconciliationData.salesWithoutCost} sale(s) not included — no cost recorded
+									</p>
+								)}
+							</div>
+							<Icon icon="lucide:trending-up" className="h-8 w-8 text-emerald-500 opacity-60" />
 						</div>
 					</CardContent>
 				</Card>
@@ -358,7 +508,11 @@ export default function ReconciliationPage() {
 				</CardHeader>
 				<CardContent>
 					<div className="flex flex-wrap gap-4">
-						<Button onClick={handlePrint} className="flex items-center gap-2" disabled={isLoading || transactions.length === 0}>
+						<Button
+							onClick={handlePrint}
+							className="flex items-center gap-2"
+							disabled={isLoading || transactions.length === 0}
+						>
 							<Icon icon="lucide:printer" className="h-4 w-4" />
 							Export PDF
 						</Button>
@@ -366,7 +520,11 @@ export default function ReconciliationPage() {
 							<Icon icon="lucide:refresh-cw" className="h-4 w-4" />
 							Refresh Data
 						</Button>
-						<Button onClick={() => navigate("/analytics/daily-sales")} className="flex items-center gap-2" variant="outline">
+						<Button
+							onClick={() => navigate("/analytics/daily-sales")}
+							className="flex items-center gap-2"
+							variant="outline"
+						>
 							<Icon icon="lucide:arrow-left" className="h-4 w-4" />
 							Back to Daily Sales
 						</Button>
@@ -399,57 +557,70 @@ export default function ReconciliationPage() {
 				<Card>
 					<CardHeader>
 						<CardTitle>Transactions ({transactions.length})</CardTitle>
-						<CardDescription>Detailed list of all transactions for {new Date(selectedDate).toLocaleDateString()}</CardDescription>
+						<CardDescription>
+							Detailed list of all transactions for {new Date(selectedDate).toLocaleDateString()}
+						</CardDescription>
 					</CardHeader>
 					<CardContent>
 						<div className="rounded-md border">
 							<Table>
-							<TableHeader>
-								<TableRow>
-									<TableHead>Item Name</TableHead>
-									<TableHead>Time</TableHead>
-									<TableHead>Merchant</TableHead>
-									<TableHead>Phone</TableHead>
-									<TableHead>Qty</TableHead>
-									<TableHead>Units</TableHead>
-									<TableHead className="text-right">Total</TableHead>
-									<TableHead>Type</TableHead>
-									<TableHead>Actions</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{transactions.map((t, index) => {
-									const hasWholesale = t.items.some((i) => i.orderType === "WHOLESALE");
-									return (
-										<TableRow key={`${t.transactionRef}-${index}`}>
-											<TableCell>
-												<span className="font-medium text-sm">{t.items[0]?.itemName || "Multiple Items"}</span>
-												{t.items.length > 1 && (
-													<span className="ml-1 text-xs text-slate-500">+ {t.items.length - 1} more</span>
-												)}
-											</TableCell>
-											<TableCell>{formatDateTime(t.saleDatetime)}</TableCell>
-											<TableCell>{t.merchantName || "N/A"}</TableCell>
-											<TableCell>{t.merchantPhone || "N/A"}</TableCell>
-											<TableCell>
-												<Badge variant="outline">{t.itemCount}</Badge>
-											</TableCell>
-											<TableCell>{t.totalUnits}</TableCell>
-											<TableCell className="text-right font-semibold text-green-600">{formatCurrency(t.basketTotal)}</TableCell>
-											<TableCell>
-												<Badge className={hasWholesale ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}>
-													{hasWholesale ? "Wholesale" : "Retail"}
-												</Badge>
-											</TableCell>
-											<TableCell>
-												<Button variant="outline" size="sm" onClick={() => handleViewTransaction(t)} className="flex items-center gap-2">
-													<Icon icon="lucide:eye" className="h-3 w-3" />
-													View
-												</Button>
-											</TableCell>
-										</TableRow>
-									);
-								})}
+								<TableHeader>
+									<TableRow>
+										<TableHead>Item Name</TableHead>
+										<TableHead>Time</TableHead>
+										<TableHead>Merchant</TableHead>
+										<TableHead>Phone</TableHead>
+										<TableHead>Qty</TableHead>
+										<TableHead>Units</TableHead>
+										<TableHead className="text-right">Total</TableHead>
+										<TableHead className="text-right">Margin</TableHead>
+										<TableHead>Type</TableHead>
+										<TableHead>Actions</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{transactions.map((t, index) => {
+										const hasWholesale = t.items.some((i) => i.orderType === "WHOLESALE");
+										return (
+											<TableRow key={`${t.transactionRef}-${index}`}>
+												<TableCell>
+													<span className="font-medium text-sm">{t.items[0]?.itemName || "Multiple Items"}</span>
+													{t.items.length > 1 && (
+														<span className="ml-1 text-xs text-slate-500">+ {t.items.length - 1} more</span>
+													)}
+												</TableCell>
+												<TableCell>{formatDateTime(t.saleDatetime)}</TableCell>
+												<TableCell>{t.merchantName || "N/A"}</TableCell>
+												<TableCell>{t.merchantPhone || "N/A"}</TableCell>
+												<TableCell>
+													<Badge variant="outline">{t.itemCount}</Badge>
+												</TableCell>
+												<TableCell>{t.totalUnits}</TableCell>
+												<TableCell className="text-right font-semibold text-green-600">
+													{formatCurrency(t.basketTotal)}
+												</TableCell>
+												<TableCell className="text-right font-semibold">
+													<MarginValue amount={t.basketMargin} pct={t.marginPct} />
+												</TableCell>
+												<TableCell>
+													<Badge className={hasWholesale ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}>
+														{hasWholesale ? "Wholesale" : "Retail"}
+													</Badge>
+												</TableCell>
+												<TableCell>
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => handleViewTransaction(t)}
+														className="flex items-center gap-2"
+													>
+														<Icon icon="lucide:eye" className="h-3 w-3" />
+														View
+													</Button>
+												</TableCell>
+											</TableRow>
+										);
+									})}
 								</TableBody>
 							</Table>
 						</div>
@@ -462,7 +633,9 @@ export default function ReconciliationPage() {
 							<Icon icon="lucide:receipt" className="h-6 w-6" />
 						</div>
 						<h2 className="mt-4 text-lg font-semibold text-slate-950">No transactions found</h2>
-						<p className="mt-2 max-w-md text-sm text-slate-600">No sales were recorded for {new Date(selectedDate).toLocaleDateString()}.</p>
+						<p className="mt-2 max-w-md text-sm text-slate-600">
+							No sales were recorded for {new Date(selectedDate).toLocaleDateString()}.
+						</p>
 						<Button onClick={() => navigate("/pos")} className="mt-5">
 							Go to POS
 						</Button>
@@ -470,14 +643,18 @@ export default function ReconciliationPage() {
 				</Card>
 			)}
 
-			{selectedTransaction && <TransactionDialog transaction={selectedTransaction} isOpen={dialogOpen} onOpenChange={setDialogOpen} />}
+			{selectedTransaction && (
+				<TransactionDialog transaction={selectedTransaction} isOpen={dialogOpen} onOpenChange={setDialogOpen} />
+			)}
 
 			<div ref={printRef} className={printMode ? "block" : "hidden print:block"}>
 				<div className="print-container p-8">
 					<div className="mb-8 border-b pb-4">
-						<h1 className="text-2xl font-bold">Daily Reconciliation Report</h1>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Daily Reconciliation Report</h1>
 						<p className="text-gray-600">Date: {selectedDate}</p>
-						<p className="text-gray-600">Merchant: {reconciliationData?.merchantName || reconciliationData?.merchantId}</p>
+						<p className="text-gray-600">
+							Merchant: {reconciliationData?.merchantName || reconciliationData?.merchantId}
+						</p>
 						{reconciliationData?.merchantPhone && (
 							<p className="text-gray-600">Phone: {reconciliationData.merchantPhone}</p>
 						)}

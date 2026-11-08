@@ -101,7 +101,7 @@ export const LockModal: React.FC<LockModalProps> = ({ isOpen, merchantName: _mer
 							<div className="text-center pt-4 border-t border-gray-200 dark:border-gray-800">
 								<p className="text-xs text-gray-500 flex items-center justify-center gap-1">
 									<Icon icon="lucide:shield" className="h-3 w-3" />
-									Tribe Powered by TRC Systems
+									Tribe by ASANO GROUP LIMITED
 								</p>
 								<p className="text-xs text-gray-400 dark:text-gray-600 mt-1">Access will be valid for 8 hours</p>
 							</div>

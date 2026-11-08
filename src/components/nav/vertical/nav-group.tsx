@@ -35,8 +35,11 @@ export function NavGroup({ name, items }: NavGroupProps) {
 
 function Group({ name, open, onClick }: { name?: string; open: boolean; onClick: (nextValue: boolean) => void }) {
 	const { t } = useLocale();
+	// The main menu has one group: its "Pages" label adds nothing
 	return (
-		name && (
+		name &&
+		name !== "sys.nav.pages" && (
+			// biome-ignore lint/a11y/noStaticElementInteractions: group header toggle, kept as in the template
 			<div
 				className={cn(
 					"group w-full inline-flex items-center justify-start relative gap-2 cursor-pointer pt-4 pr-2 pb-2 pl-3 transition-all duration-300 ease-in-out",

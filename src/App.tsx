@@ -2,7 +2,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Analytics as VercelAnalytics } from "@vercel/analytics/react";
 import { Helmet, HelmetProvider } from "react-helmet-async";
-import Logo from "@/assets/icons/ic-logo-badge.svg";
 //import { TokenDebug } from "@/components/debug/token-debug";
 import { MotionLazy } from "./components/animate/motion-lazy";
 //import { DebugAuth } from "./components/debug/debug-auth";
@@ -24,7 +23,7 @@ function App({ children }: { children: React.ReactNode }) {
 						<VercelAnalytics debug={import.meta.env.PROD} />
 						<Helmet>
 							<title>{GLOBAL_CONFIG.appName}</title>
-							<link rel="icon" href={Logo} />
+							<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 						</Helmet>
 						<Toast />
 						<RouteLoadingProgress />

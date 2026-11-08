@@ -10,7 +10,6 @@ export default function DashboardLayout() {
 
 	return (
 		<div data-slot="slash-layout-root" className="relative min-h-screen w-full overflow-x-clip bg-background">
-			<div className="pointer-events-none absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-sky-500/8 via-sky-500/4 to-transparent" />
 			{isMobile ? <MobileLayout /> : <PcLayout />}
 		</div>
 	);

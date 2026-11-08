@@ -4,7 +4,7 @@
  */
 
 import { Icon } from "@/components/icon";
-import { useMerchantId, useUserActions, useUserInfo, useUserRole } from "@/store/userStore";
+import { useMerchantId, useUserInfo, useUserRole } from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import {
@@ -20,7 +20,6 @@ export function UserRoleIndicator() {
 	const userInfo = useUserInfo();
 	const userRole = useUserRole();
 	const merchantId = useMerchantId();
-	const { clearUserInfoAndToken } = useUserActions(); // ADDED: Use proper logout action
 
 	if (!userRole) {
 		return (
@@ -77,16 +76,6 @@ export function UserRoleIndicator() {
 			default:
 				return role.toLowerCase();
 		}
-	};
-
-	// FIXED: Proper logout function (unused)
-	const _handleLogout = () => {
-		console.log("🚪 Logging out user...");
-		clearUserInfoAndToken(); // Use the proper store action
-		// Optional: Redirect to login page
-		setTimeout(() => {
-			window.location.href = "/login";
-		}, 100);
 	};
 
 	return (

@@ -24,8 +24,6 @@ const getScoreRange = (score: number) => {
 };
 
 const GaugeIndicator = ({ score }: { score: number }) => {
-	const _scoreRange = getScoreRange(score);
-
 	const minScore = 200;
 	const maxScore = 900;
 	const normalizedScore = Math.max(minScore, Math.min(maxScore, score));
@@ -45,6 +43,7 @@ const GaugeIndicator = ({ score }: { score: number }) => {
 						viewBox="0 0 400 180"
 						style={{ filter: "drop-shadow(0 10px 15px rgba(0, 0, 0, 0.2))" }}
 					>
+						<title>Credit score gauge</title>
 						{/* Gradient definitions */}
 						<defs>
 							<linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -206,6 +205,7 @@ const PerformanceInsights = ({ score }: { score: number }) => {
 			</CardHeader>
 			<CardContent className="space-y-4">
 				{insights.map((insight, index) => (
+					// biome-ignore lint/suspicious/noArrayIndexKey: these items have no id of their own
 					<div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
 						<div className="flex items-center gap-3">
 							<Icon icon={insight.icon as any} className={`h-5 w-5 ${insight.color}`} />
@@ -319,6 +319,7 @@ export default function CreditScorePage() {
 									<Skeleton className="h-20 rounded-lg" />
 								</div>
 								{[...Array(4)].map((_, i) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: loading placeholders
 									<div key={i} className="flex justify-between items-center">
 										<Skeleton className="h-4 w-24" />
 										<Skeleton className="h-4 w-20" />
@@ -333,6 +334,7 @@ export default function CreditScorePage() {
 							</CardHeader>
 							<CardContent>
 								{[...Array(3)].map((_, i) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: loading placeholders
 									<div key={i} className="mb-4">
 										<Skeleton className="h-16 rounded-lg" />
 									</div>
@@ -349,8 +351,8 @@ export default function CreditScorePage() {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Credit Score</h1>
-					<p className="text-muted-foreground">Your business credit assessment</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Credit Score</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Your business credit assessment</p>
 				</div>
 				<Card className="border-dashed border-2">
 					<CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -358,6 +360,7 @@ export default function CreditScorePage() {
 						<h3 className="text-xl font-semibold text-gray-900 mb-2">Unable to Load Credit Score</h3>
 						<p className="text-gray-600 max-w-md mb-6">{error.message}</p>
 						<button
+							type="button"
 							onClick={() => window.location.reload()}
 							className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
 						>
@@ -500,7 +503,7 @@ export default function CreditScorePage() {
 						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
 					</div>
 					<p className="text-xs text-gray-400 dark:text-gray-500">
-						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+						Tribe by <span className="font-bold text-gray-600 dark:text-gray-300">ASANO GROUP LIMITED</span>
 					</p>
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>

@@ -59,7 +59,7 @@ export default function ProfileTab() {
 						<CardDescription>
 							{userRole === "ADMIN"
 								? "Administrator account with full system access"
-								: userRole === "MERCHANT"
+								: userRole === "MANAGER"
 									? "Merchant account for business operations"
 									: "User account"}
 						</CardDescription>

@@ -19,12 +19,12 @@ export default function NoticeButton() {
 	const today = new Date().toISOString().split("T")[0];
 	const { data: dailySales } = useQuery({
 		queryKey: ["daily-sales-notice", today],
-		queryFn: () => inventoryService.getDailySalesSummary("HTL001", today),
+		queryFn: () => inventoryService.getDailySalesSummary(today),
 	});
 
 	const { data: weeklyAnalytics } = useQuery({
 		queryKey: ["weekly-analytics-notice"],
-		queryFn: () => inventoryService.getWeeklyAnalytics("HTL001"),
+		queryFn: () => inventoryService.getWeeklyAnalytics(),
 	});
 
 	// Calculate notification count based on data availability
@@ -48,6 +48,7 @@ export default function NoticeButton() {
 
 	return (
 		<>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: the button inside is the keyboard route */}
 			<div className="relative" onClick={() => setDrawerOpen(true)}>
 				<Button variant="ghost" size="icon" className="rounded-full">
 					<Icon icon="solar:bell-bing-bold-duotone" size={24} />
@@ -98,7 +99,7 @@ function NoticeTab() {
 		error: dailyError,
 	} = useQuery({
 		queryKey: ["daily-sales-drawer", today],
-		queryFn: () => inventoryService.getDailySalesSummary("HTL001", today),
+		queryFn: () => inventoryService.getDailySalesSummary(today),
 	});
 
 	const {
@@ -107,20 +108,11 @@ function NoticeTab() {
 		error: weeklyError,
 	} = useQuery({
 		queryKey: ["weekly-analytics-drawer"],
-		queryFn: () => inventoryService.getWeeklyAnalytics("HTL001"),
+		queryFn: () => inventoryService.getWeeklyAnalytics(),
 	});
 
 	const formatCurrency = (amount: number) => {
 		return `KShs ${amount?.toFixed(2) || "0.00"}`;
-	};
-
-	const _formatDate = (dateString: string) => {
-		return new Date(dateString).toLocaleDateString("en-US", {
-			weekday: "long",
-			year: "numeric",
-			month: "long",
-			day: "numeric",
-		});
 	};
 
 	// Daily Performance Notifications
@@ -153,6 +145,9 @@ function NoticeTab() {
 		},
 	];
 
+	// The figures sit under "data"; older backends sent them flat.
+	const weekly: any = weeklyAnalytics?.data ?? weeklyAnalytics;
+
 	// Weekly Performance Notifications
 	const weeklyNotifications = [
 		{
@@ -160,7 +155,7 @@ function NoticeTab() {
 			type: "revenue",
 			title: "Weekly Revenue",
 			message: weeklyAnalytics
-				? `Total weekly revenue: ${formatCurrency(weeklyAnalytics.grossSales || 0)}`
+				? `Total weekly revenue: ${formatCurrency(weekly?.grossSales || 0)}`
 				: "Loading weekly revenue...",
 			time: "This week",
 			icon: "solar:graph-bold",
@@ -173,7 +168,7 @@ function NoticeTab() {
 			type: "profit",
 			title: "Weekly Net Profit",
 			message: weeklyAnalytics
-				? `Net sales for the week: ${formatCurrency(weeklyAnalytics.netSales || 0)}`
+				? `Net sales for the week: ${formatCurrency(weekly?.netSales || 0)}`
 				: "Loading profit data...",
 			time: "This week",
 			icon: "solar:wallet-money-bold",
@@ -185,8 +180,8 @@ function NoticeTab() {
 			id: 3,
 			type: "trend",
 			title: "Daily Trends Available",
-			message: weeklyAnalytics?.dailyTrend
-				? `${weeklyAnalytics.dailyTrend.length} days of sales data available`
+			message: weekly?.dailyTrend
+				? `${weekly.dailyTrend.length} days of sales data available`
 				: "Loading trend data...",
 			time: "Weekly overview",
 			icon: "solar:trend-up-bold",

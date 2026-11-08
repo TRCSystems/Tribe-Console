@@ -134,8 +134,8 @@ export default function AnalysisPage() {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Analytics Dashboard</h1>
-					<p className="text-muted-foreground">Campaign and merchant performance insights</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Analytics Dashboard</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Campaign and merchant performance insights</p>
 				</div>
 				<div className="text-center py-12">
 					<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
@@ -149,8 +149,8 @@ export default function AnalysisPage() {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Analytics Dashboard</h1>
-					<p className="text-muted-foreground">Campaign and merchant performance insights</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Analytics Dashboard</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Campaign and merchant performance insights</p>
 				</div>
 				<div className="text-center py-12">
 					<Icon icon="lucide:alert-circle" className="h-8 w-8 mx-auto mb-4 text-red-500" />
@@ -164,8 +164,8 @@ export default function AnalysisPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">Analytics Dashboard</h1>
-				<p className="text-muted-foreground">
+				<h1 className="text-2xl font-semibold tracking-tight text-foreground">Analytics Dashboard</h1>
+				<p className="mt-1 text-sm text-muted-foreground">
 					Real-time campaign and merchant performance insights
 					<span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Live Data</span>
 				</p>
@@ -253,12 +253,13 @@ export default function AnalysisPage() {
 									cx="50%"
 									cy="50%"
 									labelLine={false}
-									label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+									label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
 									outerRadius={80}
 									fill="#8884d8"
 									dataKey="value"
 								>
 									{analyticsData.merchantDistribution.map((_entry, index) => (
+										// biome-ignore lint/suspicious/noArrayIndexKey: chart slices follow the data order
 										<Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
 									))}
 								</Pie>

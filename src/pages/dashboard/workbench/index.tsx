@@ -25,10 +25,9 @@ const formatCurrency = (amount: number) => {
 };
 
 // FIXED: Safe data handling
-const generateAnalyticsData = (campaigns: any[], merchants: any[]) => {
+const generateAnalyticsData = (campaigns: any[], _merchants: any[]) => {
 	// FIXED: Ensure campaigns is always an array
 	const safeCampaigns = Array.isArray(campaigns) ? campaigns : [];
-	const _safeMerchants = Array.isArray(merchants) ? merchants : [];
 
 	const activeCampaigns = safeCampaigns.filter((c) => {
 		try {
@@ -285,7 +284,6 @@ export default function Workbench() {
 			toolbar: { show: false },
 			animations: {
 				enabled: true,
-				easing: "easeinout",
 				speed: 800,
 			},
 		},
@@ -301,6 +299,27 @@ export default function Workbench() {
 			position: "top",
 		},
 		colors: ["#3b82f6", "#10b981"],
+	});
+
+	// Shared by the stat cards' sparklines; each card adds its own colour.
+	const sparklineOptions = useChart({
+		chart: {
+			sparkline: { enabled: true },
+			animations: { enabled: true, speed: 800 },
+		},
+		grid: { show: false },
+		yaxis: { show: false },
+		tooltip: { enabled: false },
+		stroke: { curve: "smooth", width: 2 },
+		fill: {
+			type: "gradient",
+			gradient: {
+				shadeIntensity: 1,
+				opacityFrom: 0.7,
+				opacityTo: 0.1,
+				stops: [0, 90, 100],
+			},
+		},
 	});
 
 	const donutOptions = useChart({
@@ -377,27 +396,7 @@ export default function Workbench() {
 									<Chart
 										type="area"
 										height={48}
-										options={useChart({
-											chart: {
-												sparkline: { enabled: true },
-												animations: { enabled: true, speed: 800 },
-											},
-											colors: [stat.color],
-											grid: { show: false },
-											yaxis: { show: false },
-											xaxis: { show: false },
-											tooltip: { enabled: false },
-											stroke: { curve: "smooth", width: 2 },
-											fill: {
-												type: "gradient",
-												gradient: {
-													shadeIntensity: 1,
-													opacityFrom: 0.7,
-													opacityTo: 0.1,
-													stops: [0, 90, 100],
-												},
-											},
-										})}
+										options={{ ...sparklineOptions, colors: [stat.color] }}
 										series={[{ data: stat.chart }]}
 									/>
 								</div>
@@ -531,7 +530,6 @@ export default function Workbench() {
 								colors: ["#8b5cf6"],
 								grid: { show: false },
 								yaxis: { show: false },
-								xaxis: { show: false },
 								tooltip: { enabled: false },
 								stroke: { curve: "smooth", width: 3 },
 								fill: {

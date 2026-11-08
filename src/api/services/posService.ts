@@ -246,12 +246,32 @@ export const posService = {
 		});
 	},
 
+	/**
+	 * Resolves with the body on success and on 409 (not enough stock), so the caller gets
+	 * `insufficientItems` (itemName, quantity, availableStock, shortBy) instead of a bare error.
+	 */
 	fulfillOrder: (orderCode: string, allowPartial: boolean = false): Promise<any> => {
 		return loyaltyApiClient.post<any>({
 			url: `/orders/${encodeURIComponent(orderCode)}/fulfill`,
 			params: {
 				allowPartial,
 			},
+			validateStatus: (status) => (status >= 200 && status < 300) || status === 409,
+		});
+	},
+
+	/** WhatsApp customer orders: DISPATCHED or DELIVERED (the customer gets a WhatsApp message). */
+	customerOrderStep: (orderCode: string, step: "DISPATCHED" | "DELIVERED"): Promise<any> => {
+		return loyaltyApiClient.post<any>({
+			url: `/orders/${encodeURIComponent(orderCode)}/customer-status`,
+			data: { step },
+		});
+	},
+
+	cancelOrder: (orderCode: string, reason: string): Promise<any> => {
+		return loyaltyApiClient.post<any>({
+			url: `/orders/${encodeURIComponent(orderCode)}/cancel`,
+			data: { reason },
 		});
 	},
 
@@ -303,11 +323,7 @@ export const posService = {
 					count,
 					totalPages: typeof body?.totalPages === "number" ? body.totalPages : 1,
 					currentPage:
-						typeof body?.currentPage === "number"
-							? body.currentPage
-							: typeof body?.page === "number"
-								? body.page
-								: 0,
+						typeof body?.currentPage === "number" ? body.currentPage : typeof body?.page === "number" ? body.page : 0,
 					filterPaymentMode: body?.filterPaymentMode,
 					filterStatus: body?.filterStatus,
 					data,

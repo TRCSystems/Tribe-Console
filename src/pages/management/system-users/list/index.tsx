@@ -34,8 +34,8 @@ export default function SystemUsersListPage() {
 		<div className="space-y-6">
 			<div className="flex justify-between items-center">
 				<div>
-					<h1 className="text-2xl font-bold">System Users</h1>
-					<p className="text-muted-foreground">Manage system users and their permissions</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">System Users</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Manage system users and their permissions</p>
 				</div>
 				<Button onClick={() => navigate("/management/system-users/create")}>
 					<Icon icon="lucide:user-plus" className="mr-2" />

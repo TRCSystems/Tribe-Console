@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import inventoryService, { type MarginReportResponse } from "@/api/services/inventoryService";
+import inventoryService from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
 import { useMerchantId } from "@/store/userStore";
@@ -65,8 +65,8 @@ export default function DailySalesPage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold">Daily Sales Summary</h1>
-						<p className="text-muted-foreground">View daily sales performance and analytics</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Daily Sales Summary</h1>
+						<p className="mt-1 text-sm text-muted-foreground">View daily sales performance and analytics</p>
 					</div>
 				</div>
 				<Card>
@@ -85,8 +85,8 @@ export default function DailySalesPage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold">Daily Sales Summary</h1>
-						<p className="text-muted-foreground">View daily sales performance and analytics</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Daily Sales Summary</h1>
+						<p className="mt-1 text-sm text-muted-foreground">View daily sales performance and analytics</p>
 					</div>
 				</div>
 				<Card>
@@ -114,8 +114,8 @@ export default function DailySalesPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">Daily Sales Summary</h1>
-					<p className="text-muted-foreground">View daily sales performance for your merchant account</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Daily Sales Summary</h1>
+					<p className="mt-1 text-sm text-muted-foreground">View daily sales performance for your merchant account</p>
 				</div>
 				<div className="flex items-center gap-4">
 					<div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-background">
@@ -345,7 +345,7 @@ export default function DailySalesPage() {
 						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
 					</div>
 					<p className="text-xs text-gray-400 dark:text-gray-500">
-						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+						Tribe by <span className="font-bold text-gray-600 dark:text-gray-300">ASANO GROUP LIMITED</span>
 					</p>
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>

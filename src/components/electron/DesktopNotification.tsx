@@ -1,6 +1,6 @@
 // src/components/electron/DesktopNotification.tsx
 import { notification } from "antd";
-import { ElectronFileSystem } from "@/utils/electronUtils";
+import { ElectronFileSystem, isElectron } from "@/utils/electronUtils";
 
 interface NotificationOptions {
 	title: string;
@@ -11,13 +11,9 @@ interface NotificationOptions {
 
 export class DesktopNotification {
 	static async show(options: NotificationOptions) {
-		const { isAvailable } = await import("@/utils/electronUtils");
-
-		if (isAvailable()) {
+		if (isElectron()) {
 			// Use Electron notifications
-			await ElectronFileSystem.showNotification(options.title, options.message, {
-				silent: options.type === "info",
-			});
+			await ElectronFileSystem.showNotification(options.title, options.message);
 		} else {
 			// Use browser notifications
 			if ("Notification" in window) {

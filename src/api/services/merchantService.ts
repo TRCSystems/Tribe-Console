@@ -59,17 +59,19 @@ const getMerchants = () =>
 
 			// Handle different response structures
 			let merchants: Merchant[] = [];
+			// The backend has returned several shapes over time; read it loosely.
+			const raw = response as any;
 
-			if (Array.isArray(response)) {
-				merchants = response;
-			} else if (response?.respObject && Array.isArray(response.respObject)) {
-				merchants = response.respObject;
-			} else if (response && typeof response === "object") {
-				const arrays = Object.values(response).filter((val) => Array.isArray(val));
+			if (Array.isArray(raw)) {
+				merchants = raw;
+			} else if (raw?.respObject && Array.isArray(raw.respObject)) {
+				merchants = raw.respObject;
+			} else if (raw && typeof raw === "object") {
+				const arrays = Object.values(raw).filter((val) => Array.isArray(val)) as Merchant[][];
 				if (arrays.length > 0) {
 					merchants = arrays[0];
-				} else if (response.id || response.businessName) {
-					merchants = [response];
+				} else if (raw.id || raw.businessName) {
+					merchants = [raw];
 				}
 			}
 

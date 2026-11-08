@@ -49,8 +49,8 @@ export default function CreateMerchantPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">Onboard New Merchant</h1>
-				<p className="text-muted-foreground">Register a new merchant with the Loyalty Engine</p>
+				<h1 className="text-2xl font-semibold tracking-tight text-foreground">Onboard New Merchant</h1>
+				<p className="mt-1 text-sm text-muted-foreground">Register a new merchant with the Loyalty Engine</p>
 			</div>
 
 			<Card>

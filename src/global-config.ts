@@ -58,7 +58,7 @@ const getLoyaltyEngineUrl = () => {
 };
 
 export const GLOBAL_CONFIG: GlobalConfig = {
-	appName: "TRIBE",
+	appName: "Tribe",
 	appVersion: packageJson.version,
 	defaultRoute: import.meta.env.VITE_APP_DEFAULT_ROUTE || "/welcome",
 	publicPath: import.meta.env.VITE_APP_PUBLIC_PATH || "/",

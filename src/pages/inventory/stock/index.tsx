@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
+import pricesService from "@/api/services/pricesService";
 import inventoryService, {
 	type BatchAddDefaultsSelection,
 	type InventoryItem,
@@ -12,9 +13,9 @@ import inventoryService, {
 } from "@/api/services/inventoryService";
 import { useBatchAddDefaults, useProductDefaults } from "@/api/hooks/useProductDefaults";
 import { Icon } from "@/components/icon";
-import { LockModal } from "@/components/lock-modal";
+import { OwnerUnlock } from "@/components/stock/owner-unlock";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
-import { useAuthCheck, useMerchantId, useUserToken } from "@/store/userStore";
+import { useAuthCheck, useMerchantId } from "@/store/userStore";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/ui/dialog";
 import {
 	DropdownMenu,
@@ -24,7 +25,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/ui/dropdown-menu";
-import { getMerchantNameFromToken } from "@/utils/jwt";
+import { isStockHidden, isStockViewLockedError, useOwnerUnlock } from "@/utils/stock-visibility";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
@@ -150,6 +151,7 @@ const InvoiceUploadModal = ({
 								<tbody>
 									{items.map((item, index) => (
 										<tr
+											// biome-ignore lint/suspicious/noArrayIndexKey: these items have no id of their own
 											key={index}
 											className={`border-t border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 ${
 												index % 2 === 0 ? "bg-gray-50/50 dark:bg-gray-800/30" : ""
@@ -257,7 +259,7 @@ const InvoiceUploadModal = ({
 					<div className="flex flex-col sm:flex-row gap-4 justify-between items-center pt-6 border-t border-gray-200 dark:border-gray-700">
 						<div className="text-sm text-gray-600 dark:text-gray-400">
 							<h1>TRIBE</h1>
-							<p>Powered by TRC Systems</p>
+							<p>Tribe by ASANO GROUP LIMITED</p>
 						</div>
 						<div className="flex gap-4">
 							<Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
@@ -290,55 +292,131 @@ const InvoiceUploadModal = ({
 	);
 };
 
-// Edit Modal Component (keep as is)
+// Edit Modal: name and the three prices (selling, unit cost, wholesale). Quantities are never edited here.
+type ItemEdit = {
+	itemName: string;
+	unitPrice?: number;
+	unitCost?: number;
+	wholesalePrice?: number;
+	clearWholesalePrice?: boolean;
+};
+
+const parseAmount = (text: string): number | null => {
+	if (text.trim() === "") return null;
+	const v = Number(text);
+	return Number.isFinite(v) ? v : Number.NaN;
+};
+
+const marginText = (price: number | null, cost: number | null) => {
+	if (price === null || cost === null || Number.isNaN(price) || Number.isNaN(cost) || price <= 0 || cost <= 0) {
+		return null;
+	}
+	const pct = ((price - cost) / price) * 100;
+	return {
+		pct,
+		label: `${pct.toFixed(1)}% margin (KES ${(price - cost).toLocaleString(undefined, { maximumFractionDigits: 2 })} per unit)`,
+	};
+};
+
 const EditInventoryModal = ({
 	open,
 	setOpen,
 	item,
 	onSave,
+	isSaving,
 }: {
 	open: boolean;
 	setOpen: (open: boolean) => void;
 	item: InventoryItem | null;
-	onSave: (id: number, data: { itemName: string; quantity: number; unitPrice: number }) => void;
+	onSave: (id: number, data: ItemEdit) => void;
+	isSaving: boolean;
 }) => {
-	const [formData, setFormData] = useState({
-		itemName: "",
-		quantity: 0,
-		unitPrice: 0,
+	// The real prices (the stock list's wholesale figure can be an estimate when none is set)
+	const { data: prices, isLoading: pricesLoading } = useQuery({
+		queryKey: ["prices"],
+		queryFn: () => pricesService.list(),
+		enabled: open,
+		staleTime: 30_000,
 	});
+	const current = prices?.find((p) => p.id === item?.id) ?? null;
+
+	const [itemName, setItemName] = useState("");
+	const [unitPrice, setUnitPrice] = useState("");
+	const [unitCost, setUnitCost] = useState("");
+	const [wholesale, setWholesale] = useState("");
 
 	useEffect(() => {
-		if (item) {
-			setFormData({
-				itemName: item.itemName,
-				quantity: item.availableStock,
-				unitPrice: item.unitPrice,
-			});
-		}
+		if (!item) return;
+		setItemName(item.itemName);
+		setUnitPrice(item.unitPrice != null ? String(item.unitPrice) : "");
 	}, [item]);
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-fill only when this item or its prices change, not on every refetch
+	useEffect(() => {
+		if (!current) return;
+		setUnitPrice(current.unitPrice != null ? String(current.unitPrice) : "");
+		setUnitCost(current.unitCost != null ? String(current.unitCost) : "");
+		setWholesale(current.wholesalePrice != null ? String(current.wholesalePrice) : "");
+	}, [current?.id, current?.unitPrice, current?.unitCost, current?.wholesalePrice]);
+
+	if (!open || !item) return null;
+
+	const price = parseAmount(unitPrice);
+	const cost = parseAmount(unitCost);
+	const whole = parseAmount(wholesale);
+	const invalid =
+		!itemName.trim() ||
+		price === null ||
+		[price, cost, whole].some((v) => v !== null && (Number.isNaN(v) || v < 0)) ||
+		(whole !== null && whole === 0);
+	const retail = marginText(price, cost);
+	const wholesaleMargin = marginText(whole, cost);
+
 	const handleSave = () => {
-		if (item && formData.itemName && formData.quantity >= 0 && formData.unitPrice >= 0) {
-			onSave(item.id, {
-				itemName: formData.itemName,
-				quantity: formData.quantity,
-				unitPrice: formData.unitPrice,
-			});
-			setOpen(false);
-		} else {
-			message.error("Please fill in all fields correctly");
+		if (invalid || price === null) {
+			message.error("Check the name and prices: amounts must be numbers, 0 or more (wholesale more than 0).");
+			return;
 		}
+		const data: ItemEdit = { itemName: itemName.trim(), unitPrice: price };
+		if (cost !== null) data.unitCost = cost;
+		if (whole !== null) data.wholesalePrice = whole;
+		else if (current?.wholesalePrice != null) data.clearWholesalePrice = true;
+		onSave(item.id, data);
 	};
 
-	if (!open) return null;
+	const amountField = (
+		id: string,
+		label: string,
+		value: string,
+		setValue: (v: string) => void,
+		hint: string,
+		placeholder: string,
+	) => (
+		<div>
+			<label htmlFor={id} className="text-sm font-medium text-gray-900 dark:text-gray-100">
+				{label}
+			</label>
+			<Input
+				id={id}
+				type="number"
+				inputMode="decimal"
+				min="0"
+				step="0.01"
+				value={value}
+				onChange={(e) => setValue(e.target.value)}
+				placeholder={placeholder}
+				className="mt-1"
+			/>
+			<p className="mt-1 text-xs text-muted-foreground">{hint}</p>
+		</div>
+	);
 
 	return (
-		<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-			<Card className="w-full max-w-md">
+		<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+			<Card className="w-full max-w-md max-h-[90vh] overflow-y-auto">
 				<CardHeader>
-					<CardTitle>{item ? "Edit Item" : "Add Item"}</CardTitle>
-					<CardDescription>{item ? `Edit ${item.itemName}` : "Add new inventory item"}</CardDescription>
+					<CardTitle>Edit Item</CardTitle>
+					<CardDescription>Edit {item.itemName}</CardDescription>
 				</CardHeader>
 				<CardContent className="space-y-4">
 					<div>
@@ -347,77 +425,62 @@ const EditInventoryModal = ({
 						</label>
 						<Input
 							id="edit-item-name"
-							value={formData.itemName}
-							onChange={(e) => setFormData({ ...formData, itemName: e.target.value })}
+							value={itemName}
+							onChange={(e) => setItemName(e.target.value)}
 							placeholder="Enter item name"
 							className="mt-1"
 						/>
 					</div>
-					<div>
-						<label htmlFor="edit-item-quantity" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-							Quantity
-						</label>
-						<Input
-							id="edit-item-quantity"
-							type="number"
-							value={formData.quantity}
-							onChange={(e) => {
-								const value = parseInt(e.target.value);
-								if (!Number.isNaN(value) && value >= 0) {
-									setFormData({ ...formData, quantity: value });
-								} else if (e.target.value === "" || e.target.value === "-") {
-									setFormData({ ...formData, quantity: 0 });
-								}
-							}}
-							onBlur={(e) => {
-								const value = parseInt(e.target.value);
-								if (Number.isNaN(value) || value < 0) {
-									setFormData({ ...formData, quantity: 0 });
-								}
-							}}
-							placeholder="Enter quantity (0 or more)"
-							className="mt-1"
-						/>
-						{formData.quantity < 0 && (
-							<p className="text-sm text-red-600 dark:text-red-400 mt-1">Quantity cannot be negative</p>
-						)}
-					</div>
-					<div>
-						<label htmlFor="edit-item-price" className="text-sm font-medium text-gray-900 dark:text-gray-100">
-							Price (KShs)
-						</label>
-						<Input
-							id="edit-item-price"
-							type="number"
-							step="0.01"
-							value={formData.unitPrice}
-							onChange={(e) => {
-								const value = parseFloat(e.target.value);
-								if (!Number.isNaN(value) && value >= 0) {
-									setFormData({ ...formData, unitPrice: value });
-								} else if (e.target.value === "" || e.target.value === "-") {
-									setFormData({ ...formData, unitPrice: 0 });
-								}
-							}}
-							onBlur={(e) => {
-								const value = parseFloat(e.target.value);
-								if (Number.isNaN(value) || value < 0) {
-									setFormData({ ...formData, unitPrice: 0 });
-								}
-							}}
-							placeholder="Enter price (0 or more)"
-							className="mt-1"
-						/>
-						{formData.unitPrice < 0 && (
-							<p className="text-sm text-red-600 dark:text-red-400 mt-1">Price cannot be negative</p>
-						)}
-					</div>
-					<div className="flex gap-4 justify-end pt-4">
-						<Button variant="outline" onClick={() => setOpen(false)}>
+
+					{pricesLoading ? (
+						<p className="text-sm text-muted-foreground">Loading prices…</p>
+					) : (
+						<>
+							{amountField(
+								"edit-item-cost",
+								"Unit cost (KES)",
+								unitCost,
+								setUnitCost,
+								"What you pay for one unit.",
+								"e.g. 180",
+							)}
+							{amountField(
+								"edit-item-price",
+								"Selling price (KES)",
+								unitPrice,
+								setUnitPrice,
+								retail ? `Price at the till. ${retail.label}` : "Price at the till.",
+								"e.g. 250",
+							)}
+							{retail && retail.pct < 0 && (
+								<p className="text-sm text-red-600 dark:text-red-400">The selling price is below the unit cost.</p>
+							)}
+							{amountField(
+								"edit-item-wholesale",
+								"Wholesale price (KES)",
+								wholesale,
+								setWholesale,
+								wholesaleMargin
+									? `Price shops pay when they order. ${wholesaleMargin.label}`
+									: "Price shops pay when they order. Leave empty if you don't sell this item wholesale.",
+								"Not sold wholesale",
+							)}
+							{wholesaleMargin && wholesaleMargin.pct < 0 && (
+								<p className="text-sm text-red-600 dark:text-red-400">The wholesale price is below the unit cost.</p>
+							)}
+						</>
+					)}
+
+					<p className="text-xs text-muted-foreground">
+						Stock quantities can't be edited here. Use Add Stock for deliveries; shortages are corrected from the stock
+						count review. Every price change is recorded.
+					</p>
+					<div className="flex gap-4 justify-end pt-2">
+						<Button variant="outline" onClick={() => setOpen(false)} disabled={isSaving}>
 							Cancel
 						</Button>
-						<Button onClick={handleSave} disabled={formData.quantity < 0 || formData.unitPrice < 0}>
-							Save Changes
+						<Button onClick={handleSave} disabled={invalid || pricesLoading || isSaving}>
+							{isSaving ? "Saving…" : "Save Changes"}
 						</Button>
 					</div>
 				</CardContent>
@@ -509,9 +572,7 @@ export default function StockManagementPage() {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 	const [searchTerm, setSearchTerm] = useState("");
-	const [stockToAdd, setStockToAdd] = useState<{ inventoryId: number; quantity: number; currentStock?: number } | null>(
-		null,
-	);
+	const [stockToAdd, setStockToAdd] = useState<{ inventoryId: number; quantity: number } | null>(null);
 	const [editModalOpen, setEditModalOpen] = useState(false);
 	const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
 	const [templateModalOpen, setTemplateModalOpen] = useState(false);
@@ -544,65 +605,14 @@ export default function StockManagementPage() {
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const invoiceFileInputRef = useRef<HTMLInputElement>(null);
 
-	// Security states
-	const [isLocked, setIsLocked] = useState(true);
-	const [incorrectAttempts, setIncorrectAttempts] = useState(0);
+	// Owner lock: the page opens only after the owner enters a code sent to the shop's phone
+	const { unlocked, markUnlocked, relock } = useOwnerUnlock();
+	const isLocked = !unlocked;
 
 	// 2. All custom hooks from store
 	const { isAuthenticated } = useAuthCheck();
 	const merchantId = useMerchantId();
-	const token = useUserToken();
-
-	const merchantName = (() => {
-		if (!token?.accessToken) return null;
-		try {
-			return getMerchantNameFromToken(token.accessToken);
-		} catch (error) {
-			console.error("Failed to get merchant name from token:", error);
-			return null;
-		}
-	})();
-
 	const canPerformActions = isAuthenticated && !!merchantId;
-
-	// handleUnlock BEFORE return
-	const handleUnlock = (password: string) => {
-		const correctPassword = merchantName ? `${merchantName}@tribeadmin` : null;
-
-		if (correctPassword && password === correctPassword) {
-			setIsLocked(false);
-			setIncorrectAttempts(0);
-
-			const unlockData = {
-				unlocked: true,
-				timestamp: Date.now(),
-				expiresIn: 8 * 60 * 60 * 1000,
-				merchantName: merchantName,
-			};
-			localStorage.setItem("stock_page_unlocked", JSON.stringify(unlockData));
-
-			message.success({
-				content: "Access granted! Page unlocked for 8 hours.",
-				duration: 3,
-			});
-		} else {
-			const newAttempts = incorrectAttempts + 1;
-			setIncorrectAttempts(newAttempts);
-
-			if (newAttempts >= 3) {
-				message.error({
-					content: "Too many failed attempts. Redirecting to POS...",
-					duration: 2,
-				});
-				navigate("/pos"); // ← IMMEDIATE REDIRECT
-			} else {
-				message.error({
-					content: `Incorrect password. ${3 - newAttempts} attempts remaining.`,
-					duration: 3,
-				});
-			}
-		}
-	};
 
 	// 5. All useQuery hooks
 	const {
@@ -669,13 +679,7 @@ export default function StockManagementPage() {
 	const batchAddDefaultsMutation = useBatchAddDefaults();
 
 	const editItemMutation = useMutation({
-		mutationFn: async ({
-			id,
-			data,
-		}: {
-			id: number;
-			data: { itemName: string; quantity: number; unitPrice: number };
-		}) => {
+		mutationFn: async ({ id, data }: { id: number; data: ItemEdit }) => {
 			if (!canPerformActions) {
 				throw new Error("User not authenticated");
 			}
@@ -684,9 +688,16 @@ export default function StockManagementPage() {
 		onSuccess: (result) => {
 			message.success(result.message || "Item updated successfully!");
 			queryClient.invalidateQueries({ queryKey: ["inventory"] });
+			queryClient.invalidateQueries({ queryKey: ["prices"] });
+			setEditModalOpen(false);
 			setEditingItem(null);
 		},
 		onError: (error: Error) => {
+			if (isStockViewLockedError(error)) {
+				message.warning("Your 30 minutes are up. Unlock again with a new SMS code.");
+				relock();
+				return;
+			}
 			message.error(`Failed to update item: ${error.message}`);
 		},
 	});
@@ -756,34 +767,18 @@ export default function StockManagementPage() {
 		},
 	});
 
-	// 7. All useEffect hooks
-	useEffect(() => {
-		const unlockData = localStorage.getItem("stock_page_unlocked");
-		if (unlockData) {
-			try {
-				const data = JSON.parse(unlockData);
-				const isExpired = Date.now() > data.timestamp + (data.expiresIn || 8 * 60 * 60 * 1000);
-
-				if (!isExpired && data.unlocked) {
-					setIsLocked(false);
-				} else {
-					localStorage.removeItem("stock_page_unlocked");
-				}
-			} catch (_error) {
-				localStorage.removeItem("stock_page_unlocked");
-			}
-		}
-	}, []);
-
 	// ========== EARLY RETURN FOR LOCKED STATE ==========
 	if (isLocked) {
 		return (
-			<LockModal
-				isOpen={true}
-				merchantName={merchantName || undefined}
-				onUnlock={handleUnlock}
-				onCancel={() => navigate("/pos")}
-			/>
+			<div className="p-4 md:p-8">
+				<OwnerUnlock
+					what="Stock Management"
+					reason="Stock Management changes prices, costs and items, so only the owner can open it."
+					onUnlocked={markUnlocked}
+					onCancel={() => navigate("/pos")}
+					cancelLabel="Back to POS"
+				/>
+			</div>
 		);
 	}
 
@@ -818,6 +813,9 @@ export default function StockManagementPage() {
 			itemName: item.itemName || "Unknown Item",
 			unitPrice: item.unitPrice || 0,
 			availableStock: item.availableStock || 0,
+			// Attendants get no quantity (blind counting) — only in/out of stock
+			stockHidden: isStockHidden(item),
+			stockStatus: item.stockStatus,
 			merchantId: item.merchantId,
 			itemCode: item.itemCode,
 			startingStock: item.startingStock,
@@ -900,12 +898,6 @@ export default function StockManagementPage() {
 	const filteredInventory = processedInventory.filter((item: InventoryItem) => {
 		return item.itemName.toLowerCase().includes(searchTerm.toLowerCase());
 	});
-
-	const getStockStatus = (quantity: number) => {
-		if (quantity === 0) return { status: "out-of-stock", variant: "destructive" as const };
-		if (quantity < 10) return { status: "low-stock", variant: "warning" as const };
-		return { status: "in-stock", variant: "success" as const };
-	};
 
 	const downloadCSVTemplate = () => {
 		try {
@@ -1047,7 +1039,6 @@ export default function StockManagementPage() {
 			setStockToAdd({
 				inventoryId: item.id,
 				quantity: 0,
-				currentStock: currentItem.availableStock,
 			});
 		}
 	};
@@ -1078,7 +1069,7 @@ export default function StockManagementPage() {
 		}
 	};
 
-	const handleSaveEdit = (id: number, data: { itemName: string; quantity: number; unitPrice: number }) => {
+	const handleSaveEdit = (id: number, data: ItemEdit) => {
 		editItemMutation.mutate({ id, data });
 	};
 
@@ -1225,14 +1216,15 @@ export default function StockManagementPage() {
 	});
 
 	const totalItems = processedInventory.length;
-	const lowStockItems = processedInventory.filter((item) => item.availableStock < 10 && item.availableStock > 0).length;
-	const outOfStockItems = processedInventory.filter((item) => item.availableStock === 0).length;
-	const totalValue = processedInventory.reduce((total, item) => total + item.unitPrice * item.availableStock, 0);
+	// Quantities are never shown on this page (blind stock) — only in/out of stock.
+	// Owners see real quantities in Reports → Stock Levels after SMS verification.
+	const isOutOfStock = (item: InventoryItem) =>
+		item.stockHidden ? item.stockStatus === "OUTSTOCK" : item.availableStock <= 0;
+	const outOfStockItems = processedInventory.filter(isOutOfStock).length;
 
 	const handleReLock = () => {
-		localStorage.removeItem("stock_page_unlocked");
-		setIsLocked(true);
-		message.info("Page re-locked. Password required for next access.");
+		relock();
+		message.info("Page locked. The owner needs a new SMS code to open it again.");
 		navigate("/pos");
 	};
 
@@ -1241,8 +1233,8 @@ export default function StockManagementPage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Stock Management</h1>
-						<p className="text-muted-foreground">Manage and track your inventory stock levels</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Stock Management</h1>
+						<p className="mt-1 text-sm text-muted-foreground">Manage and track your inventory stock levels</p>
 					</div>
 				</div>
 				<Card>
@@ -1470,7 +1462,13 @@ export default function StockManagementPage() {
 			)}
 
 			{/* Edit Item Modal */}
-			<EditInventoryModal open={editModalOpen} setOpen={setEditModalOpen} item={editingItem} onSave={handleSaveEdit} />
+			<EditInventoryModal
+				open={editModalOpen}
+				setOpen={setEditModalOpen}
+				item={editingItem}
+				onSave={handleSaveEdit}
+				isSaving={editItemMutation.isPending}
+			/>
 
 			{/* Delete Confirmation Modal */}
 			<DeleteConfirmationModal
@@ -1538,8 +1536,8 @@ export default function StockManagementPage() {
 
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Stock Management</h1>
-					<p className="text-muted-foreground">Manage and track your inventory stock levels</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Stock Management</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Manage and track your inventory stock levels</p>
 				</div>
 
 				<div className="flex items-center gap-3">
@@ -1551,7 +1549,7 @@ export default function StockManagementPage() {
 						size="sm"
 						onClick={handleReLock}
 						className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700"
-						title="Re-lock page (requires password again)"
+						title="Lock page (needs a new SMS code)"
 					>
 						<Icon icon="lucide:lock" className="h-4 w-4" />
 						<span className="text-xs font-bold">Re-lock</span>
@@ -1660,7 +1658,7 @@ export default function StockManagementPage() {
 			</div>
 
 			{/* Inventory Overview Cards */}
-			<div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+			<div className="grid grid-cols-2 gap-4">
 				<Card>
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
@@ -1677,34 +1675,10 @@ export default function StockManagementPage() {
 					<CardContent className="p-6">
 						<div className="flex items-center justify-between">
 							<div>
-								<p className="text-sm font-medium text-muted-foreground">Low Stock</p>
-								<p className="text-2xl font-bold text-orange-600 dark:text-orange-500">{lowStockItems}</p>
-							</div>
-							<Icon icon="lucide:alert-triangle" className="h-8 w-8 text-orange-500 opacity-60" />
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div>
 								<p className="text-sm font-medium text-muted-foreground">Out of Stock</p>
 								<p className="text-2xl font-bold text-red-600 dark:text-red-500">{outOfStockItems}</p>
 							</div>
 							<Icon icon="lucide:x-circle" className="h-8 w-8 text-red-500 opacity-60" />
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card>
-					<CardContent className="p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-muted-foreground">Total Value</p>
-								<p className="text-2xl font-bold text-green-600 dark:text-green-500">{formatCurrency(totalValue)}</p>
-							</div>
-							<Icon icon="lucide:banknote" className="h-8 w-8 text-green-500 opacity-60" />
 						</div>
 					</CardContent>
 				</Card>
@@ -1739,16 +1713,13 @@ export default function StockManagementPage() {
 									<tr className="border-b border-gray-200 dark:border-gray-700">
 										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Item Name</th>
 										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Stock Status</th>
-										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Quantity</th>
 										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Price</th>
-										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Total Value</th>
 										<th className="text-left p-4 font-semibold text-gray-900 dark:text-gray-100">Actions</th>
 									</tr>
 								</thead>
 								<tbody>
 									{filteredInventory.map((item: InventoryItem) => {
-										const stockStatus = getStockStatus(item.availableStock);
-										const totalValue = item.unitPrice * item.availableStock;
+										const outOfStock = isOutOfStock(item);
 
 										return (
 											<tr
@@ -1762,24 +1733,14 @@ export default function StockManagementPage() {
 													</div>
 												</td>
 												<td className="p-4">
-													<Badge variant={stockStatus.variant}>
-														{stockStatus.status === "out-of-stock"
-															? "Out of Stock"
-															: stockStatus.status === "low-stock"
-																? "Low Stock"
-																: "In Stock"}
+													<Badge variant={outOfStock ? "destructive" : "success"}>
+														{outOfStock ? "Out of Stock" : "In Stock"}
 													</Badge>
-												</td>
-												<td className="p-4">
-													<p className="font-medium text-gray-900 dark:text-gray-100">{item.availableStock} units</p>
 												</td>
 												<td className="p-4">
 													<p className="font-medium text-gray-900 dark:text-gray-100">
 														{formatCurrency(item.unitPrice)}
 													</p>
-												</td>
-												<td className="p-4">
-													<p className="font-medium text-green-600 dark:text-green-500">{formatCurrency(totalValue)}</p>
 												</td>
 												<td className="p-4">
 													<div className="flex gap-2">
@@ -1837,7 +1798,7 @@ export default function StockManagementPage() {
 						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
 					</div>
 					<p className="text-xs text-gray-400 dark:text-gray-500">
-						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+						Tribe by <span className="font-bold text-gray-600 dark:text-gray-300">ASANO GROUP LIMITED</span>
 					</p>
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>
@@ -1859,7 +1820,7 @@ export default function StockManagementPage() {
 					<div className="p-6 space-y-6">
 						{/* Supplier Name */}
 						<div className="space-y-2">
-							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Supplier Name *</label>
+							<span className="text-sm font-medium text-gray-900 dark:text-gray-100">Supplier Name *</span>
 							<Input
 								value={contactFormData.supplierName}
 								onChange={(e) => setContactFormData((prev) => ({ ...prev, supplierName: e.target.value }))}
@@ -1871,7 +1832,7 @@ export default function StockManagementPage() {
 						{/* Missing Items */}
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
-								<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Missing/Damaged Items *</label>
+								<span className="text-sm font-medium text-gray-900 dark:text-gray-100">Missing/Damaged Items *</span>
 								<Button onClick={handleAddMissingItem} variant="outline" size="sm" className="text-xs">
 									<Icon icon="lucide:plus" className="h-3 w-3 mr-1" />
 									Add Item
@@ -1880,6 +1841,7 @@ export default function StockManagementPage() {
 
 							<div className="space-y-3">
 								{contactFormData.missingItems.map((item, index) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: these items have no id of their own
 									<div key={index} className="border rounded-lg p-4 space-y-3">
 										<div className="flex items-center justify-between">
 											<span className="text-sm font-medium text-gray-700 dark:text-gray-300">Item {index + 1}</span>
@@ -1897,7 +1859,7 @@ export default function StockManagementPage() {
 
 										<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
 											<div>
-												<label className="text-xs text-gray-600 dark:text-gray-400">Item Name</label>
+												<span className="text-xs text-gray-600 dark:text-gray-400">Item Name</span>
 												<Input
 													value={item.name}
 													onChange={(e) => handleUpdateMissingItem(index, "name", e.target.value)}
@@ -1906,7 +1868,7 @@ export default function StockManagementPage() {
 												/>
 											</div>
 											<div>
-												<label className="text-xs text-gray-600 dark:text-gray-400">Expected Qty</label>
+												<span className="text-xs text-gray-600 dark:text-gray-400">Expected Qty</span>
 												<Input
 													type="number"
 													value={item.expected}
@@ -1917,7 +1879,7 @@ export default function StockManagementPage() {
 												/>
 											</div>
 											<div>
-												<label className="text-xs text-gray-600 dark:text-gray-400">Received Qty</label>
+												<span className="text-xs text-gray-600 dark:text-gray-400">Received Qty</span>
 												<Input
 													type="number"
 													value={item.received}
@@ -1941,10 +1903,11 @@ export default function StockManagementPage() {
 
 						{/* Additional Message */}
 						<div className="space-y-2">
-							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">
+							<label htmlFor="contact-message" className="text-sm font-medium text-gray-900 dark:text-gray-100">
 								Additional Message (Optional)
 							</label>
 							<textarea
+								id="contact-message"
 								value={contactFormData.message}
 								onChange={(e) => setContactFormData((prev) => ({ ...prev, message: e.target.value }))}
 								placeholder="Any additional details about the delivery issue..."

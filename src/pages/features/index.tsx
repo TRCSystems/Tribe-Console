@@ -67,15 +67,18 @@ const ImageZoomModal = ({
 	if (!isOpen) return null;
 
 	return (
+		// biome-ignore lint/a11y/noStaticElementInteractions: clicking the dark backdrop closes the zoom; the close button is the keyboard route
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" onClick={onClose}>
 			<div className="relative max-w-6xl max-h-[90vh] w-full">
 				<button
+					type="button"
 					onClick={onClose}
 					className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors z-10"
 				>
 					<Icon icon="lucide:x" className="h-8 w-8" />
 				</button>
 
+				{/* biome-ignore lint/a11y/noStaticElementInteractions: only stops the backdrop click */}
 				<div className="relative w-full h-full overflow-auto" onClick={(e) => e.stopPropagation()}>
 					<img src={imageUrl} alt={imageAlt} className="w-full h-auto max-h-[85vh] object-contain" />
 					<div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4">
@@ -164,6 +167,7 @@ const FeatureUpdateCard = ({ update }: { update: FeatureUpdate }) => {
 
 									{/* Zoom button overlay */}
 									<button
+										type="button"
 										onClick={() => setIsZoomOpen(true)}
 										className="absolute top-4 right-4 bg-white/90 dark:bg-gray-800/90 hover:bg-white dark:hover:bg-gray-700 p-2 rounded-full shadow-lg transition-all opacity-0 group-hover:opacity-100"
 										title="Click to zoom image"
@@ -175,6 +179,7 @@ const FeatureUpdateCard = ({ update }: { update: FeatureUpdate }) => {
 									{update.images.length > 1 && (
 										<>
 											<button
+												type="button"
 												onClick={() =>
 													setSelectedImageIndex((prev) => (prev === 0 ? update.images.length - 1 : prev - 1))
 												}
@@ -183,6 +188,7 @@ const FeatureUpdateCard = ({ update }: { update: FeatureUpdate }) => {
 												<Icon icon="lucide:chevron-left" className="h-5 w-5" />
 											</button>
 											<button
+												type="button"
 												onClick={() =>
 													setSelectedImageIndex((prev) => (prev === update.images.length - 1 ? 0 : prev + 1))
 												}
@@ -217,6 +223,8 @@ const FeatureUpdateCard = ({ update }: { update: FeatureUpdate }) => {
 								<div className="flex gap-2 overflow-x-auto pb-2">
 									{update.images.map((image, index) => (
 										<button
+											type="button"
+											// biome-ignore lint/suspicious/noArrayIndexKey: these items have no id of their own
 											key={index}
 											onClick={() => setSelectedImageIndex(index)}
 											className={`flex-shrink-0 w-20 h-20 rounded-lg border-2 overflow-hidden transition-all group/thumb ${
@@ -249,6 +257,7 @@ const FeatureUpdateCard = ({ update }: { update: FeatureUpdate }) => {
 							</h4>
 							<ul className="space-y-3">
 								{update.details.map((detail, index) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: these items have no id of their own
 									<li key={index} className="flex items-start gap-3 text-gray-700 dark:text-gray-300">
 										<Icon icon="lucide:check" className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
 										<span className="text-base">{detail}</span>
@@ -267,6 +276,7 @@ const FeatureUpdateCard = ({ update }: { update: FeatureUpdate }) => {
 							</h4>
 							<div className="space-y-3">
 								{update.steps.map((step, index) => (
+									// biome-ignore lint/suspicious/noArrayIndexKey: these items have no id of their own
 									<div key={index} className="flex items-start gap-4 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
 										<div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
 											<span className="font-bold text-blue-600 dark:text-blue-300">{index + 1}</span>
@@ -361,7 +371,7 @@ export default function FeaturesPage() {
 		<div className="space-y-8">
 			<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
 				<div>
-					<h1 className="text-2xl md:text-3xl font-bold">TRIBE _ TRC Systems</h1>
+					<h1 className="text-2xl md:text-3xl font-bold">Tribe by ASANO GROUP LIMITED</h1>
 					<p className="text-muted-foreground text-lg">
 						Discover powerful tools designed to streamline your business operations
 					</p>
@@ -504,7 +514,7 @@ export default function FeaturesPage() {
 						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
 					</div>
 					<p className="text-xs text-gray-400 dark:text-gray-500">
-						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
+						Tribe by <span className="font-bold text-gray-600 dark:text-gray-300">ASANO GROUP LIMITED</span>
 					</p>
 					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
 				</div>

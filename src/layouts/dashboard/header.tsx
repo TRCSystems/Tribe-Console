@@ -1,42 +1,70 @@
 import type { ReactNode } from "react";
+import { useMemo } from "react";
+import { useLocation } from "react-router";
+import type { NavItemDataProps } from "@/components/nav/types";
+import useLocale from "@/locales/use-locale";
 import { cn } from "@/utils";
-import Logo from "@/components/logo";
 import AccountDropdown from "../components/account-dropdown";
 import SearchBar from "../components/search-bar";
 import SettingButton from "../components/setting-button";
+import { useFilteredNavData } from "./nav";
 
 interface HeaderProps {
 	leftSlot?: ReactNode;
 }
 
+/** "Inventory › Prices" for the page we're on, from the menu (longest matching path wins). */
+function useCurrentSection(): { section?: string; page?: string } {
+	const { pathname } = useLocation();
+	const navData = useFilteredNavData();
+	const { t } = useLocale();
+	return useMemo(() => {
+		let best: { section?: string; page?: string; len: number } = { len: 0 };
+		const visit = (items: NavItemDataProps[], parent?: string) => {
+			for (const item of items) {
+				const path = item.path;
+				if (path && (pathname === path || pathname.startsWith(`${path}/`)) && path.length >= best.len) {
+					const title = t(item.title);
+					best =
+						parent && parent !== title
+							? { section: parent, page: title, len: path.length }
+							: { page: title, len: path.length };
+				}
+				if (item.children?.length) visit(item.children, t(item.title));
+			}
+		};
+		navData.forEach((group) => visit(group.items));
+		return { section: best.section, page: best.page };
+	}, [pathname, navData, t]);
+}
+
 export default function Header({ leftSlot }: HeaderProps) {
+	const { section, page } = useCurrentSection();
 	return (
 		<header
 			data-slot="slash-layout-header"
 			className={cn(
-				"relative z-app-bar",
-				"flex h-[var(--layout-header-height)] shrink-0 grow-0 items-center justify-between overflow-hidden rounded-2xl px-3 sm:px-4",
-				"border border-white/50 bg-background/92 shadow-[0_18px_50px_-30px_rgba(15,23,42,0.35)] backdrop-blur-xl",
-				"supports-[backdrop-filter]:bg-background/84",
+				"sticky top-0 z-app-bar flex h-[var(--layout-header-height)] shrink-0 items-center justify-between gap-3",
+				"border-b border-border bg-background/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:px-6 md:px-8",
 			)}
 		>
-			<div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-sky-400/70 to-transparent" />
-			<div className="pointer-events-none absolute inset-y-0 left-0 w-40 bg-gradient-to-r from-sky-500/8 to-transparent" />
-
-			<div className="relative flex min-w-0 items-center gap-3">
+			<div className="flex min-w-0 items-center gap-2">
 				{leftSlot}
-				<div className="flex min-w-0 items-center gap-2">
-					<Logo size={35} />
-					<div className="hidden min-w-0 flex-col sm:flex">
-						<span className="truncate text-sm font-semibold tracking-[0.18em] text-foreground">TRIBE</span>
-					</div>
-				</div>
+				<nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
+					{section && (
+						<>
+							<span className="truncate text-muted-foreground">{section}</span>
+							<span className="text-muted-foreground/60" aria-hidden="true">
+								/
+							</span>
+						</>
+					)}
+					{page && <span className="truncate font-medium text-foreground">{page}</span>}
+				</nav>
 			</div>
 
-			<div className="relative flex items-center gap-2 rounded-2xl border border-border/70 bg-background/72 px-2 py-1 shadow-sm">
+			<div className="flex shrink-0 items-center gap-1 sm:gap-2">
 				<SearchBar />
-
-				{/*<NoticeButton />*/}
 				<SettingButton />
 				<AccountDropdown />
 			</div>

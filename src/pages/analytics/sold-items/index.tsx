@@ -204,8 +204,8 @@ export default function SoldItemsPage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold">Sold Items Report</h1>
-						<p className="text-muted-foreground">View detailed list of items sold</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Sold Items Report</h1>
+						<p className="mt-1 text-sm text-muted-foreground">View detailed list of items sold</p>
 					</div>
 				</div>
 				<Card>
@@ -230,8 +230,8 @@ export default function SoldItemsPage() {
 							<Icon icon="lucide:arrow-left" className="h-4 w-4" />
 						</Button>
 						<div>
-							<h1 className="text-2xl font-bold">Sold Items Report</h1>
-							<p className="text-muted-foreground">Detailed list of items sold for {merchantId}</p>
+							<h1 className="text-2xl font-semibold tracking-tight text-foreground">Sold Items Report</h1>
+							<p className="mt-1 text-sm text-muted-foreground">Detailed list of items sold for {merchantId}</p>
 						</div>
 					</div>
 				</div>
@@ -266,7 +266,11 @@ export default function SoldItemsPage() {
 							<Icon icon="lucide:printer" className="h-4 w-4" />
 							Print Report
 						</Button>
-						<Button onClick={() => navigate(`/analytics/reconciliation?date=${selectedDate}`)} className="flex items-center gap-2" variant="outline">
+						<Button
+							onClick={() => navigate(`/analytics/reconciliation?date=${selectedDate}`)}
+							className="flex items-center gap-2"
+							variant="outline"
+						>
 							<Icon icon="lucide:file-text" className="h-4 w-4" />
 							View Reconciliation
 						</Button>
@@ -421,7 +425,7 @@ export default function SoldItemsPage() {
 					<div className="mb-8 border-b pb-4">
 						<div className="flex justify-between items-start">
 							<div>
-								<h1 className="text-2xl font-bold">Sold Items Report</h1>
+								<h1 className="text-2xl font-semibold tracking-tight text-foreground">Sold Items Report</h1>
 								<p className="text-gray-600">Date: {selectedDate}</p>
 								<p className="text-gray-600">Report Date: {new Date().toLocaleString()}</p>
 							</div>

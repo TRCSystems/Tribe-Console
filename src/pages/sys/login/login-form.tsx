@@ -188,7 +188,7 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 						{t("sys.login.loginButton")}
 					</Button>
 
-					<div className="text-center text-sm">TRIBE_Your Business Growth Partner.</div>
+					<div className="text-center text-sm text-muted-foreground">Your business growth partner</div>
 				</form>
 			</Form>
 		</div>

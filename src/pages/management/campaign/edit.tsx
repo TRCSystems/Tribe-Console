@@ -2,7 +2,7 @@
 // src/pages/management/campaign/edit/index.tsx - COMPLETE REAL DATA VERSION
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router";
 import campaignService from "@/api/services/campaignService";
 import { Icon } from "@/components/icon";
@@ -28,12 +28,14 @@ export default function CampaignEditPage() {
 		queryKey: ["campaign", id],
 		queryFn: () => campaignService.getCampaignById(Number(id)),
 		enabled: !!id,
-		onSuccess: (data) => {
-			if (data.messages && data.messages.length > 0) {
-				setMessages(data.messages);
-			}
-		},
 	});
+
+	// React Query v5 dropped onSuccess on queries; fill the messages once the campaign loads.
+	useEffect(() => {
+		if (campaign?.messages && campaign.messages.length > 0) {
+			setMessages(campaign.messages);
+		}
+	}, [campaign]);
 
 	// Update campaign mutation
 	const updateMutation = useMutation({
@@ -83,8 +85,8 @@ export default function CampaignEditPage() {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Edit Campaign</h1>
-					<p className="text-muted-foreground">Loading campaign information...</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit Campaign</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Loading campaign information...</p>
 				</div>
 				<div className="text-center py-12">
 					<Icon icon="eos-icons:loading" className="h-8 w-8 mx-auto mb-4" />
@@ -98,8 +100,8 @@ export default function CampaignEditPage() {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Edit Campaign</h1>
-					<p className="text-muted-foreground">Campaign not found</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit Campaign</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Campaign not found</p>
 				</div>
 				<Card>
 					<CardContent className="p-6 text-center">
@@ -117,8 +119,8 @@ export default function CampaignEditPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">Edit Campaign</h1>
-				<p className="text-muted-foreground">Update your marketing campaign details</p>
+				<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit Campaign</h1>
+				<p className="mt-1 text-sm text-muted-foreground">Update your marketing campaign details</p>
 			</div>
 
 			<Card>
@@ -194,6 +196,7 @@ export default function CampaignEditPage() {
 							</div>
 
 							{messages.map((message, index) => (
+								// biome-ignore lint/suspicious/noArrayIndexKey: message rows have no id until saved
 								<div key={index} className="flex gap-2">
 									<Textarea
 										placeholder="Enter campaign message"

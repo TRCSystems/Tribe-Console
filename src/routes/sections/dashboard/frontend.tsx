@@ -21,6 +21,16 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 		},
 		{ path: "order-payment", element: Component("/pages/inventory/order-payment") },
 		{ path: "orders", element: Component("/pages/orders") },
+		{ path: "sokoreply", element: Component("/pages/sokoreply") },
+		{
+			path: "crm",
+			children: [
+				{ index: true, element: Component("/pages/crm/dashboard") },
+				{ path: "shops", element: Component("/pages/crm/shops") },
+				{ path: "shops/:shopId", element: Component("/pages/crm/shop") },
+				{ path: "reps", element: Component("/pages/crm/reps") },
+			],
+		},
 
 		{
 			path: "management",
@@ -69,12 +79,14 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 			children: [
 				{ index: true, element: <Navigate to="stock" replace /> },
 				{ path: "stock", element: Component("/pages/inventory/stock") },
+				{ path: "stock-count", element: Component("/pages/inventory/stock-count") },
+				{ path: "prices", element: Component("/pages/inventory/prices") },
 				{ path: "expenses", element: Component("/pages/inventory/expenses") },
 				{ path: "import", element: Component("/pages/inventory/import") },
 				{ path: "close-day", element: Component("/pages/inventory/close-day") },
 			],
 		},
-{
+		{
 			path: "analytics",
 			children: [
 				{ index: true, element: <Navigate to="daily-sales" replace /> },
@@ -82,6 +94,9 @@ export function getFrontendDashboardRoutes(): RouteObject[] {
 				{ path: "weekly", element: Component("/pages/analytics/weekly") },
 				{ path: "sold-items", element: Component("/pages/analytics/sold-items") },
 				{ path: "reconciliation", element: Component("/pages/analytics/reconciliation") },
+				{ path: "stock-discrepancies", element: Component("/pages/analytics/stock-discrepancies") },
+				{ path: "stock-levels", element: Component("/pages/analytics/stock-levels") },
+				{ path: "stock-audit", element: Component("/pages/analytics/stock-audit") },
 			],
 		},
 		//	{ path: "marketing", element: Component("/pages/marketing/social/index") },

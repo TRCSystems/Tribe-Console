@@ -29,16 +29,11 @@ export const frontendNavData: NavProps["data"] = [
 				title: "Orders",
 				path: "/orders",
 				icon: <Icon icon="lucide:shopping-bag" size="24" />,
-				children: [
-					/*{
-						title: "Create Order",
-						path: "/order-payment",
-					},*/
-					{
-						title: "Orders",
-						path: "/orders",
-					},
-				],
+			},
+			{
+				title: "SokoReply",
+				path: "/sokoreply",
+				icon: <Icon icon="lucide:message-circle-heart" size="24" />,
 			},
 
 			/*	{
@@ -95,13 +90,31 @@ export const frontendNavData: NavProps["data"] = [
 				],
 			}, */
 			{
-				title: "Inventory Management",
+				title: "Customers",
+				path: "/crm",
+				icon: <Icon icon="lucide:handshake" size="24" />,
+				children: [
+					{ title: "Overview", path: "/crm" },
+					{ title: "Shops", path: "/crm/shops" },
+					{ title: "Field reps", path: "/crm/reps" },
+				],
+			},
+			{
+				title: "Inventory",
 				path: "/inventory",
 				icon: <Icon icon="lucide:package" size="24" />,
 				children: [
 					{
 						title: "Stock",
 						path: "/inventory/stock",
+					},
+					{
+						title: "Prices",
+						path: "/inventory/prices",
+					},
+					{
+						title: "Stock Count",
+						path: "/inventory/stock-count",
 					},
 					{
 						title: "Expenses",
@@ -126,21 +139,23 @@ export const frontendNavData: NavProps["data"] = [
 						title: "Weekly Sales",
 						path: "/analytics/weekly",
 					},
+					{
+						title: "Stock Discrepancies",
+						path: "/analytics/stock-discrepancies",
+					},
+					{
+						title: "Stock Levels",
+						path: "/analytics/stock-levels",
+					},
+					{
+						title: "Stock Audit Trail",
+						path: "/analytics/stock-audit",
+					},
 				],
 			},
 			//	{ title: "marketing", path: "/marketing", icon: <Icon icon="lucide:megaphone" size="24" /> },
 			{ title: "Stock Finance", path: "/finance", icon: <Icon icon="lucide:coins" size="24" /> },
 			//{ title: "Features..?", path: "/features", icon: <Icon icon="lucide:help-circle" size="24" /> },
-		],
-	},
-	{
-		name: "sys.nav.footer",
-		items: [
-			{
-				title: "sys.nav.features",
-				path: "/features",
-				icon: <Icon icon="lucide:help-circle" size="24" />,
-			},
 		],
 	},
 ];

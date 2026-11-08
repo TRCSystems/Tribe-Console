@@ -149,6 +149,7 @@ function SearchablePicker<T>({
 
 			<Popover open={open} onOpenChange={setOpen}>
 				<PopoverTrigger asChild>
+					{/* biome-ignore lint/a11y/useSemanticElements: a searchable picker; a <select> cannot filter */}
 					<Button
 						id={id}
 						type="button"
@@ -417,7 +418,7 @@ export default function OrderPaymentPage() {
 		const intervalMs = 5000;
 
 		for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-			let statusResponse;
+			let statusResponse: Awaited<ReturnType<typeof posService.getOrderPaymentStatus>> | undefined;
 			try {
 				statusResponse = await posService.getOrderPaymentStatus(orderCode);
 			} catch (err: any) {
@@ -662,8 +663,8 @@ export default function OrderPaymentPage() {
 			<div className="space-y-3">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
 					<div>
-						<h1 className="text-3xl font-semibold tracking-tight text-slate-950">Order Payment</h1>
-						<p className="mt-2 text-sm text-slate-600">Create an order and complete payment securely.</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Order Payment</h1>
+						<p className="mt-1 text-sm text-muted-foreground">Create an order and complete payment securely.</p>
 					</div>
 				</div>
 			</div>
@@ -838,7 +839,12 @@ export default function OrderPaymentPage() {
 													<p className="text-sm font-medium text-slate-900">
 														Subtotal: KSh {(item.quantity * item.wholesalePrice).toFixed(2)}
 													</p>
-													<Button type="button" variant="outline" size="sm" onClick={() => handleRemoveOrderItem(index)}>
+													<Button
+														type="button"
+														variant="outline"
+														size="sm"
+														onClick={() => handleRemoveOrderItem(index)}
+													>
 														Remove
 													</Button>
 												</div>

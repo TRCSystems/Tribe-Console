@@ -82,8 +82,8 @@ export default function MerchantListPage() {
 
 			<div className="flex justify-between items-center">
 				<div>
-					<h1 className="text-2xl font-bold">Merchants</h1>
-					<p className="text-muted-foreground">Manage your onboarded merchants</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Merchants</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Manage your onboarded merchants</p>
 				</div>
 				<div className="flex gap-2">
 					<Button variant="outline" onClick={() => navigate("/management/system-users/create")}>

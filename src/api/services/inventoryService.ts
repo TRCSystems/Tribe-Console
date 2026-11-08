@@ -68,6 +68,10 @@ export interface InventoryItem {
 	productCategory?: string;
 	productBrand?: string;
 	recordDate: string;
+	/** Sent instead of quantities to attendants: "INSTOCK" | "OUTSTOCK" (owners also get "ALERTZONE"). */
+	stockStatus?: "INSTOCK" | "OUTSTOCK" | "ALERTZONE";
+	/** Set client-side when the backend withheld quantities (blind counting). */
+	stockHidden?: boolean;
 }
 
 export interface DailySummaryResponse {
@@ -148,7 +152,12 @@ export interface UpdateItemRequest {
 	merchantId: string;
 	itemName?: string;
 	quantity?: number;
+	/** Selling (till) price. */
 	unitPrice?: number;
+	/** Owner only (needs the SMS-code unlock). */
+	unitCost?: number;
+	wholesalePrice?: number;
+	clearWholesalePrice?: boolean;
 }
 
 export interface DeleteItemRequest {
@@ -301,6 +310,9 @@ export interface ReconciliationTransactionItem {
 	unitPrice: number;
 	totalPrice: number;
 	orderType: "RETAIL" | "WHOLESALE";
+	/** Cost recorded on the sale line, and what was made on it. Null when the cost wasn't recorded. */
+	unitCost?: number | null;
+	lineMargin?: number | null;
 }
 
 export interface ReconciliationTransaction {
@@ -313,6 +325,11 @@ export interface ReconciliationTransaction {
 	merchantName: string | null;
 	merchantPhone: string | null;
 	items: ReconciliationTransactionItem[];
+	/** What was made on this sale (total - cost). Null when any line has no cost. */
+	basketCost?: number | null;
+	basketMargin?: number | null;
+	marginPct?: number | null;
+	marginComplete?: boolean | null;
 }
 
 export interface ReconciliationResponse {
@@ -324,6 +341,18 @@ export interface ReconciliationResponse {
 	totalUnits: number;
 	totalRevenue: number;
 	transactions: ReconciliationTransaction[];
+	/** Margin for the day across the sales whose costs are known. */
+	totalCost?: number | null;
+	totalMargin?: number | null;
+	marginPct?: number | null;
+	salesWithoutCost?: number | null;
+	/** Month to date: from the 1st of the month up to this report's date. */
+	mtdFrom?: string | null;
+	mtdSales?: number | null;
+	mtdRevenue?: number | null;
+	mtdMargin?: number | null;
+	mtdMarginPct?: number | null;
+	mtdLinesWithoutCost?: number | null;
 }
 
 const getMerchantId = (): string => {
@@ -1275,16 +1304,16 @@ class InventoryService {
 			});
 			console.groupEnd();
 
-		return {
-			date,
-			merchantId,
-			merchantName: null,
-			merchantPhone: null,
-			totalTransactions: 0,
-			totalUnits: 0,
-			totalRevenue: 0,
-			transactions: [],
-		};
+			return {
+				date,
+				merchantId,
+				merchantName: null,
+				merchantPhone: null,
+				totalTransactions: 0,
+				totalUnits: 0,
+				totalRevenue: 0,
+				transactions: [],
+			};
 		}
 	}
 

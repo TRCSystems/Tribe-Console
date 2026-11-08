@@ -65,8 +65,8 @@ export default function EditMerchantPage() {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Edit Merchant</h1>
-					<p className="text-muted-foreground">Loading merchant information...</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit Merchant</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Loading merchant information...</p>
 				</div>
 				<div className="flex items-center justify-center min-h-64">
 					<Icon icon="eos-icons:loading" className="h-8 w-8" />
@@ -79,8 +79,8 @@ export default function EditMerchantPage() {
 		return (
 			<div className="space-y-6">
 				<div>
-					<h1 className="text-2xl font-bold">Edit Merchant</h1>
-					<p className="text-muted-foreground">Merchant not found</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit Merchant</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Merchant not found</p>
 				</div>
 				<Card>
 					<CardContent className="p-6 text-center">
@@ -98,8 +98,8 @@ export default function EditMerchantPage() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">Edit Merchant</h1>
-				<p className="text-muted-foreground">Update merchant information</p>
+				<h1 className="text-2xl font-semibold tracking-tight text-foreground">Edit Merchant</h1>
+				<p className="mt-1 text-sm text-muted-foreground">Update merchant information</p>
 			</div>
 
 			<Card>

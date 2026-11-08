@@ -2,7 +2,6 @@ import { Icon } from "@/components/icon";
 import Logo from "@/components/logo";
 import { NavMini, NavVertical } from "@/components/nav";
 import type { NavProps } from "@/components/nav/types";
-import { GLOBAL_CONFIG } from "@/global-config";
 import { useSettingActions, useSettings } from "@/store/settingStore";
 import { ThemeLayout } from "@/types/enum";
 import { Button } from "@/ui/button";
@@ -19,6 +18,7 @@ export function NavVerticalLayout({ data, className }: Props) {
 	const { themeLayout } = settings;
 	const { setSettings } = useSettingActions();
 
+	const mini = themeLayout === ThemeLayout.Mini;
 	const navWidth = themeLayout === ThemeLayout.Vertical ? "var(--layout-nav-width)" : "var(--layout-nav-width-mini)";
 	const handleToggle = () => {
 		setSettings({
@@ -30,7 +30,7 @@ export function NavVerticalLayout({ data, className }: Props) {
 		<nav
 			data-slot="slash-layout-nav"
 			className={cn(
-				"fixed inset-y-0 left-0 z-nav flex h-full flex-col overflow-hidden border-r border-white/50 bg-background/94 shadow-[14px_0_40px_-28px_rgba(15,23,42,0.35)] backdrop-blur-xl transition-[width] duration-300 ease-in-out",
+				"fixed inset-y-0 left-0 z-nav flex h-full flex-col overflow-hidden border-r border-border bg-background transition-[width] duration-300 ease-in-out",
 				className,
 			)}
 			style={{
@@ -39,42 +39,40 @@ export function NavVerticalLayout({ data, className }: Props) {
 		>
 			<div
 				className={cn(
-					"relative flex h-[var(--layout-header-height)] items-center border-b border-border/60 px-3 py-4",
-					{
-						"justify-center": themeLayout === ThemeLayout.Mini,
-					},
+					"flex h-[var(--layout-header-height)] shrink-0 items-center gap-2 px-4",
+					mini ? "justify-center px-2" : "justify-between",
 				)}
 			>
-				<div className="flex items-center justify-center">
-					<Logo />
-					<span
-						className="text-xl font-bold transition-all duration-300 ease-in-out"
-						style={{
-							opacity: themeLayout === ThemeLayout.Mini ? 0 : 1,
-							maxWidth: themeLayout === ThemeLayout.Mini ? 0 : "auto",
-							whiteSpace: "nowrap",
-							marginLeft: themeLayout === ThemeLayout.Mini ? 0 : "8px",
-						}}
+				{mini ? <Logo size={30} /> : <Logo size={30} withText />}
+				{!mini && (
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={handleToggle}
+						className="h-8 w-8 text-muted-foreground"
+						aria-label="Collapse menu"
+						title="Collapse menu"
 					>
-						{GLOBAL_CONFIG.appName}
-					</span>
-				</div>
-
-				<Button
-					variant="outline"
-					size="icon"
-					onClick={handleToggle}
-					className="absolute right-0 h-8 w-8 translate-x-1/2 rounded-full border-border/70 bg-background shadow-sm"
-				>
-					{themeLayout === ThemeLayout.Mini ? (
-						<Icon icon="lucide:arrow-right-to-line" size={12} />
-					) : (
-						<Icon icon="lucide:arrow-left-to-line" size={12} />
-					)}
-				</Button>
+						<Icon icon="lucide:panel-left-close" size={18} />
+					</Button>
+				)}
 			</div>
+			{mini && (
+				<div className="flex justify-center pb-1">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={handleToggle}
+						className="h-8 w-8 text-muted-foreground"
+						aria-label="Expand menu"
+						title="Expand menu"
+					>
+						<Icon icon="lucide:panel-left-open" size={18} />
+					</Button>
+				</div>
+			)}
 
-			<ScrollArea className={cn("h-[calc(100vh-var(--layout-header-height))] bg-transparent px-3 py-3")}>
+			<ScrollArea className={cn("h-[calc(100vh-var(--layout-header-height))] bg-transparent px-3 pb-3")}>
 				{themeLayout === ThemeLayout.Mini ? <NavMini data={data} /> : <NavVertical data={data} />}
 			</ScrollArea>
 		</nav>

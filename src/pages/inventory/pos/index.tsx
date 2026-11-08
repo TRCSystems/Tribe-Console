@@ -4,20 +4,20 @@ import { message } from "antd";
 import { useEffect, useState } from "react";
 import inventoryService, {
 	type InventoryItem,
-	type SaleRequest,
 	type SaleItemRequest,
+	type SaleRequest,
 } from "@/api/services/inventoryService";
 import { Icon } from "@/components/icon";
 import { OTPModal } from "@/components/otp-modal";
 import { UserRoleIndicator } from "@/components/user-role-indicator";
-import { useAuthCheck, useMerchantId, useUserInfo } from "@/store/userStore";
+import { useAuthCheck, useMerchantId, useUserInfo, useUserToken } from "@/store/userStore";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
 import { Label } from "@/ui/label";
-import { useUserToken } from "@/store/userStore";
-import { getBusinessPhoneFromToken, getTillNumberFromToken, getLocationFromToken } from "@/utils/jwt";
+import { getBusinessPhoneFromToken, getLocationFromToken, getTillNumberFromToken } from "@/utils/jwt";
+import { isStockHidden, sellableQuantity } from "@/utils/stock-visibility";
 
 type PricingMode = "retail" | "wholesale";
 
@@ -219,7 +219,7 @@ const SaleToastNotification = ({
 							)}
 						</div>
 					</div>
-					<button onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700 flex-shrink-0">
+					<button type="button" onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700 flex-shrink-0">
 						<Icon icon="lucide:x" className="h-4 w-4" />
 					</button>
 				</div>
@@ -337,7 +337,7 @@ const CloseDayToastNotification = ({
 							)}
 						</div>
 					</div>
-					<button onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700 flex-shrink-0">
+					<button type="button" onClick={onClose} className="ml-4 text-gray-500 hover:text-gray-700 flex-shrink-0">
 						<Icon icon="lucide:x" className="h-4 w-4" />
 					</button>
 				</div>
@@ -580,7 +580,7 @@ const ThermalPrintReceipt = ({
         <p>Thank you for your business!</p>
         <div style="display: flex; align-items: center; justify-content: center; margin-top: 5px;">
             <img src="/logo.png" alt="Logo" style="width: 30px; margin-right: 8px;" />
-            <span style="font-size: 12px; font-weight: bold;">Tribe<br> powered by TRC Systems</span>
+            <span style="font-size: 12px; font-weight: bold;">Tribe<br> by ASANO GROUP LIMITED</span>
         </div>
     </div>
 
@@ -890,7 +890,7 @@ export default function PointOfSalePage() {
 		refetch,
 	} = useQuery({
 		queryKey: ["inventory-pos", merchantId],
-		queryFn: () => inventoryService.listMenu(merchantId!),
+		queryFn: () => inventoryService.listMenu(),
 		enabled: !!merchantId && isAuthenticated,
 	});
 
@@ -1069,7 +1069,10 @@ export default function PointOfSalePage() {
 			id: item.id || 0,
 			itemName: item.itemName || "Unknown Item",
 			unitPrice: item.unitPrice || 0,
-			availableStock: item.availableStock || 0,
+			// Attendants get no quantity (blind counting) — only in/out of stock
+			availableStock: sellableQuantity(item),
+			stockHidden: isStockHidden(item),
+			stockStatus: item.stockStatus,
 			merchantId: item.merchantId,
 			itemCode: item.itemCode,
 			startingStock: item.startingStock,
@@ -1173,7 +1176,13 @@ export default function PointOfSalePage() {
 		if (removedItemsCount > 0) {
 			message.warning(`${removedItemsCount} item(s) were removed because wholesale prices are missing.`);
 		}
-	}, [pricingMode, posInventory, orderItems.length, buildOrderItem]);
+	}, [
+		pricingMode,
+		posInventory,
+		orderItems.length,
+		// biome-ignore lint/correctness/useExhaustiveDependencies: kept as it was; buildOrderItem is rebuilt each render
+		buildOrderItem,
+	]);
 
 	const generateTransactionId = () => {
 		return `TXN-${Date.now().toString().slice(-8)}`;
@@ -1415,15 +1424,10 @@ export default function PointOfSalePage() {
 		setSelectedPaymentMethod(paymentMethod);
 
 		processSaleMutation.mutate({
-			merchantId: merchantId,
 			customerPhone: customerContact,
 			orderType: pricingMode === "wholesale" ? "WHOLESALE" : "RETAIL",
 			items: saleItems,
 		});
-	};
-
-	const _handleMpesaPayment = () => {
-		processSale("mpesa");
 	};
 
 	const handleCashPayment = () => {
@@ -1460,8 +1464,8 @@ export default function PointOfSalePage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold">Point of Sale</h1>
-						<p className="text-muted-foreground">Process orders and manage transactions</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Point of Sale</h1>
+						<p className="mt-1 text-sm text-muted-foreground">Process orders and manage transactions</p>
 					</div>
 				</div>
 				<Card>
@@ -1479,122 +1483,87 @@ export default function PointOfSalePage() {
 	return (
 		<>
 			<div className="space-y-6">
-				<div className="relative z-10 overflow-hidden rounded-3xl border border-white/50 bg-background/90 p-5 shadow-[0_18px_40px_-28px_rgba(15,23,42,0.35)] backdrop-blur-sm">
-					<div className="pointer-events-none absolute inset-x-0 top-0 h-20 bg-gradient-to-r from-sky-500/10 via-transparent to-emerald-500/10" />
-					<div className="relative flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-						<div>
-							<h1 className="text-2xl font-bold">Point Of Sale</h1>
-							<p className="text-muted-foreground">
-								Process orders and manage transactions with {pricingMode === "retail" ? "retail" : "wholesale"} pricing
-							</p>
+				<div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+					<div>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">Point of sale</h1>
+						<p className="mt-1 text-sm text-muted-foreground">
+							{merchantId && merchantName ? `${merchantName} · ` : ""}
+							{pricingMode === "retail" ? "Retail" : "Wholesale"} prices
+						</p>
+					</div>
+					<div className="flex flex-wrap items-center gap-3">
+						<UserRoleIndicator />
+						<div className="inline-flex rounded-lg border border-border bg-muted/40 p-0.5">
+							<button
+								type="button"
+								onClick={() => setPricingMode("retail")}
+								className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors ${
+									pricingMode === "retail"
+										? "bg-background text-foreground shadow-sm"
+										: "text-muted-foreground hover:text-foreground"
+								}`}
+							>
+								<Icon icon="lucide:store" className="h-3.5 w-3.5" />
+								Retail
+							</button>
+							<button
+								type="button"
+								onClick={handleWholesaleModeClick}
+								className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-xs font-medium transition-colors ${
+									pricingMode === "wholesale"
+										? "bg-background text-foreground shadow-sm"
+										: "text-muted-foreground hover:text-foreground"
+								}`}
+							>
+								<Icon icon="lucide:warehouse" className="h-3.5 w-3.5" />
+								Wholesale
+							</button>
 						</div>
-						<div className="flex flex-col gap-3 xl:items-end">
-							<div className="rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 via-white to-emerald-50 p-0.5 shadow-sm">
-								<div className="grid grid-cols-2 gap-1">
-									<Button
-										type="button"
-										onClick={() => setPricingMode("retail")}
-										className={`h-9 rounded-lg px-3 text-xs font-semibold transition-all ${
-											pricingMode === "retail"
-												? "bg-slate-900 text-white shadow-md hover:bg-slate-800"
-												: "bg-transparent text-slate-600 shadow-none hover:bg-white"
-										}`}
-									>
-										<Icon icon="lucide:store" className="mr-1.5 h-3.5 w-3.5" />
-										Retail <span className="hidden sm:inline">Mode</span>
-									</Button>
-									<Button
-										type="button"
-										onClick={handleWholesaleModeClick}
-										className={`h-9 rounded-lg px-3 text-xs font-semibold transition-all ${
-											pricingMode === "wholesale"
-												? "bg-emerald-600 text-white shadow-md hover:bg-emerald-700"
-												: "bg-transparent text-slate-600 shadow-none hover:bg-white"
-										}`}
-									>
-										<Icon icon="lucide:warehouse" className="mr-1.5 h-3.5 w-3.5" />
-										Wholesale <span className="hidden sm:inline">Mode</span>
-									</Button>
-								</div>
-							</div>
-
-							<div className="flex flex-wrap items-center gap-4">
-								<UserRoleIndicator />
-
-								<Badge variant="secondary" className="text-lg">
-									Total: {formatCurrency(totalAmount)}
-								</Badge>
-								{totalExtra > 0 && (
-									<Badge variant="outline" className="text-lg text-green-600 border-green-500">
-										Extra: +{formatCurrency(totalExtra)}
-									</Badge>
-								)}
-								<Badge variant="outline" className="text-lg">
-									Items: {totalItems}
-								</Badge>
-								{merchantId && (
-									<Badge variant="default" className="text-lg">
-										{merchantName}
-									</Badge>
-								)}
-							</div>
+						<div className="flex items-center divide-x divide-border rounded-lg border border-border text-sm">
+							<span className="px-3 py-1.5 text-muted-foreground">
+								Items <span className="font-semibold text-foreground">{totalItems}</span>
+							</span>
+							<span className="px-3 py-1.5 text-muted-foreground">
+								Total <span className="font-semibold text-foreground">{formatCurrency(totalAmount)}</span>
+							</span>
+							{totalExtra > 0 && (
+								<span className="px-3 py-1.5 text-muted-foreground">
+									Extra <span className="font-semibold text-orange-600">+{formatCurrency(totalExtra)}</span>
+								</span>
+							)}
 						</div>
 					</div>
 				</div>
 
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-					<Card className="relative overflow-hidden lg:col-span-2">
-						<CardHeader className="relative z-10 border-b border-border/70 bg-background/95 backdrop-blur-sm">
-							<div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-								<div>
-									<CardTitle>{pricingMode === "retail" ? "Retail Menu" : "Wholesale Catalogue"}</CardTitle>
-									<CardDescription>
-										Click on any item to add to order. Prices update instantly when you switch modes.
-									</CardDescription>
-								</div>
-								<div
-									className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${
-										pricingMode === "wholesale"
-											? "border-emerald-200 bg-emerald-50 text-emerald-700"
-											: "border-slate-200 bg-slate-50 text-slate-700"
-									}`}
-								>
-									<Icon
-										icon={pricingMode === "wholesale" ? "lucide:warehouse" : "lucide:store"}
-										className="h-3.5 w-3.5"
-									/>
-									{pricingMode}
-								</div>
+					<Card className="gap-0 overflow-hidden py-0 lg:col-span-2">
+						<div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+							<div>
+								<h2 className="text-base font-semibold text-foreground">
+									{pricingMode === "retail" ? "Products" : "Wholesale catalogue"}
+								</h2>
+								<p className="text-xs text-muted-foreground">Tap an item to add it to the order</p>
 							</div>
-						</CardHeader>
-						<CardContent className="relative z-0">
-							{pricingMode === "wholesale" && (
-								<div className="mb-6 rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white p-4">
-									<div className="flex items-start gap-3">
-										<div className="rounded-xl bg-emerald-600 p-2 text-white">
-											<Icon icon="lucide:badge-dollar-sign" className="h-5 w-5" />
-										</div>
-										<div className="space-y-1">
-											<p className="font-semibold text-emerald-900">Wholesale pricing is active</p>
-											{missingWholesalePriceCount > 0 && (
-												<p className="text-xs font-medium text-amber-700">
-													{missingWholesalePriceCount} item(s) do not yet have wholesale prices and cannot be sold in
-													this mode.
-												</p>
-											)}
-										</div>
-									</div>
-								</div>
-							)}
-
-							<div className="mb-6">
+							<div className="relative w-full sm:max-w-xs">
+								<Icon
+									icon="lucide:search"
+									className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
+								/>
 								<Input
-									placeholder={`Search ${pricingMode === "retail" ? "retail" : "wholesale"} items...`}
+									placeholder={`Search ${pricingMode === "retail" ? "products" : "wholesale items"}`}
 									value={searchTerm}
 									onChange={(e) => setSearchTerm(e.target.value)}
-									className="max-w-sm"
+									className="pl-9"
 								/>
 							</div>
+						</div>
+						<CardContent className="p-4 sm:p-6">
+							{pricingMode === "wholesale" && missingWholesalePriceCount > 0 && (
+								<div className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+									<Icon icon="lucide:info" className="h-4 w-4 shrink-0" />
+									{missingWholesalePriceCount} item(s) have no wholesale price yet and can't be sold in this mode.
+								</div>
+							)}
 
 							{isLoading ? (
 								<div className="text-center py-12">
@@ -1602,114 +1571,104 @@ export default function PointOfSalePage() {
 									<p className="text-muted-foreground">Loading menu...</p>
 								</div>
 							) : (
-								<div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+								<div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
 									{filteredInventory.map((itemData) => {
 										const isWholesaleUnavailable = pricingMode === "wholesale" && itemData.activeUnitPrice === null;
 										const isDisabled = itemData.availableStock === 0 || isWholesaleUnavailable;
 
 										return (
-											<div
+											<button
+												type="button"
 												key={itemData.id}
-												className={`
-                          transition-all duration-300 transform
-                          ${isDisabled ? "cursor-not-allowed opacity-60" : "cursor-pointer hover:scale-110 hover:shadow-2xl"}
-                          flex flex-col items-center justify-center
-                          rounded-3xl border-2 border-black shadow-lg
-                          ${isWholesaleUnavailable ? "bg-gradient-to-br from-amber-50 to-white" : "bg-gradient-to-br from-white to-gray-50"}
-                          hover:shadow-2xl p-4 min-h-[140px] w-full
-                          ${isDisabled ? "" : "hover:border-green-500 hover:from-green-50 hover:to-white"}
-                          relative overflow-hidden
-                        `}
+												disabled={isDisabled}
+												className={`flex min-h-[132px] w-full flex-col justify-between gap-3 rounded-xl border border-border bg-background p-3 text-left transition-colors ${
+													isDisabled
+														? "cursor-not-allowed opacity-55"
+														: "cursor-pointer hover:border-primary/50 hover:bg-primary/5 active:bg-primary/10"
+												}`}
 												onClick={() => {
 													if (!isDisabled) {
 														addToOrder(itemData);
 													}
 												}}
 											>
-												<div className="absolute inset-0 rounded-3xl border border-white/50 shadow-inner"></div>
+												<h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
+													{itemData.itemName}
+												</h3>
 
-												<div className="text-center mb-2 z-10">
-													<h3 className="font-black text-lg leading-tight text-gray-800 line-clamp-2">
-														{itemData.itemName}
-													</h3>
-												</div>
-
-												<div className="text-center mb-2 z-10">
+												<div>
 													<p
-														className={`text-md font-extrabold ${
-															isWholesaleUnavailable ? "text-amber-700" : "text-green-600"
+														className={`text-base font-semibold ${
+															isWholesaleUnavailable ? "text-amber-700" : "text-foreground"
 														}`}
 													>
 														{itemData.activeUnitPrice !== null
 															? formatCurrency(itemData.activeUnitPrice)
 															: "No wholesale price"}
 													</p>
-													{itemData.unitCost !== null && itemData.unitCost !== undefined ? (
-														<p className="text-xs text-gray-500 mt-1">BP: {formatCurrency(itemData.unitCost)}</p>
-													) : (
-														<p className="text-xs text-gray-500 mt-1">BP: _</p>
-													)}
+													<p className="text-xs text-muted-foreground">
+														BP{" "}
+														{itemData.unitCost !== null && itemData.unitCost !== undefined
+															? formatCurrency(itemData.unitCost)
+															: "—"}
+													</p>
 												</div>
 
-												<div className="text-center z-10">
+												<div>
 													<Badge
 														variant={
 															isWholesaleUnavailable
 																? "warning"
 																: itemData.availableStock === 0
 																	? "destructive"
-																	: itemData.availableStock < 5
+																	: !itemData.stockHidden && itemData.availableStock < 5
 																		? "warning"
 																		: "secondary"
 														}
-														className="text-xs px-2 py-1 border border-black/20"
+														className="px-2 py-0.5 text-[11px] font-medium"
 													>
-													{isWholesaleUnavailable
-														? "Missing price"
-														: itemData.availableStock === 0
-															? "Sold Out"
-															: itemData.availableStock < 5
-																? "Low Stock"
-																: "Sufficient"}
+														{isWholesaleUnavailable
+															? "Missing price"
+															: itemData.availableStock === 0
+																? "Sold Out"
+																: itemData.stockHidden
+																	? "In Stock"
+																	: itemData.availableStock < 5
+																		? "Low Stock"
+																		: "Sufficient"}
 													</Badge>
 												</div>
-
-												<div
-													className={`absolute inset-0 rounded-3xl transition-colors duration-300 ${
-														isDisabled ? "bg-transparent" : "bg-green-500/0 hover:bg-green-500/10"
-													}`}
-												></div>
-											</div>
+											</button>
 										);
 									})}
 								</div>
 							)}
 
 							{!isLoading && filteredInventory.length === 0 && (
-								<div className="text-center py-12 text-muted-foreground border-2 border-black rounded-2xl">
-									<Icon icon="lucide:utensils" className="h-16 w-16 mx-auto mb-4 opacity-50" />
-									<p className="text-lg font-medium">No items found</p>
+								<div className="rounded-xl border border-dashed border-border py-12 text-center text-muted-foreground">
+									<Icon icon="lucide:package-search" className="mx-auto mb-3 h-10 w-10 opacity-50" />
+									<p className="font-medium text-foreground">No items found</p>
 									<p className="text-sm">Try adjusting your search criteria</p>
 								</div>
 							)}
 						</CardContent>
 					</Card>
 
-					<Card className="relative overflow-hidden">
-						<CardHeader className="relative z-10 border-b border-border/70 bg-background/95 backdrop-blur-sm">
-							<CardTitle className="flex items-center gap-2">
-								<Icon icon="lucide:clipboard-list" className="h-5 w-5" />
-								Current Order
-							</CardTitle>
-							<CardDescription>
-								Items selected for this transaction using {pricingMode === "retail" ? "retail" : "wholesale"} pricing
-							</CardDescription>
-						</CardHeader>
-						<CardContent className="relative z-0 space-y-6">
-							<div className="space-y-3">
-								<div className="flex items-center justify-between">
-									<Label htmlFor="customerName">Customer Name (Optional)</Label>
-								</div>
+					<Card className="gap-0 self-start overflow-hidden py-0 lg:sticky lg:top-[calc(var(--layout-header-height)+1rem)]">
+						<div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+							<div>
+								<h2 className="text-base font-semibold text-foreground">Current order</h2>
+								<p className="text-xs text-muted-foreground">
+									{totalItems} item{totalItems === 1 ? "" : "s"} · {pricingMode} prices
+								</p>
+							</div>
+							<Icon icon="lucide:receipt" className="h-5 w-5 text-muted-foreground" />
+						</div>
+						<CardContent className="space-y-5 p-4 sm:p-6">
+							<div className="space-y-1.5">
+								<Label htmlFor="customerName" className="text-xs font-medium">
+									Customer name <span className="font-normal text-muted-foreground">(optional)</span>
+								</Label>
 								<div className="relative">
 									<Input
 										id="customerName"
@@ -1731,10 +1690,10 @@ export default function PointOfSalePage() {
 								</div>
 							</div>
 
-							<div className="space-y-3">
-								<div className="flex items-center justify-between">
-									<Label htmlFor="customerContact">Customer Phone Number (Optional)</Label>
-								</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="customerContact" className="text-xs font-medium">
+									Customer phone <span className="font-normal text-muted-foreground">(optional)</span>
+								</Label>
 								<div className="relative">
 									<Input
 										id="customerContact"
@@ -1766,44 +1725,50 @@ export default function PointOfSalePage() {
 										</button>
 									)}
 								</div>
-								<div className="text-xs text-muted-foreground space-y-1">
-									<p>• Format: 2547********</p>
-									<p>• We'll automatically convert 071... to 25471...</p>
-									<p
-										className={`${customerContact && !/^254[17]\d{8}$/.test(customerContact) ? "text-red-500 font-medium" : "text-green-500"}`}
-									>
-										• Current format:{" "}
-										{customerContact
-											? /^254[17]\d{8}$/.test(customerContact)
-												? "Valid ✅"
-												: "Invalid ❌"
-											: "Not provided"}
-									</p>
-								</div>
+								<p
+									className={`flex items-center gap-1 text-xs ${
+										customerContact && !/^254[17]\d{8}$/.test(customerContact)
+											? "font-medium text-destructive"
+											: customerContact
+												? "text-emerald-600"
+												: "text-muted-foreground"
+									}`}
+								>
+									{customerContact ? (
+										/^254[17]\d{8}$/.test(customerContact) ? (
+											<>
+												<Icon icon="lucide:check" className="h-3.5 w-3.5" />
+												Valid number
+											</>
+										) : (
+											<>
+												<Icon icon="lucide:alert-circle" className="h-3.5 w-3.5" />
+												Use 2547XXXXXXXX or 07XXXXXXXX
+											</>
+										)
+									) : (
+										"07… numbers are converted to 2547… automatically"
+									)}
+								</p>
 							</div>
 
 							{orderItems.length === 0 ? (
-								<div className="text-center py-8 text-muted-foreground border-2 border-black rounded-2xl">
-									<Icon icon="lucide:clipboard-list" className="h-12 w-12 mx-auto mb-3 opacity-50" />
-									<p className="font-medium">Order is empty</p>
-									<p className="text-sm">Select items from the menu...</p>
+								<div className="rounded-xl border border-dashed border-border py-8 text-center text-muted-foreground">
+									<Icon icon="lucide:shopping-cart" className="mx-auto mb-2 h-8 w-8 opacity-50" />
+									<p className="text-sm font-medium text-foreground">No items yet</p>
+									<p className="text-xs">Tap a product to add it</p>
 								</div>
 							) : (
-								<div className="space-y-3 max-h-96 overflow-y-auto">
+								<div className="max-h-96 divide-y divide-border overflow-y-auto rounded-xl border border-border">
 									{orderItems.map((item) => {
-										const _itemTotal =
-											item.totalPrice !== undefined ? item.totalPrice : item.unitPrice * item.orderQuantity;
 										const itemExtra = item.extraAmount || 0;
 										const displayPrice = item.displayPrice || item.unitPrice;
 
 										return (
-											<div
-												key={item.id}
-												className="flex items-center justify-between p-3 border-2 border-black rounded-xl"
-											>
+											<div key={item.id} className="flex items-center justify-between gap-2 p-3">
 												<div className="flex-1 min-w-0">
 													<div className="flex items-center gap-2">
-														<p className="font-bold text-gray-800 truncate">{item.itemName}</p>
+														<p className="truncate text-sm font-medium text-foreground">{item.itemName}</p>
 														{item.isSpecialPrice && (
 															<Badge variant="outline" className="text-xs border-green-500 text-green-600">
 																Special Price
@@ -1821,32 +1786,37 @@ export default function PointOfSalePage() {
 															<span className="ml-2 text-xs text-gray-400">(Extra: +{formatCurrency(itemExtra)})</span>
 														)}
 													</p>
-													<p className="text-xs text-muted-foreground">Stock: {item.availableStock}</p>
+													{!item.stockHidden && (
+														<p className="text-xs text-muted-foreground">Stock: {item.availableStock}</p>
+													)}
 												</div>
-												<div className="flex items-center gap-2">
+												<div className="flex items-center gap-1">
 													<Button
-														size="sm"
+														size="icon"
 														variant="outline"
-														className="border border-black"
+														className="h-7 w-7"
 														onClick={() => updateOrderQuantity(item.id, item.orderQuantity - 1)}
 													>
 														<Icon icon="lucide:minus" className="h-3 w-3" />
 													</Button>
-													<span className="w-8 text-center font-bold text-lg">{item.orderQuantity}</span>
+													<span className="w-8 text-center text-sm font-semibold tabular-nums">
+														{item.orderQuantity}
+													</span>
 													<Button
-														size="sm"
+														size="icon"
 														variant="outline"
-														className="border border-black"
+														className="h-7 w-7"
 														onClick={() => updateOrderQuantity(item.id, item.orderQuantity + 1)}
 														disabled={item.orderQuantity >= item.availableStock}
 													>
 														<Icon icon="lucide:plus" className="h-3 w-3" />
 													</Button>
 													<Button
-														size="sm"
+														size="icon"
 														variant="ghost"
 														onClick={() => removeFromOrder(item.id)}
-														className="text-red-500 hover:text-red-700 border border-black/20"
+														className="h-7 w-7 text-muted-foreground hover:text-destructive"
+														title="Remove"
 													>
 														<Icon icon="lucide:trash" className="h-3 w-3" />
 													</Button>
@@ -1857,115 +1827,79 @@ export default function PointOfSalePage() {
 								</div>
 							)}
 
-							<div className="border-t-2 border-black pt-4 space-y-3">
-								<div className="flex justify-between text-sm">
-									<span>Subtotal:</span>
-									<span>{formatCurrency(totalAmount - totalExtra)}</span>
+							<div className="space-y-2 border-t border-border pt-4">
+								<div className="flex justify-between text-sm text-muted-foreground">
+									<span>Subtotal</span>
+									<span className="tabular-nums">{formatCurrency(totalAmount - totalExtra)}</span>
 								</div>
 
 								{totalExtra > 0 && (
 									<div className="flex justify-between text-sm text-orange-600">
-										<span>Extra Amount:</span>
-										<span>+{formatCurrency(totalExtra)}</span>
+										<span>Extra</span>
+										<span className="tabular-nums">+{formatCurrency(totalExtra)}</span>
 									</div>
 								)}
 
-								<div className="flex justify-between text-lg font-bold">
-									<span>Total Amount:</span>
-									<span>{formatCurrency(totalAmount)}</span>
+								<div className="flex items-baseline justify-between">
+									<span className="text-sm font-medium text-foreground">Total</span>
+									<span className="text-2xl font-semibold tracking-tight tabular-nums text-foreground">
+										{formatCurrency(totalAmount)}
+									</span>
 								</div>
 							</div>
 
-							<div className="space-y-4">
+							<Button
+								size="lg"
+								className="h-12 w-full gap-2 text-base"
+								onClick={handleCashPayment}
+								disabled={processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions}
+							>
+								{processSaleMutation.isPending && selectedPaymentMethod === "cash" ? (
+									<>
+										<Icon icon="eos-icons:loading" className="h-5 w-5" />
+										Processing…
+									</>
+								) : (
+									<>
+										<Icon icon="lucide:banknote" className="h-5 w-5" />
+										Take cash payment
+									</>
+								)}
+							</Button>
+
+							{!canPerformActions && (
+								<div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-center text-sm text-destructive">
+									Sign in again to process sales.
+								</div>
+							)}
+
+							<div className="grid grid-cols-3 gap-2 border-t border-border pt-4">
+								<Button variant="outline" size="sm" className="gap-1.5" onClick={handleViewDailyAnalytics}>
+									<Icon icon="lucide:calendar" className="h-4 w-4" />
+									Daily
+								</Button>
+								<Button variant="outline" size="sm" className="gap-1.5" onClick={handleViewWeeklyAnalytics}>
+									<Icon icon="lucide:bar-chart-3" className="h-4 w-4" />
+									Weekly
+								</Button>
 								<Button
-									className="w-full h-14 text-lg font-bold shadow-xl hover:shadow-2xl transition-all duration-200 rounded-2xl border-2 border-black"
-									onClick={handleCashPayment}
-									disabled={processSaleMutation.isPending || orderItems.length === 0 || !canPerformActions}
-									style={{
-										background: "linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%)",
-										color: "white",
-									}}
+									variant="outline"
+									size="sm"
+									className="gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+									onClick={handleInitiateCloseDay}
+									disabled={initiateCloseDayMutation.isPending || !merchantId}
 								>
-									{processSaleMutation.isPending && selectedPaymentMethod === "cash" ? (
-										<>
-											<Icon icon="eos-icons:loading" className="mr-3 h-5 w-5" />
-											Processing Cash...
-										</>
+									{initiateCloseDayMutation.isPending ? (
+										<Icon icon="eos-icons:loading" className="h-4 w-4" />
 									) : (
-										<>
-											<Icon icon="lucide:banknote" className="mr-3 h-5 w-5" />
-											Pay Via Cash
-										</>
+										<Icon icon="lucide:lock" className="h-4 w-4" />
 									)}
+									{initiateCloseDayMutation.isPending ? "Sending…" : "Close day"}
 								</Button>
 							</div>
 
-							{orderItems.length === 0 && (
-								<div className="text-center text-sm text-muted-foreground p-4 border-2 border-black rounded-2xl bg-muted/20">
-									<p>Add items to your order to enable payment options</p>
-								</div>
-							)}
-
-							{!canPerformActions && (
-								<div className="text-center text-sm text-destructive p-4 border-2 border-destructive rounded-2xl bg-destructive/10">
-									<p>Authentication required. Please login to process sales.</p>
-								</div>
-							)}
-
-							<div className="flex justify-between items-center pt-4">
-								<button
-									onClick={handleViewDailyAnalytics}
-									className={`
-                    relative w-16 h-16 rounded-full flex flex-col items-center justify-center
-                    transition-all duration-300 transform hover:scale-110
-                    shadow-lg hover:shadow-xl border-2 border-purple-600
-                    bg-blue-600 hover:bg-blue-700 cursor-pointer
-                  `}
-								>
-									<Icon icon="lucide:calendar" className="h-5 w-5 text-white mb-1" />
-									<span className="text-white text-xs font-bold text-center leading-tight">Daily</span>
-								</button>
-
-								<button
-									onClick={handleViewWeeklyAnalytics}
-									className={`
-                    relative w-16 h-16 rounded-full flex flex-col items-center justify-center
-                    transition-all duration-300 transform hover:scale-110
-                    shadow-lg hover:shadow-xl border-2 border-purple-600
-                    bg-blue-600 hover:bg-blue-700 cursor-pointer
-                  `}
-								>
-									<Icon icon="lucide:bar-chart-3" className="h-5 w-5 text-white mb-1" />
-									<span className="text-white text-xs font-bold text-center leading-tight">Weekly</span>
-								</button>
-
-								<button
-									onClick={handleInitiateCloseDay}
-									disabled={initiateCloseDayMutation.isPending || !merchantId}
-									className={`
-                    relative w-16 h-16 rounded-full flex flex-col items-center justify-center
-                    transition-all duration-300 transform hover:scale-110
-                    shadow-lg hover:shadow-xl border-2 border-red-600
-                    ${
-											initiateCloseDayMutation.isPending || !merchantId
-												? "bg-red-400 cursor-not-allowed"
-												: "bg-red-600 hover:bg-red-700 cursor-pointer"
-										}
-                  `}
-								>
-									{initiateCloseDayMutation.isPending ? (
-										<Icon icon="eos-icons:loading" className="h-5 w-5 text-white mb-1" />
-									) : (
-										<Icon icon="lucide:lock" className="h-5 w-5 text-white mb-1" />
-									)}
-									<span className="text-white text-xs font-bold text-center leading-tight">
-										{initiateCloseDayMutation.isPending ? "Sending OTP..." : "Close Day"}
-									</span>
-								</button>
-							</div>
-
 							{closeDayStep === "initiated" && (
-								<div className="text-center text-sm text-blue-600 p-3 border-2 border-blue-300 rounded-2xl bg-blue-50">
+								<div className="rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-center text-sm text-primary">
 									<Icon icon="lucide:check-circle" className="inline h-4 w-4 mr-1" />
 									OTP sent to your phone. Check your messages and enter the code above.
 								</div>
@@ -2018,17 +1952,8 @@ export default function PointOfSalePage() {
 				location={location}
 			/>
 
-			<footer className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-				<div className="flex flex-col items-center justify-center gap-2">
-					<div className="flex items-center gap-2">
-						<Icon icon="lucide:shield" className="h-4 w-4 text-gray-400" />
-						<span className="text-sm text-gray-500 dark:text-gray-400">Secure • Reliable • Efficient</span>
-					</div>
-					<p className="text-xs text-gray-400 dark:text-gray-500">
-						TRIBE powered by <span className="font-bold text-gray-600 dark:text-gray-300">TRC Systems</span>
-					</p>
-					<p className="text-xs text-gray-400 dark:text-gray-500">© {new Date().getFullYear()} All rights reserved</p>
-				</div>
+			<footer className="mt-8 border-t border-border pt-4 text-center text-xs text-muted-foreground">
+				Tribe by <span className="font-medium text-foreground">ASANO GROUP LIMITED</span> · © {new Date().getFullYear()}
 			</footer>
 		</>
 	);

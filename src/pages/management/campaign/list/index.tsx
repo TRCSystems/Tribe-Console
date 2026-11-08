@@ -139,9 +139,9 @@ export default function CampaignListPage() {
 		queryFn: () => {
 			if (!numericMerchantId) {
 				console.warn("❌ No merchantId available, skipping campaigns fetch");
-				return Promise.resolve([]);
+				return Promise.resolve([] as Campaign[]);
 			}
-			return campaignService.getCampaigns(numericMerchantId);
+			return campaignService.getCampaigns(numericMerchantId) as Promise<Campaign[]>;
 		},
 		enabled: !!numericMerchantId && isAuthenticated,
 	});
@@ -223,8 +223,8 @@ export default function CampaignListPage() {
 			<div className="space-y-6">
 				<div className="flex items-center justify-between">
 					<div>
-						<h1 className="text-2xl font-bold">My Campaigns</h1>
-						<p className="text-muted-foreground">Track and manage your marketing campaigns</p>
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground">My Campaigns</h1>
+						<p className="mt-1 text-sm text-muted-foreground">Track and manage your marketing campaigns</p>
 					</div>
 					<Button asChild>
 						<Link to="/management/campaign/create">
@@ -278,8 +278,8 @@ export default function CampaignListPage() {
 
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-2xl font-bold">My Campaigns</h1>
-					<p className="text-muted-foreground">Track and manage your marketing campaigns</p>
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground">My Campaigns</h1>
+					<p className="mt-1 text-sm text-muted-foreground">Track and manage your marketing campaigns</p>
 				</div>
 				<Button asChild>
 					<Link to="/management/campaign/create">
