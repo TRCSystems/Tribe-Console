@@ -4,7 +4,6 @@ import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
 import { toast } from "sonner";
 import type { UserInfo } from "#/entity";
 import type { SignInReq } from "@/api/services/userService";
@@ -23,7 +22,6 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 	const { t } = useTranslation();
 	const [loading, setLoading] = useState(false);
 	const [remember, setRemember] = useState(true);
-	const navigate = useNavigate();
 
 	const { loginState, setLoginState } = useLoginStateContext();
 	const signIn = useSignIn();
@@ -103,8 +101,10 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 				if (storedToken) {
 					const home = homeFor(modulesFromToken(accessToken), GLOBAL_CONFIG.defaultRoute);
 					console.log("✅ Login successful! Token stored. Redirecting to:", home);
-					navigate(home, { replace: true });
 					toast.success(t("sys.login.loginSuccessTitle"));
+					// A full page load, not an in-app move: it picks up the latest portal after a deploy, so a tab
+					// left open from before a release cannot show modules this merchant has not bought.
+					window.location.replace(home);
 				} else {
 					console.error("❌ Token not found in stored state. Parsed state:", parsed);
 					toast.error("Login failed: Token not saved to storage");

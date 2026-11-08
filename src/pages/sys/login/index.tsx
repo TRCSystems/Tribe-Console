@@ -3,8 +3,10 @@
 import { Navigate } from "react-router";
 import { Icon } from "@/components/icon";
 import Logo, { LogoMark } from "@/components/logo";
+import { GLOBAL_CONFIG } from "@/global-config";
 import SettingButton from "@/layouts/components/setting-button";
 import { useUserToken } from "@/store/userStore";
+import { homeFor, modulesFromToken } from "@/utils/plan";
 import LoginForm from "./login-form";
 import MobileForm from "./mobile-form";
 import { LoginProvider } from "./providers/login-provider";
@@ -16,7 +18,8 @@ function LoginPage() {
 	const token = useUserToken();
 
 	if (token.accessToken) {
-		return <Navigate to="/welcome" replace />;
+		// Straight to the merchant's own start page (SokoReply for SokoReply-only merchants)
+		return <Navigate to={homeFor(modulesFromToken(token.accessToken), GLOBAL_CONFIG.defaultRoute)} replace />;
 	}
 
 	return (
