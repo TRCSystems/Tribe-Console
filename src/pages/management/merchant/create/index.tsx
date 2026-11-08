@@ -6,6 +6,7 @@ import { message } from "antd";
 import { useNavigate } from "react-router";
 import merchantService, { type CreateMerchantRequest } from "@/api/services/merchantService";
 import { Icon } from "@/components/icon";
+import { ModulePicker, modulesFromForm } from "@/components/merchant/module-picker";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
@@ -39,9 +40,14 @@ export default function CreateMerchantPage() {
 			location: formData.get("location") as string,
 			tillNumber: formData.get("tillNumber") as string,
 			businessType: formData.get("businessType") as string,
-			plan: ((formData.get("plan") as string) || "FULL") as "FULL" | "SOKOREPLY",
+			modules: modulesFromForm(formData).split(",").filter(Boolean),
 			businessPhone: formData.get("businessPhone") as string, // ADDED REQUIRED FIELD
 		};
+
+		if (merchantData.modules.length === 0) {
+			message.error("Tick at least one module");
+			return;
+		}
 
 		console.log("🛠️ Creating merchant with data:", merchantData);
 		createMutation.mutate(merchantData);
@@ -83,21 +89,7 @@ export default function CreateMerchantPage() {
 								</Select>
 							</div>
 
-							<div className="space-y-2">
-								<Label htmlFor="plan">Plan *</Label>
-								<Select name="plan" required defaultValue="FULL">
-									<SelectTrigger id="plan">
-										<SelectValue placeholder="Select plan" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="FULL">Tribe shop system + SokoReply</SelectItem>
-										<SelectItem value="SOKOREPLY">SokoReply only (online sellers)</SelectItem>
-									</SelectContent>
-								</Select>
-								<p className="text-xs text-muted-foreground">
-									SokoReply only hides POS, orders, inventory, customers, reports and finance.
-								</p>
-							</div>
+							<ModulePicker defaultValue={[]} />
 
 							<div className="space-y-2">
 								<Label htmlFor="location">Location *</Label>

@@ -6,14 +6,14 @@ import smmService, { type CatalogueItem, type NewCatalogueItem } from "@/api/ser
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
-import { useIsSokoReplyOnly } from "@/utils/plan";
+import { useModules } from "@/utils/plan";
 
 export function CatalogueTab({ onNext }: { onNext: () => void }) {
 	const qc = useQueryClient();
 	const catalogue = useQuery({ queryKey: ["smm-catalogue"], queryFn: smmService.catalogue });
 	const [filter, setFilter] = useState("");
-	// SokoReply-only sellers keep their products here; shop-system merchants change names, prices and stock in Inventory
-	const ownsCatalogue = useIsSokoReplyOnly();
+	// Merchants without the Inventory module keep their products here; the others change names, prices and stock in Inventory
+	const ownsCatalogue = !useModules().has("INVENTORY");
 
 	const save = useMutation({
 		mutationFn: ({ id, changes }: { id: number; changes: Partial<CatalogueItem> }) => smmService.saveItem(id, changes),

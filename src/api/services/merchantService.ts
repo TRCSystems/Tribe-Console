@@ -23,6 +23,8 @@ export interface Merchant {
 	metaSyncError?: string;
 	/** FULL (shop system + SokoReply) or SOKOREPLY (SokoReply only). Missing means FULL. */
 	plan?: "FULL" | "SOKOREPLY" | null;
+	/** Modules bought, comma separated (POS,ORDERS,INVENTORY,CUSTOMERS,REPORTS,FINANCE,SOKOREPLY). */
+	modules?: string | null;
 }
 
 export interface CreateMerchantRequest {
@@ -31,7 +33,8 @@ export interface CreateMerchantRequest {
 	location: string;
 	tillNumber: string;
 	businessPhone: string;
-	plan?: "FULL" | "SOKOREPLY";
+	/** Modules bought (POS, ORDERS, INVENTORY, CUSTOMERS, REPORTS, FINANCE, SOKOREPLY). */
+	modules: string[];
 }
 
 export interface ApiResponse<T = any> {

@@ -3,7 +3,7 @@ import type { NavItemDataProps } from "@/components/nav/types";
 import { GLOBAL_CONFIG } from "@/global-config";
 import { useUserPermissions } from "@/store/userStore";
 import { checkAny } from "@/utils";
-import { isAllowedForSokoReply, useIsSokoReplyOnly } from "@/utils/plan";
+import { isPathAllowed, type MerchantModule, useModules } from "@/utils/plan";
 import { backendNavData } from "./nav-data-backend";
 import { frontendNavData } from "./nav-data-frontend";
 
@@ -41,11 +41,12 @@ const filterItems = (items: NavItemDataProps[], permissions: string[]) => {
  * @param permissions 权限列表
  * @returns 过滤后的导航数据
  */
-const filterNavData = (permissions: string[], sokoReplyOnly: boolean) => {
+const filterNavData = (permissions: string[], modules: Set<MerchantModule>) => {
 	return navData
 		.map((group) => {
 			// 过滤组内的项目
-			const allowed = sokoReplyOnly ? group.items.filter((item) => isAllowedForSokoReply(item.path)) : group.items;
+			// Only the modules this merchant bought
+			const allowed = group.items.filter((item) => isPathAllowed(modules, item.path));
 			const filteredItems = filterItems(allowed, permissions);
 
 			// 如果组内没有项目了，返回 null
@@ -69,10 +70,7 @@ const filterNavData = (permissions: string[], sokoReplyOnly: boolean) => {
 export const useFilteredNavData = () => {
 	const permissions = useUserPermissions();
 	const permissionCodes = useMemo(() => permissions.map((p) => p.code), [permissions]);
-	const sokoReplyOnly = useIsSokoReplyOnly();
-	const filteredNavData = useMemo(
-		() => filterNavData(permissionCodes, sokoReplyOnly),
-		[permissionCodes, sokoReplyOnly],
-	);
+	const modules = useModules();
+	const filteredNavData = useMemo(() => filterNavData(permissionCodes, modules), [permissionCodes, modules]);
 	return filteredNavData;
 };

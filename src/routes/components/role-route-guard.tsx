@@ -2,8 +2,9 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { ROLE_PERMISSIONS, ROUTE_PERMISSIONS } from "#/entity";
+import { GLOBAL_CONFIG } from "@/global-config";
 import { useUserRole } from "@/store/userStore";
-import { isAllowedForSokoReply, SOKOREPLY_HOME, useIsSokoReplyOnly } from "@/utils/plan";
+import { hasAll, homeFor, isPathAllowed, useModules } from "@/utils/plan";
 
 interface RoleRouteGuardProps {
 	children: React.ReactNode;
@@ -13,13 +14,19 @@ export const RoleRouteGuard = ({ children }: RoleRouteGuardProps) => {
 	const userRole = useUserRole();
 	const navigate = useNavigate();
 	const location = useLocation();
-	const sokoReplyOnly = useIsSokoReplyOnly();
+	const modules = useModules();
 
 	useEffect(() => {
-		// SokoReply-only merchants see SokoReply and their profile, nothing of the shop system
-		if (sokoReplyOnly && !location.pathname.startsWith("/auth") && !isAllowedForSokoReply(location.pathname)) {
-			navigate(SOKOREPLY_HOME, { replace: true });
-			return;
+		// Merchants see only the modules they bought. Without the whole shop system, the welcome page and
+		// any other module's page send them to their first module.
+		const path = location.pathname;
+		if (!hasAll(modules) && modules.size > 0 && !path.startsWith("/auth")) {
+			const home = homeFor(modules, GLOBAL_CONFIG.defaultRoute);
+			const offPlan = !isPathAllowed(modules, path) || path === "/" || path === "/welcome";
+			if (offPlan && path !== home) {
+				navigate(home, { replace: true });
+				return;
+			}
 		}
 
 		if (!userRole) return;
@@ -64,7 +71,7 @@ export const RoleRouteGuard = ({ children }: RoleRouteGuardProps) => {
 				navigate("/welcome", { replace: true });
 			}
 		}
-	}, [userRole, sokoReplyOnly, location.pathname, navigate]);
+	}, [userRole, modules, location.pathname, navigate]);
 
 	return <>{children}</>;
 };

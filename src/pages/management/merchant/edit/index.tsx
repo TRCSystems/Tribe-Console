@@ -2,9 +2,11 @@
 // src/pages/management/merchant/edit/index.tsx - FINAL CORRECTED VERSION
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { message } from "antd";
 import { useNavigate, useParams } from "react-router";
 import merchantService from "@/api/services/merchantService";
 import { Icon } from "@/components/icon";
+import { ModulePicker, merchantModules, modulesFromForm } from "@/components/merchant/module-picker";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
@@ -55,9 +57,14 @@ export default function EditMerchantPage() {
 			location: formData.get("location") as string,
 			tillNumber: formData.get("tillNumber") as string,
 			businessType: formData.get("businessType") as string,
-			plan: ((formData.get("plan") as string) || "FULL") as "FULL" | "SOKOREPLY",
+			modules: modulesFromForm(formData),
 			businessPhone: formData.get("businessPhone") as string,
 		};
+
+		if (!merchantData.modules) {
+			message.error("Tick at least one module");
+			return;
+		}
 
 		updateMutation.mutate(merchantData);
 	};
@@ -138,21 +145,7 @@ export default function EditMerchantPage() {
 								</Select>
 							</div>
 
-							<div className="space-y-2">
-								<Label htmlFor="plan">Plan *</Label>
-								<Select name="plan" required defaultValue={merchant.plan ?? "FULL"}>
-									<SelectTrigger id="plan">
-										<SelectValue placeholder="Select plan" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="FULL">Tribe shop system + SokoReply</SelectItem>
-										<SelectItem value="SOKOREPLY">SokoReply only (online sellers)</SelectItem>
-									</SelectContent>
-								</Select>
-								<p className="text-xs text-muted-foreground">
-									SokoReply only hides POS, orders, inventory, customers, reports and finance.
-								</p>
-							</div>
+							<ModulePicker defaultValue={merchantModules(merchant)} />
 
 							<div className="space-y-2">
 								<Label htmlFor="location">Location *</Label>

@@ -4,7 +4,6 @@ import { Icon } from "@/components/icon";
 import { useLoginStateContext } from "@/pages/sys/login/providers/login-provider";
 import { useRouter } from "@/routes/hooks";
 import { useUserActions, useUserInfo } from "@/store/userStore";
-import { useIsSokoReplyOnly } from "@/utils/plan";
 import { Button } from "@/ui/button";
 import {
 	DropdownMenu,
@@ -13,6 +12,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/ui/dropdown-menu";
+import { hasAll, useModules } from "@/utils/plan";
 
 /** "ASANO" → "AS", "Mama Njeri Wines" → "MN". */
 function initials(name: string) {
@@ -41,7 +41,7 @@ function Avatar({ name, avatar, size }: { name: string; avatar: string; size: "s
 export default function AccountDropdown() {
 	const { replace } = useRouter();
 	const userInfo = useUserInfo();
-	const sokoReplyOnly = useIsSokoReplyOnly();
+	const fullTribe = hasAll(useModules());
 	const { clearUserInfoAndToken } = useUserActions();
 	const { backToLogin } = useLoginStateContext();
 	const { t } = useTranslation();
@@ -82,7 +82,7 @@ export default function AccountDropdown() {
 					</div>
 				</div>
 				<DropdownMenuSeparator />
-				{!sokoReplyOnly && (
+				{fullTribe && (
 					<DropdownMenuItem asChild>
 						<NavLink to="/features" className="flex items-center gap-2">
 							<Icon icon="lucide:help-circle" size={16} />
