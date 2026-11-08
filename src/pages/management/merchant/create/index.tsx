@@ -39,6 +39,7 @@ export default function CreateMerchantPage() {
 			location: formData.get("location") as string,
 			tillNumber: formData.get("tillNumber") as string,
 			businessType: formData.get("businessType") as string,
+			plan: ((formData.get("plan") as string) || "FULL") as "FULL" | "SOKOREPLY",
 			businessPhone: formData.get("businessPhone") as string, // ADDED REQUIRED FIELD
 		};
 
@@ -80,6 +81,22 @@ export default function CreateMerchantPage() {
 										<SelectItem value="SERVICES">Services</SelectItem>
 									</SelectContent>
 								</Select>
+							</div>
+
+							<div className="space-y-2">
+								<Label htmlFor="plan">Plan *</Label>
+								<Select name="plan" required defaultValue="FULL">
+									<SelectTrigger id="plan">
+										<SelectValue placeholder="Select plan" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="FULL">Tribe shop system + SokoReply</SelectItem>
+										<SelectItem value="SOKOREPLY">SokoReply only (online sellers)</SelectItem>
+									</SelectContent>
+								</Select>
+								<p className="text-xs text-muted-foreground">
+									SokoReply only hides POS, orders, inventory, customers, reports and finance.
+								</p>
 							</div>
 
 							<div className="space-y-2">

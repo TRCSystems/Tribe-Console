@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { ROLE_PERMISSIONS, ROUTE_PERMISSIONS } from "#/entity";
 import { useUserRole } from "@/store/userStore";
+import { isAllowedForSokoReply, SOKOREPLY_HOME, useIsSokoReplyOnly } from "@/utils/plan";
 
 interface RoleRouteGuardProps {
 	children: React.ReactNode;
@@ -12,8 +13,15 @@ export const RoleRouteGuard = ({ children }: RoleRouteGuardProps) => {
 	const userRole = useUserRole();
 	const navigate = useNavigate();
 	const location = useLocation();
+	const sokoReplyOnly = useIsSokoReplyOnly();
 
 	useEffect(() => {
+		// SokoReply-only merchants see SokoReply and their profile, nothing of the shop system
+		if (sokoReplyOnly && !location.pathname.startsWith("/auth") && !isAllowedForSokoReply(location.pathname)) {
+			navigate(SOKOREPLY_HOME, { replace: true });
+			return;
+		}
+
 		if (!userRole) return;
 
 		const currentPath = location.pathname;
@@ -56,7 +64,7 @@ export const RoleRouteGuard = ({ children }: RoleRouteGuardProps) => {
 				navigate("/welcome", { replace: true });
 			}
 		}
-	}, [userRole, location.pathname, navigate]);
+	}, [userRole, sokoReplyOnly, location.pathname, navigate]);
 
 	return <>{children}</>;
 };

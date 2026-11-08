@@ -21,6 +21,8 @@ export interface Merchant {
 	metaSyncEnabled?: boolean;
 	metaLastSyncAt?: string;
 	metaSyncError?: string;
+	/** FULL (shop system + SokoReply) or SOKOREPLY (SokoReply only). Missing means FULL. */
+	plan?: "FULL" | "SOKOREPLY" | null;
 }
 
 export interface CreateMerchantRequest {
@@ -29,6 +31,7 @@ export interface CreateMerchantRequest {
 	location: string;
 	tillNumber: string;
 	businessPhone: string;
+	plan?: "FULL" | "SOKOREPLY";
 }
 
 export interface ApiResponse<T = any> {

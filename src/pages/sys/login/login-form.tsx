@@ -16,6 +16,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/ui/input";
 import { cn } from "@/utils";
 import { decodeToken, getIsWholesalerFromToken } from "@/utils/jwt";
+import { planFromToken, SOKOREPLY_HOME } from "@/utils/plan";
 import { LoginStateEnum, useLoginStateContext } from "./providers/login-provider";
 
 export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRef<"form">) {
@@ -100,8 +101,9 @@ export function LoginForm({ className, ...props }: React.ComponentPropsWithoutRe
 				const storedToken = parsed.state?.userToken?.accessToken;
 
 				if (storedToken) {
-					console.log("✅ Login successful! Token stored. Redirecting to:", GLOBAL_CONFIG.defaultRoute);
-					navigate(GLOBAL_CONFIG.defaultRoute, { replace: true });
+					const home = planFromToken(accessToken) === "SOKOREPLY" ? SOKOREPLY_HOME : GLOBAL_CONFIG.defaultRoute;
+					console.log("✅ Login successful! Token stored. Redirecting to:", home);
+					navigate(home, { replace: true });
 					toast.success(t("sys.login.loginSuccessTitle"));
 				} else {
 					console.error("❌ Token not found in stored state. Parsed state:", parsed);

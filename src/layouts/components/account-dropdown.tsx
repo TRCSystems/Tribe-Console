@@ -4,6 +4,7 @@ import { Icon } from "@/components/icon";
 import { useLoginStateContext } from "@/pages/sys/login/providers/login-provider";
 import { useRouter } from "@/routes/hooks";
 import { useUserActions, useUserInfo } from "@/store/userStore";
+import { useIsSokoReplyOnly } from "@/utils/plan";
 import { Button } from "@/ui/button";
 import {
 	DropdownMenu,
@@ -40,6 +41,7 @@ function Avatar({ name, avatar, size }: { name: string; avatar: string; size: "s
 export default function AccountDropdown() {
 	const { replace } = useRouter();
 	const userInfo = useUserInfo();
+	const sokoReplyOnly = useIsSokoReplyOnly();
 	const { clearUserInfoAndToken } = useUserActions();
 	const { backToLogin } = useLoginStateContext();
 	const { t } = useTranslation();
@@ -80,12 +82,14 @@ export default function AccountDropdown() {
 					</div>
 				</div>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem asChild>
-					<NavLink to="/features" className="flex items-center gap-2">
-						<Icon icon="lucide:help-circle" size={16} />
-						What Tribe can do
-					</NavLink>
-				</DropdownMenuItem>
+				{!sokoReplyOnly && (
+					<DropdownMenuItem asChild>
+						<NavLink to="/features" className="flex items-center gap-2">
+							<Icon icon="lucide:help-circle" size={16} />
+							What Tribe can do
+						</NavLink>
+					</DropdownMenuItem>
+				)}
 				<DropdownMenuItem onClick={logout} className="flex items-center gap-2 text-destructive focus:text-destructive">
 					<Icon icon="lucide:log-out" size={16} />
 					{t("sys.login.logout")}

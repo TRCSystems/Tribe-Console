@@ -86,6 +86,16 @@ export interface CatalogueItem {
 	parentCode: string | null;
 }
 
+export interface NewCatalogueItem {
+	itemName: string;
+	unitPrice: number;
+	availableStock: number;
+	itemType: "GOOD" | "SERVICE";
+	colour?: string | null;
+	size?: string | null;
+	parentCode?: string | null;
+}
+
 export interface SocialPost {
 	postId: string;
 	platform: Platform;
@@ -238,11 +248,13 @@ const smmService = {
 	async catalogue(): Promise<CatalogueItem[]> {
 		return unwrap(await loyaltyApiClient.get({ url: "/smm/setup/catalogue" }));
 	},
-	async saveItem(
-		id: number,
-		changes: Partial<Pick<CatalogueItem, "itemType" | "colour" | "size" | "parentCode">>,
-	): Promise<CatalogueItem> {
+	/** Name, price and stock can only be changed here on the SokoReply-only plan (others use Inventory). */
+	async saveItem(id: number, changes: Partial<Omit<CatalogueItem, "id" | "itemCode">>): Promise<CatalogueItem> {
 		return unwrap(await loyaltyApiClient.put({ url: `/smm/setup/catalogue/${id}`, data: changes }));
+	},
+	/** SokoReply-only plan: add a product (each colour/size is its own row). */
+	async addItem(item: NewCatalogueItem): Promise<CatalogueItem> {
+		return unwrap(await loyaltyApiClient.post({ url: "/smm/setup/catalogue", data: item }));
 	},
 
 	// Step 8: tag products on Reels

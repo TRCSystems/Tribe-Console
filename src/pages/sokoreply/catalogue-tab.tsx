@@ -2,15 +2,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import { useMemo, useState } from "react";
-import smmService, { type CatalogueItem } from "@/api/services/smmService";
+import smmService, { type CatalogueItem, type NewCatalogueItem } from "@/api/services/smmService";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
 import { Input } from "@/ui/input";
+import { useIsSokoReplyOnly } from "@/utils/plan";
 
 export function CatalogueTab({ onNext }: { onNext: () => void }) {
 	const qc = useQueryClient();
 	const catalogue = useQuery({ queryKey: ["smm-catalogue"], queryFn: smmService.catalogue });
 	const [filter, setFilter] = useState("");
+	// SokoReply-only sellers keep their products here; shop-system merchants change names, prices and stock in Inventory
+	const ownsCatalogue = useIsSokoReplyOnly();
 
 	const save = useMutation({
 		mutationFn: ({ id, changes }: { id: number; changes: Partial<CatalogueItem> }) => smmService.saveItem(id, changes),
@@ -40,6 +43,7 @@ export function CatalogueTab({ onNext }: { onNext: () => void }) {
 				</CardDescription>
 			</CardHeader>
 			<CardContent className="flex flex-col gap-3">
+				{ownsCatalogue && <AddProduct />}
 				<Input
 					placeholder="Search products"
 					value={filter}
@@ -63,11 +67,41 @@ export function CatalogueTab({ onNext }: { onNext: () => void }) {
 							{rows.map((i) => (
 								<tr key={i.id} className="border-t">
 									<td className="p-2">
-										<div className="font-medium">{i.itemName}</div>
+										{ownsCatalogue ? (
+											<CellInput
+												wide
+												value={i.itemName}
+												onSave={(v) => v && save.mutate({ id: i.id, changes: { itemName: v } })}
+											/>
+										) : (
+											<div className="font-medium">{i.itemName}</div>
+										)}
 										<div className="text-xs text-muted-foreground">{i.itemCode}</div>
 									</td>
-									<td className="p-2">{i.unitPrice != null ? `KES ${i.unitPrice}` : "-"}</td>
-									<td className="p-2">{i.itemType === "SERVICE" ? "-" : i.availableStock}</td>
+									<td className="p-2">
+										{ownsCatalogue ? (
+											<CellInput
+												value={i.unitPrice != null ? String(i.unitPrice) : null}
+												onSave={(v) => v && save.mutate({ id: i.id, changes: { unitPrice: Number(v) } })}
+											/>
+										) : i.unitPrice != null ? (
+											`KES ${i.unitPrice}`
+										) : (
+											"-"
+										)}
+									</td>
+									<td className="p-2">
+										{i.itemType === "SERVICE" ? (
+											"-"
+										) : ownsCatalogue ? (
+											<CellInput
+												value={i.availableStock != null ? String(i.availableStock) : null}
+												onSave={(v) => v && save.mutate({ id: i.id, changes: { availableStock: Number(v) } })}
+											/>
+										) : (
+											i.availableStock
+										)}
+									</td>
 									<td className="p-2">
 										<select
 											className="h-8 rounded-md border bg-transparent px-1"
@@ -108,16 +142,120 @@ export function CatalogueTab({ onNext }: { onNext: () => void }) {
 }
 
 /** Saves when the field loses focus, only if it changed. */
-function CellInput({ value, onSave }: { value: string | null; onSave: (v: string | null) => void }) {
+function CellInput({
+	value,
+	onSave,
+	wide,
+}: {
+	value: string | null;
+	onSave: (v: string | null) => void;
+	wide?: boolean;
+}) {
 	const [v, setV] = useState(value ?? "");
 	return (
 		<Input
-			className="h-8 w-28"
+			className={`h-8 ${wide ? "w-48" : "w-28"}`}
 			value={v}
 			onChange={(e) => setV(e.target.value)}
 			onBlur={() => {
 				if ((value ?? "") !== v) onSave(v.trim() || null);
 			}}
 		/>
+	);
+}
+
+const EMPTY: NewCatalogueItem = {
+	itemName: "",
+	unitPrice: 0,
+	availableStock: 0,
+	itemType: "GOOD",
+	colour: "",
+	size: "",
+};
+
+/** SokoReply-only plan: add a product. A dress in three colours is three rows, one per colour. */
+function AddProduct() {
+	const qc = useQueryClient();
+	const [item, setItem] = useState<NewCatalogueItem>(EMPTY);
+	const [price, setPrice] = useState("");
+	const [stock, setStock] = useState("");
+	const add = useMutation({
+		mutationFn: smmService.addItem,
+		onSuccess: (saved) => {
+			qc.setQueryData<CatalogueItem[]>(["smm-catalogue"], (old) => [...(old ?? []), saved]);
+			message.success(`${saved.itemName} added`);
+			setItem(EMPTY);
+			setPrice("");
+			setStock("");
+		},
+		onError: (e: Error) => message.error(e.message),
+	});
+	const service = item.itemType === "SERVICE";
+	const ready = item.itemName.trim() !== "" && price.trim() !== "" && (service || stock.trim() !== "");
+
+	return (
+		<form
+			className="flex flex-wrap items-end gap-2 rounded-md border p-3"
+			onSubmit={(e) => {
+				e.preventDefault();
+				if (!ready) return;
+				add.mutate({
+					...item,
+					unitPrice: Number(price),
+					availableStock: service ? 0 : Number(stock),
+					colour: item.colour || null,
+					size: item.size || null,
+				});
+			}}
+		>
+			<Input
+				className="h-9 w-48"
+				placeholder="Product or service name"
+				value={item.itemName}
+				onChange={(e) => setItem({ ...item, itemName: e.target.value })}
+			/>
+			<Input
+				className="h-9 w-28"
+				placeholder="Price (KES)"
+				inputMode="decimal"
+				value={price}
+				onChange={(e) => setPrice(e.target.value)}
+			/>
+			<select
+				aria-label="Type"
+				className="h-9 rounded-md border bg-transparent px-2 text-sm"
+				value={item.itemType}
+				onChange={(e) => setItem({ ...item, itemType: e.target.value as "GOOD" | "SERVICE" })}
+			>
+				<option value="GOOD">Product</option>
+				<option value="SERVICE">Service</option>
+			</select>
+			{!service && (
+				<>
+					<Input
+						className="h-9 w-24"
+						placeholder="Stock"
+						inputMode="numeric"
+						value={stock}
+						onChange={(e) => setStock(e.target.value)}
+					/>
+					<Input
+						className="h-9 w-28"
+						placeholder="Colour"
+						value={item.colour ?? ""}
+						onChange={(e) => setItem({ ...item, colour: e.target.value })}
+					/>
+					<Input
+						className="h-9 w-20"
+						placeholder="Size"
+						value={item.size ?? ""}
+						onChange={(e) => setItem({ ...item, size: e.target.value })}
+					/>
+				</>
+			)}
+			<Button type="submit" disabled={!ready || add.isPending}>
+				Add
+			</Button>
+		</form>
 	);
 }
