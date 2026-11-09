@@ -12,8 +12,20 @@ const Page403 = lazy(() => import("@/pages/sys/error/Page403"));
 const Page404 = lazy(() => import("@/pages/sys/error/Page404"));
 const Page500 = lazy(() => import("@/pages/sys/error/Page500"));
 const ShopOrderPage = lazy(() => import("@/pages/shop-order"));
+const LegalPage = lazy(() => import("@/pages/legal"));
+
+/** Privacy, terms and data deletion: public, linked from Meta's app settings. */
+const legalRoutes: RouteObject[] = (["privacy", "terms", "data-deletion"] as const).map((kind) => ({
+	path: `/${kind}`,
+	element: (
+		<Suspense fallback={<LineLoading />}>
+			<LegalPage kind={kind} />
+		</Suspense>
+	),
+}));
 
 export const mainRoutes: RouteObject[] = [
+	...legalRoutes,
 	// Public shop order page, opened from an SMS/WhatsApp link (no login, own layout)
 	{
 		path: "/o/:token",
