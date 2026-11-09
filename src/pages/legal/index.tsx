@@ -7,7 +7,7 @@ import { Link } from "react-router";
 export const LEGAL = {
 	company: "ASANO GROUP LIMITED",
 	product: "Tribe",
-	email: "privacy@tribessystems.co.ke",
+	email: "musularonald17@gmail.com",
 	place: "Nairobi, Kenya",
 	updated: "9 November 2026",
 };
