@@ -58,10 +58,12 @@ const requestInterceptor = (config: InternalAxiosRequestConfig) => {
 	// Add header to prevent browser auth dialog
 	newConfig.headers["X-Requested-With"] = "XMLHttpRequest";
 
-	// The shop order page (/o/:token) is public: never send a portal login with it. A stale login left in
-	// the phone's browser used to make the backend answer with an empty response.
+	// The shop order page (/o/:token) and the SokoReply order page (/s/:token) are public: never send a portal
+	// login with them. A stale login left in the phone's browser used to make the backend answer with an empty
+	// response.
 	const isPublicShopOrder = /^\/?shop-order\//.test(config.url ?? "");
-	if (token && !isPublicShopOrder) {
+	const isPublicSokoReplyOrder = /^\/?smm\/order\//.test(config.url ?? "");
+	if (token && !isPublicShopOrder && !isPublicSokoReplyOrder) {
 		newConfig.headers.Authorization = `Bearer ${token}`;
 	}
 

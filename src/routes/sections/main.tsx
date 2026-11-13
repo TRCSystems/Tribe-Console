@@ -12,6 +12,7 @@ const Page403 = lazy(() => import("@/pages/sys/error/Page403"));
 const Page404 = lazy(() => import("@/pages/sys/error/Page404"));
 const Page500 = lazy(() => import("@/pages/sys/error/Page500"));
 const ShopOrderPage = lazy(() => import("@/pages/shop-order"));
+const SokoReplyOrderPage = lazy(() => import("@/pages/sokoreply-order"));
 const LegalPage = lazy(() => import("@/pages/legal"));
 
 /** Privacy, terms and data deletion: public, linked from Meta's app settings. */
@@ -32,6 +33,15 @@ export const mainRoutes: RouteObject[] = [
 		element: (
 			<Suspense fallback={<LineLoading />}>
 				<ShopOrderPage />
+			</Suspense>
+		),
+	},
+	// Public SokoReply order page, opened from a Facebook/Instagram comment reply (no login, own layout)
+	{
+		path: "/s/:token",
+		element: (
+			<Suspense fallback={<LineLoading />}>
+				<SokoReplyOrderPage />
 			</Suspense>
 		),
 	},
