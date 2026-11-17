@@ -82,104 +82,125 @@ export function DeployTab() {
 
 	return (
 		<div className="flex flex-col gap-4">
-			<Card>
-				<CardHeader>
-					<CardTitle>Choose a plan</CardTitle>
-					<CardDescription>
-						{sub?.active
-							? `You're on ${PLAN_LABELS[sub.plan]}, paid until ${sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : "—"}.`
-							: "Pick a plan and pay by M-Pesa to deploy your agents."}
-					</CardDescription>
-				</CardHeader>
-				<CardContent className="flex flex-col gap-4">
-					<div className="grid gap-3 md:grid-cols-3">
-						{(plans.data ?? []).map((plan) => (
-							<button
-								key={plan.plan}
-								type="button"
-								onClick={() => setSelectedPlan(plan.plan)}
-								className={`flex flex-col gap-2 rounded-md border p-3 text-left ${
-									selectedPlan === plan.plan ? "border-primary ring-1 ring-primary" : ""
-								}`}
-							>
-								<div className="flex items-center justify-between">
-									<span className="font-medium">{PLAN_LABELS[plan.plan]}</span>
-									{plan.recommended && <Badge variant="success">Recommended</Badge>}
-								</div>
-								<div className="text-2xl font-semibold">
-									KES {plan.priceKes}
-									<span className="text-sm font-normal text-muted-foreground">/mo</span>
-								</div>
-								<ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-									<li>
-										{plan.platformChoiceRequired
-											? "Facebook or Instagram (your choice)"
-											: `Facebook, Instagram & TikTok (${plan.maxPlatforms} platforms)`}
-									</li>
-									{plan.crossPlatformPosting && <li>✓ Post once, published everywhere</li>}
-									{plan.stockArrivalAlerts && <li>✓ Notify buyers when stock arrives</li>}
-									{plan.scamContactHiding && <li>✓ Hide your contact from scammers</li>}
-								</ul>
-							</button>
-						))}
-					</div>
-
-					{selectedPlan === "STARTER" && (
-						<div className="flex flex-col gap-2">
-							<Label>Which platform?</Label>
-							<RadioGroup
-								value={starterPlatform}
-								onValueChange={(v) => setStarterPlatform(v as Platform)}
-								className="flex gap-4"
-							>
-								{/* biome-ignore lint/a11y/noLabelWithoutControl: wraps a RadioGroupItem */}
-								<label className="flex items-center gap-2 text-sm">
-									<RadioGroupItem value="FACEBOOK" /> Facebook
-								</label>
-								{/* biome-ignore lint/a11y/noLabelWithoutControl: wraps a RadioGroupItem */}
-								<label className="flex items-center gap-2 text-sm">
-									<RadioGroupItem value="INSTAGRAM" /> Instagram
-								</label>
-							</RadioGroup>
-						</div>
-					)}
-
-					{selectedPlan && !sub?.active && (
-						<div className="flex flex-wrap items-end gap-2">
-							<div className="flex flex-col gap-1">
-								<Label htmlFor="billing-phone">M-Pesa number</Label>
-								<Input
-									id="billing-phone"
-									className="w-48"
-									placeholder="0712345678"
-									value={phoneNumber}
-									onChange={(e) => setPhoneNumber(e.target.value)}
-								/>
+			{sub?.active ? (
+				<Card>
+					<CardHeader>
+						<CardTitle>Your plan</CardTitle>
+						<CardDescription>
+							Billing is settled for this month — the plan picker comes back once this period ends.
+						</CardDescription>
+					</CardHeader>
+					<CardContent className="flex items-center justify-between gap-2 rounded-md border p-3">
+						<div>
+							<div className="flex items-center gap-2 font-medium">
+								{PLAN_LABELS[sub.plan]}
+								{sub.plan === "STARTER" && sub.starterPlatform && (
+									<Badge variant="outline">{sub.starterPlatform === "INSTAGRAM" ? "Instagram" : "Facebook"}</Badge>
+								)}
 							</div>
-							<Button
-								disabled={subscribe.isPending || !phoneNumber}
-								onClick={() =>
-									subscribe.mutate({
-										plan: selectedPlan,
-										platform: selectedPlan === "STARTER" ? starterPlatform : undefined,
-										phoneNumber,
-									})
-								}
-							>
-								Pay KES {plans.data?.find((pl) => pl.plan === selectedPlan)?.priceKes} with M-Pesa
-							</Button>
-							{pending && (
-								<div className="flex items-center gap-2">
-									<span className="text-xs text-muted-foreground">Waiting for M-Pesa confirmation…</span>
-									<Button variant="outline" disabled={confirm.isPending} onClick={() => confirm.mutate()}>
-										Check now
-									</Button>
-								</div>
-							)}
+							<div className="text-xs text-muted-foreground">
+								Paid until {sub.currentPeriodEnd ? new Date(sub.currentPeriodEnd).toLocaleDateString() : "—"}
+							</div>
 						</div>
-					)}
-				</CardContent>
-			</Card>
+						<Badge variant="success">Active</Badge>
+					</CardContent>
+				</Card>
+			) : (
+				<Card>
+					<CardHeader>
+						<CardTitle>Choose a plan</CardTitle>
+						<CardDescription>Pick a plan and pay by M-Pesa to deploy your agents.</CardDescription>
+					</CardHeader>
+					<CardContent className="flex flex-col gap-4">
+						<div className="grid gap-3 md:grid-cols-3">
+							{(plans.data ?? []).map((plan) => (
+								<button
+									key={plan.plan}
+									type="button"
+									onClick={() => setSelectedPlan(plan.plan)}
+									className={`flex flex-col gap-2 rounded-md border p-3 text-left ${
+										selectedPlan === plan.plan ? "border-primary ring-1 ring-primary" : ""
+									}`}
+								>
+									<div className="flex items-center justify-between">
+										<span className="font-medium">{PLAN_LABELS[plan.plan]}</span>
+										{plan.recommended && <Badge variant="success">Recommended</Badge>}
+									</div>
+									<div className="text-2xl font-semibold">
+										KES {plan.priceKes}
+										<span className="text-sm font-normal text-muted-foreground">/mo</span>
+									</div>
+									<ul className="flex flex-col gap-1 text-xs text-muted-foreground">
+										<li>
+											{plan.platformChoiceRequired
+												? "Facebook or Instagram (your choice)"
+												: `Facebook, Instagram & TikTok (${plan.maxPlatforms} platforms)`}
+										</li>
+										{plan.crossPlatformPosting && <li>✓ Post once, published everywhere</li>}
+										{plan.stockArrivalAlerts && <li>✓ Notify buyers when stock arrives</li>}
+										{plan.scamContactHiding && <li>✓ Hide your contact from scammers</li>}
+									</ul>
+								</button>
+							))}
+						</div>
+
+						{selectedPlan === "STARTER" && (
+							<div className="flex flex-col gap-2">
+								<Label>Which platform?</Label>
+								<RadioGroup
+									value={starterPlatform}
+									onValueChange={(v) => setStarterPlatform(v as Platform)}
+									className="flex gap-4"
+								>
+									{/* biome-ignore lint/a11y/noLabelWithoutControl: wraps a RadioGroupItem */}
+									<label className="flex items-center gap-2 text-sm">
+										<RadioGroupItem value="FACEBOOK" /> Facebook
+									</label>
+									{/* biome-ignore lint/a11y/noLabelWithoutControl: wraps a RadioGroupItem */}
+									<label className="flex items-center gap-2 text-sm">
+										<RadioGroupItem value="INSTAGRAM" /> Instagram
+									</label>
+								</RadioGroup>
+							</div>
+						)}
+
+						{selectedPlan && (
+							<div className="flex flex-wrap items-end gap-2">
+								<div className="flex flex-col gap-1">
+									<Label htmlFor="billing-phone">M-Pesa number</Label>
+									<Input
+										id="billing-phone"
+										className="w-48"
+										placeholder="0712345678"
+										value={phoneNumber}
+										onChange={(e) => setPhoneNumber(e.target.value)}
+									/>
+								</div>
+								<Button
+									disabled={subscribe.isPending || !phoneNumber}
+									onClick={() =>
+										subscribe.mutate({
+											plan: selectedPlan,
+											platform: selectedPlan === "STARTER" ? starterPlatform : undefined,
+											phoneNumber,
+										})
+									}
+								>
+									Pay KES {plans.data?.find((pl) => pl.plan === selectedPlan)?.priceKes} with M-Pesa
+								</Button>
+								{pending && (
+									<div className="flex items-center gap-2">
+										<span className="text-xs text-muted-foreground">Waiting for M-Pesa confirmation…</span>
+										<Button variant="outline" disabled={confirm.isPending} onClick={() => confirm.mutate()}>
+											Check now
+										</Button>
+									</div>
+								)}
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			)}
 
 			<Card>
 				<CardHeader>
