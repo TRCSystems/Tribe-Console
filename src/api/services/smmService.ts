@@ -195,6 +195,27 @@ export interface Paged<T> {
 	rows: T[];
 }
 
+export type SmmPlanName = "STARTER" | "GROWTH" | "PRO";
+
+export interface PlanInfo {
+	plan: SmmPlanName;
+	priceKes: number;
+	maxPlatforms: number;
+	platformChoiceRequired: boolean;
+	crossPlatformPosting: boolean;
+	stockArrivalAlerts: boolean;
+	scamContactHiding: boolean;
+	recommended: boolean;
+}
+
+export interface Subscription {
+	plan: SmmPlanName;
+	status: "PENDING_PAYMENT" | "ACTIVE" | "EXPIRED";
+	starterPlatform: Platform | null;
+	currentPeriodEnd: string | null;
+	active: boolean;
+}
+
 const smmService = {
 	// Connecting
 	async connectUrl(): Promise<string> {
@@ -290,6 +311,20 @@ const smmService = {
 	},
 	async leads(page = 0, filters: LeadFilters = {}): Promise<Paged<Lead>> {
 		return unwrap(await loyaltyApiClient.get({ url: "/smm/leads", params: { page, size: 50, ...filters } }));
+	},
+
+	// Deploy agents: billing
+	async plans(): Promise<PlanInfo[]> {
+		return unwrap(await loyaltyApiClient.get({ url: "/smm/billing/plans" }));
+	},
+	async billingStatus(): Promise<Subscription | null> {
+		return unwrap(await loyaltyApiClient.get({ url: "/smm/billing/status" }));
+	},
+	async subscribe(request: { plan: SmmPlanName; platform?: Platform; phoneNumber: string }): Promise<Subscription> {
+		return unwrap(await loyaltyApiClient.post({ url: "/smm/billing/subscribe", data: request }));
+	},
+	async confirmPayment(): Promise<{ data: Subscription; message: string }> {
+		return unwrapWithMessage(await loyaltyApiClient.post({ url: "/smm/billing/confirm" }));
 	},
 };
 

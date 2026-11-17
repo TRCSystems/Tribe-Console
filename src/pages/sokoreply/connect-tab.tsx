@@ -1,16 +1,14 @@
-// Step 1: connect Facebook & Instagram, and the shadow / live / pause switches
+// Step 1: connect Facebook & Instagram
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
 import smmService from "@/api/services/smmService";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
-import { Switch } from "@/ui/switch";
 
 export function ConnectTab({ onNext }: { onNext: () => void }) {
 	const qc = useQueryClient();
 	const accounts = useQuery({ queryKey: ["smm-accounts"], queryFn: smmService.accounts });
-	const profile = useQuery({ queryKey: ["smm-profile"], queryFn: smmService.profile });
 
 	const connect = useMutation({
 		mutationFn: smmService.connectUrl,
@@ -27,21 +25,8 @@ export function ConnectTab({ onNext }: { onNext: () => void }) {
 		},
 		onError: (e: Error) => message.error(e.message),
 	});
-	const mode = useMutation({
-		mutationFn: smmService.setMode,
-		onSuccess: (p) => {
-			qc.setQueryData(["smm-profile"], p);
-			message.success(
-				p.shadowMode
-					? "Shadow mode: replies are written and shown to you, not sent"
-					: "Live: the agents reply to buyers",
-			);
-		},
-		onError: (e: Error) => message.error(e.message),
-	});
 
 	const active = (accounts.data ?? []).filter((a) => a.status !== "DISCONNECTED");
-	const p = profile.data;
 
 	return (
 		<div className="grid gap-4 md:grid-cols-2">
@@ -102,35 +87,10 @@ export function ConnectTab({ onNext }: { onNext: () => void }) {
 					<CardDescription>
 						New shops start in shadow mode: the agents read every comment and write replies, and you see them here, but
 						nothing is sent. Protecting you starts on day one: comments with phone numbers and harmful comments are
-						hidden, and you get an urgent WhatsApp. Switch to live when you are happy with the replies.
+						hidden, and you get an urgent WhatsApp. Once your comments have come in, pick a plan and switch to live on
+						the "Deploy agents" tab.
 					</CardDescription>
 				</CardHeader>
-				<CardContent className="flex flex-col gap-4">
-					{p && (
-						<>
-							{/* biome-ignore lint/a11y/noLabelWithoutControl: wraps a Switch */}
-							<label className="flex items-center justify-between gap-2">
-								<span>
-									<span className="font-medium">Live</span>
-									<span className="block text-xs text-muted-foreground">
-										{p.shadowMode ? "Off: replies are logged for you to check" : "On: the agents answer buyers"}
-									</span>
-								</span>
-								<Switch checked={!p.shadowMode} onCheckedChange={(on) => mode.mutate({ shadowMode: !on })} />
-							</label>
-							{/* biome-ignore lint/a11y/noLabelWithoutControl: wraps a Switch */}
-							<label className="flex items-center justify-between gap-2">
-								<span>
-									<span className="font-medium">Pause</span>
-									<span className="block text-xs text-muted-foreground">
-										Stops replies (e.g. while you are away). Hiding numbers and harmful comments carries on.
-									</span>
-								</span>
-								<Switch checked={p.agentsPaused} onCheckedChange={(on) => mode.mutate({ agentsPaused: on })} />
-							</label>
-						</>
-					)}
-				</CardContent>
 			</Card>
 		</div>
 	);

@@ -47,7 +47,7 @@ const INTENTS: [string, string][] = [
 
 const ALL = "all";
 
-export function CommentsTab() {
+export function CommentsTab({ onNext }: { onNext: () => void }) {
 	const [commentFilters, setCommentFilters] = useState<CommentFilters>({});
 	const [leadFilters, setLeadFilters] = useState<LeadFilters>({});
 
@@ -76,6 +76,11 @@ export function CommentsTab() {
 
 	return (
 		<div className="flex flex-col gap-4">
+			<div className="flex justify-end">
+				<Button variant="outline" onClick={onNext}>
+					Next: deploy agents
+				</Button>
+			</div>
 			<Card>
 				<CardHeader>
 					<CardTitle>Waiting for you</CardTitle>

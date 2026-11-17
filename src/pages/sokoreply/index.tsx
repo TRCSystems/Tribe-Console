@@ -8,6 +8,7 @@ import { CatalogueTab } from "./catalogue-tab";
 import { CommentsTab } from "./comments-tab";
 import { ConnectTab } from "./connect-tab";
 import { DeliveryTab } from "./delivery-tab";
+import { DeployTab } from "./deploy-tab";
 import { ReelsTab } from "./reels-tab";
 import { ShopTab } from "./shop-tab";
 import { VoiceTab } from "./voice-tab";
@@ -20,6 +21,7 @@ const TABS = [
 	{ key: "reels", label: "5. Tag Reels" },
 	{ key: "voice", label: "6. Voice" },
 	{ key: "comments", label: "Comments & leads" },
+	{ key: "deploy", label: "7. Deploy agents" },
 ] as const;
 
 export default function SokoReplyPage() {
@@ -76,7 +78,10 @@ export default function SokoReplyPage() {
 					<VoiceTab onNext={() => setTab("comments")} />
 				</TabsContent>
 				<TabsContent value="comments">
-					<CommentsTab />
+					<CommentsTab onNext={() => setTab("deploy")} />
+				</TabsContent>
+				<TabsContent value="deploy">
+					<DeployTab />
 				</TabsContent>
 			</Tabs>
 		</div>
