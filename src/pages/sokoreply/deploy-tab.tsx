@@ -1,8 +1,8 @@
 // Step 7: pick a plan, pay by M-Pesa STK push, then switch the agents live
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { message } from "antd";
-import { useState } from "react";
-import smmService, { type Platform, type SmmPlanName } from "@/api/services/smmService";
+import { useEffect, useRef, useState } from "react";
+import smmService, { type Platform, type SmmPlanName, type Subscription } from "@/api/services/smmService";
 import { Badge } from "@/ui/badge";
 import { Button } from "@/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/ui/card";
@@ -27,7 +27,9 @@ export function DeployTab() {
 		mutationFn: smmService.subscribe,
 		onSuccess: (sub) => {
 			qc.setQueryData(["smm-billing-status"], sub);
-			message.success('STK push sent. Enter your M-Pesa PIN on your phone, then click "I\'ve paid".');
+			message.success(
+				"STK push sent. Enter your M-Pesa PIN on your phone — we'll activate your plan the moment it's confirmed.",
+			);
 		},
 		onError: (e: Error) => message.error(e.message),
 	});
@@ -56,6 +58,27 @@ export function DeployTab() {
 	const sub = subscription.data;
 	const p = profile.data;
 	const pending = sub?.status === "PENDING_PAYMENT";
+
+	// While a payment is pending, check M-Pesa every 3s so the plan activates the moment it's confirmed —
+	// no need for the seller to notice and click "I've paid" themselves.
+	const polling = useRef(false);
+	useEffect(() => {
+		if (!pending) return;
+		const id = setInterval(async () => {
+			if (polling.current) return;
+			polling.current = true;
+			try {
+				const { data } = await smmService.confirmPayment();
+				qc.setQueryData<Subscription>(["smm-billing-status"], data);
+				if (data.active) message.success("Payment confirmed — your plan is active.");
+			} catch {
+				// Nothing pending (already resolved) or a transient error — the next tick retries.
+			} finally {
+				polling.current = false;
+			}
+		}, 3000);
+		return () => clearInterval(id);
+	}, [pending, qc]);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -146,9 +169,12 @@ export function DeployTab() {
 								Pay KES {plans.data?.find((pl) => pl.plan === selectedPlan)?.priceKes} with M-Pesa
 							</Button>
 							{pending && (
-								<Button variant="outline" disabled={confirm.isPending} onClick={() => confirm.mutate()}>
-									I've paid
-								</Button>
+								<div className="flex items-center gap-2">
+									<span className="text-xs text-muted-foreground">Waiting for M-Pesa confirmation…</span>
+									<Button variant="outline" disabled={confirm.isPending} onClick={() => confirm.mutate()}>
+										Check now
+									</Button>
+								</div>
 							)}
 						</div>
 					)}
