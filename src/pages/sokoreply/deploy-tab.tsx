@@ -13,6 +13,41 @@ import { Switch } from "@/ui/switch";
 
 const PLAN_LABELS: Record<SmmPlanName, string> = { STARTER: "Starter", GROWTH: "Growth", PRO: "Pro" };
 
+const PLAN_COPY: Record<SmmPlanName, { tagline: string; bullets: string[] }> = {
+	STARTER: {
+		tagline: "Your social pages, working together.",
+		bullets: [
+			"Facebook",
+			"Post once, publish everywhere",
+			"AI agents monitor customer engagement",
+			"Respond to customer enquiries",
+			"Hide your customer contacts details from scammers",
+		],
+	},
+	GROWTH: {
+		tagline: "Turn engagement into buying opportunities.",
+		bullets: [
+			"Everything in Starter",
+			"Learn your brand's voice from previous conversations",
+			"Understand customer questions and buying intent",
+			"Notify buyers when stock arrives",
+			"Send qualified leads directly to you",
+			"WhatsApp image submission and post workflow",
+		],
+	},
+	PRO: {
+		tagline: "Your always-on social-commerce sales team.",
+		bullets: [
+			"Everything in Growth",
+			"Continuous learning from ongoing conversations",
+			"Advanced buyer-intent detection",
+			"Automated order handoff",
+			"Sales and engagement performance reports",
+			"Priority support and higher usage capacity",
+		],
+	},
+};
+
 export function DeployTab() {
 	const qc = useQueryClient();
 	const [selectedPlan, setSelectedPlan] = useState<SmmPlanName | null>(null);
@@ -124,21 +159,17 @@ export function DeployTab() {
 								>
 									<div className="flex items-center justify-between">
 										<span className="font-medium">{PLAN_LABELS[plan.plan]}</span>
-										{plan.recommended && <Badge variant="success">Recommended</Badge>}
+										{plan.recommended && <Badge variant="success">Popular</Badge>}
 									</div>
 									<div className="text-2xl font-semibold">
 										KES {plan.priceKes}
 										<span className="text-sm font-normal text-muted-foreground">/mo</span>
 									</div>
+									<p className="text-xs italic text-muted-foreground">{PLAN_COPY[plan.plan].tagline}</p>
 									<ul className="flex flex-col gap-1 text-xs text-muted-foreground">
-										<li>
-											{plan.platformChoiceRequired
-												? "Facebook or Instagram (your choice)"
-												: `Facebook, Instagram & TikTok (${plan.maxPlatforms} platforms)`}
-										</li>
-										{plan.crossPlatformPosting && <li>✓ Post once, published everywhere</li>}
-										{plan.stockArrivalAlerts && <li>✓ Notify buyers when stock arrives</li>}
-										{plan.scamContactHiding && <li>✓ Hide your contact from scammers</li>}
+										{PLAN_COPY[plan.plan].bullets.map((bullet) => (
+											<li key={bullet}>✓ {bullet}</li>
+										))}
 									</ul>
 								</button>
 							))}
