@@ -17,7 +17,6 @@ const PLAN_COPY: Record<SmmPlanName, { tagline: string; bullets: string[] }> = {
 	STARTER: {
 		tagline: "Your social pages, working together.",
 		bullets: [
-			"Facebook",
 			"Post once, publish everywhere",
 			"AI agents monitor customer engagement",
 			"Respond to customer enquiries",
@@ -166,6 +165,11 @@ export function DeployTab() {
 										<span className="text-sm font-normal text-muted-foreground">/mo</span>
 									</div>
 									<p className="text-xs italic text-muted-foreground">{PLAN_COPY[plan.plan].tagline}</p>
+									<p className="text-xs font-medium">
+										{plan.platformChoiceRequired
+											? "Facebook or Instagram (your choice)"
+											: `Facebook, Instagram & TikTok (${plan.maxPlatforms} platforms)`}
+									</p>
 									<ul className="flex flex-col gap-1 text-xs text-muted-foreground">
 										{PLAN_COPY[plan.plan].bullets.map((bullet) => (
 											<li key={bullet}>✓ {bullet}</li>
