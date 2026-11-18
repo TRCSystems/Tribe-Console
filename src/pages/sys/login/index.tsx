@@ -1,8 +1,9 @@
 //original author : Marcellas
 // src/pages/sys/login/index.tsx - UPDATED
-import { Navigate } from "react-router";
-import PlaceholderImg from "@/assets/images/background/loyalty.png";
-import Logo from "@/components/logo";
+import { ArrowLeft } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { Link, Navigate } from "react-router";
+import logo from "@/assets/logo.png";
 import SettingButton from "@/layouts/components/setting-button";
 import { useUserToken } from "@/store/userStore";
 import LoginForm from "./login-form";
@@ -11,8 +12,10 @@ import { LoginProvider } from "./providers/login-provider";
 import QrCodeFrom from "./qrcode-form";
 import RegisterForm from "./register-form";
 import ResetForm from "./reset-form";
+import "./auth.css";
 
 function LoginPage() {
+	const { t } = useTranslation();
 	const token = useUserToken();
 
 	if (token.accessToken) {
@@ -20,16 +23,33 @@ function LoginPage() {
 	}
 
 	return (
-		<div className="relative grid min-h-svh lg:grid-cols-2 bg-background">
-			<div className="flex flex-col gap-4 p-6 md:p-10">
-				<div className="flex justify-center gap-2 md:justify-start">
-					<div className="flex items-center gap-2 font-medium cursor-pointer">
-						<Logo size={28} />
-						<span>TRIBE</span>
-					</div>
+		<main className="tribe-auth">
+			<header className="tribe-auth__header">
+				<Link to="/welcome" className="tribe-auth__brand">
+					<img src={logo} alt="" />
+					<span>
+						TRIBE <small>CONSOLE</small>
+					</span>
+				</Link>
+				<div className="tribe-auth__navigation">
+					<Link to="/welcome">
+						<ArrowLeft size={16} aria-hidden="true" />
+						{t("sys.login.backToHome")}
+					</Link>
+					<SettingButton />
 				</div>
-				<div className="flex flex-1 items-center justify-center">
-					<div className="w-full max-w-xs">
+			</header>
+
+			<div className="tribe-auth__layout">
+				<aside className="tribe-auth__brand-panel">
+					<p>
+						{t("sys.login.salesHeadline")}
+						<span>{t("sys.login.retentionHeadline")}</span>
+					</p>
+				</aside>
+
+				<div className="tribe-auth__workspace">
+					<div className="tribe-auth__form">
 						<LoginProvider>
 							<LoginForm />
 							<MobileForm />
@@ -40,19 +60,7 @@ function LoginPage() {
 					</div>
 				</div>
 			</div>
-
-			<div className="relative hidden bg-background-paper lg:block">
-				<img
-					src={PlaceholderImg}
-					alt="placeholder img"
-					className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.5] dark:grayscale"
-				/>
-			</div>
-
-			<div className="absolute right-2 top-0 flex flex-row">
-				<SettingButton />
-			</div>
-		</div>
+		</main>
 	);
 }
 export default LoginPage;

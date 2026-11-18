@@ -78,7 +78,12 @@ export default function SettingButton() {
 	return (
 		<Sheet modal={false}>
 			<SheetTrigger asChild>
-				<Button variant="ghost" size="icon" className="rounded-full animate-slow-spin">
+				<Button
+					variant="ghost"
+					size="icon"
+					aria-label={t("sys.settings.title")}
+					className="rounded-full animate-slow-spin"
+				>
 					<Icon icon="local:ic-setting" size={24} />
 				</Button>
 			</SheetTrigger>

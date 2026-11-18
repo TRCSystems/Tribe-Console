@@ -12,7 +12,6 @@ import { Component } from "./utils";
  */
 export function getFrontendDashboardRoutes(): RouteObject[] {
 	const frontendDashboardRoutes: RouteObject[] = [
-		{ path: "welcome", element: Component("/pages/welcome") },
 		//	{ path: "workbench", element: Component("/pages/dashboard/workbench") },
 		//	{ path: "analysis", element: Component("/pages/dashboard/analysis") },
 		{

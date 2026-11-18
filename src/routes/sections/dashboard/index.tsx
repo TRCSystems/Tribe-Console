@@ -9,6 +9,7 @@ import DashboardLayout from "@/layouts/dashboard";
 import LoginAuthGuard from "@/routes/components/login-auth-guard";
 import { getBackendDashboardRoutes } from "./backend";
 import { getFrontendDashboardRoutes } from "./frontend";
+import { Component } from "./utils";
 
 const getRoutes = (): RouteObject[] => {
 	if (GLOBAL_CONFIG.routerMode === "frontend") {
@@ -18,12 +19,14 @@ const getRoutes = (): RouteObject[] => {
 };
 
 export const dashboardRoutes: RouteObject[] = [
+	{ index: true, element: <Navigate to="/welcome" replace /> },
+	{ path: "welcome", element: Component("/pages/welcome") },
 	{
 		element: (
 			<LoginAuthGuard>
 				<DashboardLayout />
 			</LoginAuthGuard>
 		),
-		children: [{ index: true, element: <Navigate to="/welcome" replace /> }, ...getRoutes()],
+		children: getRoutes().filter(({ path }) => path !== "welcome"),
 	},
 ];

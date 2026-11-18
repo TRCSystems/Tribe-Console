@@ -1,48 +1,35 @@
-import { useForm } from "react-hook-form";
+import { ArrowLeft, KeyRound } from "lucide-react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { Icon } from "@/components/icon";
-import { Form, FormField, FormItem, FormMessage } from "@/ui/form";
-import { ReturnButton } from "./components/ReturnButton";
 import { LoginStateEnum, useLoginStateContext } from "./providers/login-provider";
 
 function ResetForm() {
 	const { t } = useTranslation();
 	const { loginState, backToLogin } = useLoginStateContext();
-	const form = useForm();
+	const heading = useRef<HTMLHeadingElement>(null);
+	const isReset = loginState === LoginStateEnum.RESET_PASSWORD;
 
-	const onFinish = (values: any) => {
-		console.log("Received values of form: ", values);
-	};
+	useEffect(() => {
+		if (isReset) heading.current?.focus();
+	}, [isReset]);
 
-	if (loginState !== LoginStateEnum.RESET_PASSWORD) return null;
+	if (!isReset) return null;
 
 	return (
 		<>
-			<div className="mb-8 text-center">
-				<Icon icon="local:ic-reset-password" size="100" className="text-primary!" />
-			</div>
-			<Form {...form}>
-				<form onSubmit={form.handleSubmit(onFinish)} className="space-y-4">
-					<div className="flex flex-col items-center gap-2 text-center">
-						<h1 className="text-2xl font-bold">{t("sys.login.forgetFormTitle")}</h1>
-						<p className="text-balance text-sm text-muted-foreground">
-							Please reach out to the admin for guidance on how to retrieve your account @Musula
-						</p>
-					</div>
-
-					<FormField
-						control={form.control}
-						name="email"
-						render={({ field }) => (
-							<FormItem>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-
-					<ReturnButton onClick={backToLogin} />
-				</form>
-			</Form>
+			<header className="tribe-auth__form-heading">
+				<span className="tribe-auth__recovery-icon">
+					<KeyRound size={23} aria-hidden="true" />
+				</span>
+				<h1 ref={heading} tabIndex={-1}>
+					{t("sys.login.forgetFormTitle")}
+				</h1>
+				<p>{t("sys.login.recoveryInstructions")}</p>
+			</header>
+			<button type="button" className="tribe-auth__back" onClick={backToLogin}>
+				<ArrowLeft size={16} aria-hidden="true" />
+				{t("sys.login.backSignIn")}
+			</button>
 		</>
 	);
 }
