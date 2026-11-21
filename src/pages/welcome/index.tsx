@@ -5,13 +5,18 @@ import {
 	Check,
 	ChevronDown,
 	ClipboardList,
+	MessageCircleQuestion,
 	Play,
 	Sparkles,
+	Star,
 	Store,
+	ThumbsUp,
 	TrendingUp,
+	Users,
 } from "lucide-react";
 import { Link } from "react-router";
 import logo from "@/assets/logo.png";
+import heroPhoto from "./kenyan-portraits.jpg";
 import { Icon } from "@/components/icon";
 import { useUserToken } from "@/store/userStore";
 import "@fontsource-variable/plus-jakarta-sans";
@@ -248,61 +253,119 @@ export default function WelcomePage() {
 
 	return (
 		<main className="tribe-welcome">
-			<header className="tw-header">
-				<Link to="/welcome" className="tw-brand">
-					<img src={logo} alt="" />
-					<span>
-						TRIBE <small>CONSOLE</small>
-					</span>
-				</Link>
-				<nav aria-label="Sections" className="tw-nav">
-					{navLinks.map((l) => (
-						<a key={l.href} href={l.href}>
-							{l.label}
-						</a>
-					))}
-				</nav>
-				<Link className="tw-btn tw-btn--primary tw-btn--sm" to={primaryTo}>
-					{primaryLabel}
-				</Link>
-			</header>
-
-			<section className="tw-hero" aria-labelledby="welcome-title">
-				<div className="tw-hero__glow" aria-hidden="true" />
-				<h1 id="welcome-title">
-					Smart <span>Solutions</span> for Seamless
-					<br />
-					Social <span>Selling</span>
-				</h1>
-				<p>
-					Ring up sales, keep favourites in stock and answer customers from every social platform, all from one console
-					built for Kenyan shops.
-				</p>
-				<div className="tw-hero__actions">
-					<Link className="tw-btn tw-btn--primary" to={primaryTo}>
-						{accessToken ? "Open point of sale" : "Sign in to Tribe"} <ArrowRight size={16} aria-hidden="true" />
+			<div className="tw-frame">
+				<header className="tw-header">
+					<Link to="/welcome" className="tw-brand">
+						<img src={logo} alt="" />
+						<span>
+							TRIBE <small>CONSOLE</small>
+						</span>
 					</Link>
-					<a className="tw-btn tw-btn--ghost" href="#features">
-						<Play size={14} aria-hidden="true" /> See how it works
-					</a>
-				</div>
-				<div className="tw-hero__shot">
-					<DashboardMock />
-					<span className="tw-caption">Illustrative data</span>
-				</div>
-			</section>
+					<nav aria-label="Sections" className="tw-nav">
+						{navLinks.map((l, i) => (
+							<span key={l.href} style={{ display: "inline-flex", alignItems: "center", gap: 10 }}>
+								{i > 0 && <i aria-hidden="true">·</i>}
+								<a href={l.href}>{l.label}</a>
+							</span>
+						))}
+					</nav>
+					<div className="tw-header__actions">
+						{!accessToken && (
+							<Link className="tw-header__signin" to="/auth/login">
+								Log in
+							</Link>
+						)}
+						<Link className="tw-btn tw-btn--primary tw-btn--sm" to={primaryTo}>
+							{accessToken ? primaryLabel : "Get started — It's free"}
+						</Link>
+					</div>
+				</header>
 
-			<section id="platforms" className="tw-platforms" aria-label="Supported platforms">
-				<p>Meet customers wherever they already talk to you</p>
-				<ul>
-					{platforms.map((p) => (
-						<li key={p.name}>
-							<Icon icon={p.icon} size={22} aria-hidden="true" />
-							<span>{p.name}</span>
-						</li>
-					))}
-				</ul>
-			</section>
+				<section className="tw-hero" aria-labelledby="welcome-title">
+					<div className="tw-hero__copy">
+						<span className="tw-hero__stat">
+							<i>
+								<Users size={13} aria-hidden="true" />
+							</i>
+							<span>
+								<b>500+ Shops</b>
+								<a href="#faq">See Success Stories</a>
+							</span>
+						</span>
+						<h1 id="welcome-title">
+							Sell<span>+</span>
+						</h1>
+						<p>
+							Ring up sales, keep favourites in stock and answer customers from every social platform — all from one
+							console built for Kenyan shops.
+						</p>
+						<div className="tw-hero__actions">
+							<Link className="tw-btn tw-btn--primary" to={primaryTo}>
+								{accessToken ? "Open point of sale" : "Sign in to Tribe"} <ArrowRight size={16} aria-hidden="true" />
+							</Link>
+							<a className="tw-btn tw-btn--text" href="#plans">
+								Our plans <ArrowRight size={13} aria-hidden="true" />
+							</a>
+						</div>
+						<div className="tw-hero__proof">
+							<i aria-hidden="true">W</i>
+							<span>
+								<strong>Loved by shop owners</strong>
+								<Star size={11} aria-hidden="true" style={{ display: "inline", marginRight: 3 }} />
+								4.9 · 100% satisfied
+							</span>
+						</div>
+					</div>
+
+					<div className="tw-hero__shot">
+						<img src={heroPhoto} alt="" />
+						<span className="tw-hero__chip tw-hero__chip--a">
+							<i>
+								<Check size={11} aria-hidden="true" />
+							</i>
+							Got stock?
+						</span>
+						<span className="tw-hero__chip tw-hero__chip--b">
+							<i>
+								<MessageCircleQuestion size={11} aria-hidden="true" />
+							</i>
+							Do you deliver?
+						</span>
+						<button type="button" className="tw-hero__play" aria-label="Play demo">
+							<Play size={18} aria-hidden="true" />
+						</button>
+						<div className="tw-hero__badge-stat">
+							<small>Up to</small>
+							<strong>42%</strong>
+							<span>More sales this week</span>
+						</div>
+						<div className="tw-hero__product">
+							<span className="tw-hero__product-thumb" aria-hidden="true">
+								<Store size={18} aria-hidden="true" />
+							</span>
+							<div>
+								<strong>Kitenge dress</strong>
+								<b>KSh 3,200</b>
+								<em>
+									<ThumbsUp size={11} aria-hidden="true" /> 4.8
+								</em>
+							</div>
+						</div>
+					</div>
+				</section>
+
+				<section id="platforms" className="tw-platforms" aria-label="Supported platforms">
+					<p>Meet customers where they already are</p>
+					<ul>
+						{platforms.map((p) => (
+							<li key={p.name}>
+								<Icon icon={p.icon} size={20} aria-hidden="true" />
+								<span>{p.name}</span>
+							</li>
+						))}
+					</ul>
+				</section>
+			</div>
 
 			<section className="tw-quote" aria-label="What Tribe is about">
 				<span className="tw-quote__mark">

@@ -1,12 +1,13 @@
 .tribe-auth {
-	--auth-surface: #fff8f4;
-	--auth-input: #fffdfd;
-	--auth-ink: #241a26;
-	--auth-muted: #675764;
-	--auth-line: #ddccd6;
-	--auth-accent: #7b319f;
-	--auth-focus: #8d48ae;
-	--auth-error: #a32c44;
+	--auth-surface: #fcfbff;
+	--auth-input: #ffffff;
+	--auth-ink: #141019;
+	--auth-muted: #6b6578;
+	--auth-line: #ece8f5;
+	--auth-accent: #8b5cf6;
+	--auth-focus: #7c3aed;
+	--auth-error: #c62f4b;
+	--auth-gold: #f7c948;
 	min-height: 100svh;
 	display: flex;
 	flex-direction: column;
@@ -17,14 +18,15 @@
 }
 
 [data-theme-mode="dark"] .tribe-auth {
-	--auth-surface: #211923;
-	--auth-input: #2a202c;
-	--auth-ink: #fff4fa;
-	--auth-muted: #d9c6d6;
-	--auth-line: #604c61;
-	--auth-accent: #e6b6fa;
-	--auth-focus: #d9a0f2;
-	--auth-error: #ffb2bf;
+	--auth-surface: #121018;
+	--auth-input: #1b1823;
+	--auth-ink: #f8f6fd;
+	--auth-muted: #b9b2c9;
+	--auth-line: #352f42;
+	--auth-accent: #c4a6ff;
+	--auth-focus: #d4bbff;
+	--auth-error: #ff95a8;
+	--auth-gold: #f7c948;
 }
 
 .tribe-auth__header, .tribe-auth__layout {
@@ -79,9 +81,9 @@
 	overflow: hidden;
 	padding: clamp(30px, 5vw, 76px);
 	border-radius: 32px;
-	background: radial-gradient(ellipse at 100% 85%, #ad5949, transparent 68%),
-		radial-gradient(ellipse at 10% 100%, #754183, transparent 67%), #2d193c;
-	color: #fff7fa;
+	background: radial-gradient(ellipse at 100% 85%, #4c2e8a, transparent 68%),
+		radial-gradient(ellipse at 10% 100%, #7c3aed, transparent 67%), #17101f;
+	color: #fdf6ff;
 }
 
 .tribe-auth__brand-panel::after {
@@ -92,9 +94,9 @@
 	right: -11rem;
 	width: 32rem;
 	aspect-ratio: 1;
-	border: 1px solid #ffd9ed47;
+	border: 1px solid #f7c94847;
 	border-radius: 50%;
-	box-shadow: 0 0 0 2rem #ffd9ed11, 0 0 0 4rem #ffd9ed0d, 0 0 0 6rem #ffd9ed09;
+	box-shadow: 0 0 0 2rem #f7c94811, 0 0 0 4rem #f7c9480d, 0 0 0 6rem #f7c94809;
 	pointer-events: none;
 }
 
@@ -111,7 +113,7 @@
 .tribe-auth__brand-panel p span {
 	display: block;
 	margin-top: 4px;
-	color: #f6c2df;
+	color: #f7c948;
 }
 
 .tribe-auth__workspace {
@@ -198,9 +200,9 @@
 .tribe-auth__submit {
 	width: 100%;
 	height: 50px;
-	border-radius: 12px;
-	background: linear-gradient(110deg, #7731b7, #953779 65%, #a84236);
-	color: white;
+	border-radius: 999px;
+	background: linear-gradient(180deg, #ffd666, var(--auth-gold));
+	color: #231c08;
 	font-weight: 700;
 	cursor: pointer;
 }
